@@ -1,0 +1,197 @@
+/*
+ * Copyright 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+cc_library_headers {
+    name: "libneuralnetworks_common_headers",
+    host_supported: false,
+    export_include_dirs: ["include"],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_utils",
+    defaults: ["neuralnetworks_defaults"],
+    host_supported: false,
+    vendor_available: true,
+    export_include_dirs: ["include"],
+    srcs: [
+        "Utils.cpp",
+    ],
+    header_libs: [
+        "libneuralnetworks_headers",
+    ],
+    shared_libs: [
+        "libhidltransport",
+        "libhidlmemory",
+        "android.hardware.neuralnetworks@1.0",
+        "android.hardware.neuralnetworks@1.1",
+        "android.hardware.neuralnetworks@1.2",
+        "android.hidl.allocator@1.0",
+        "android.hidl.memory@1.0",
+    ],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common",
+    defaults: ["neuralnetworks_defaults"],
+    host_supported: false,
+    vendor_available: true,
+    // b/109953668, disable OpenMP
+    // openmp: true,
+    export_include_dirs: ["include"],
+
+    srcs: [
+        "CpuExecutor.cpp",
+        "GraphDump.cpp",
+        "IndexedShapeWrapper.cpp",
+        "OperationsUtils.cpp",
+        "Utils.cpp",
+        "ValidateHal.cpp",
+        "operations/Activation.cpp",
+        "operations/ArgMinMax.cpp",
+        "operations/Cast.cpp",
+        "operations/ChannelShuffle.cpp",
+        "operations/Concatenation.cpp",
+        "operations/Conv2D.cpp",
+        "operations/DepthwiseConv2D.cpp",
+        "operations/EmbeddingLookup.cpp",
+        "operations/ExpandDims.cpp",
+        "operations/FullyConnected.cpp",
+        "operations/Gather.cpp",
+        "operations/GenerateProposals.cpp",
+        "operations/GroupedConv2D.cpp",
+        "operations/HashtableLookup.cpp",
+        "operations/HeatmapMaxKeypoint.cpp",
+        "operations/LSHProjection.cpp",
+        "operations/LSTM.cpp",
+        "operations/MaximumMinimum.cpp",
+        "operations/Multinomial.cpp",
+        "operations/Normalization.cpp",
+        "operations/Pooling.cpp",
+        "operations/Pow.cpp",
+	"operations/TopK_V2.cpp",
+        "operations/QuantizedLSTM.cpp",
+        "operations/Reshape.cpp",
+        "operations/RNN.cpp",
+        "operations/RoiAlign.cpp",
+        "operations/SimpleMath.cpp",
+        "operations/Split.cpp",
+        "operations/StridedSlice.cpp",
+        "operations/SVDF.cpp",
+        "operations/Tile.cpp",
+        "operations/TransposeConv2D.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libhidlbase",
+        "libhidltransport",
+        "libhidlmemory",
+        "libtextclassifier_hash",
+        "liblog",
+        "libutils",
+        "android.hardware.neuralnetworks@1.0",
+        "android.hardware.neuralnetworks@1.1",
+        "android.hardware.neuralnetworks@1.2",
+        "android.hidl.allocator@1.0",
+        "android.hidl.memory@1.0",
+    ],
+    header_libs: [
+        "libneuralnetworks_headers",
+        "libtextclassifier_hash_headers",
+        "libeigen",
+        "gemmlowp_headers",
+        "philox_random_headers",
+        "tensorflow_headers",
+    ],
+    whole_static_libs: [
+        "libtflite_kernel_utils",
+        "philox_random",
+    ],
+
+    cflags: [
+        "-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash",
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+        "-Wno-extern-c-compat",
+        "-Wno-sign-compare",
+        "-Wno-unused-local-typedef",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+        "-Wno-invalid-partial-specialization",
+    ],
+
+}
+
+cc_test {
+    name: "NeuralNetworksTest_operations",
+    shared_libs: [
+        "libhidlmemory",
+        "libneuralnetworks",
+        "android.hardware.neuralnetworks@1.0",
+        "android.hardware.neuralnetworks@1.1",
+        "android.hardware.neuralnetworks@1.2",
+        "android.hidl.allocator@1.0",
+        "android.hidl.memory@1.0",
+    ],
+    static_libs: [
+        "libgmock",
+        "libneuralnetworks_common",
+    ],
+    cflags: [
+        "-Wno-extern-c-compat",
+        "-Wno-unused-parameter",
+        "-Wno-invalid-partial-specialization",
+    ],
+    srcs: [
+        "operations/*Test.cpp",
+    ],
+    local_include_dirs: [ "include" ],
+    header_libs: [
+        "libeigen",
+        "philox_random_headers",
+        "tensorflow_headers",
+    ],
+}
+
+cc_test {
+    name: "NeuralNetworksTest_utils",
+    shared_libs: [
+        "libhidlmemory",
+        "libneuralnetworks",
+        "android.hardware.neuralnetworks@1.0",
+        "android.hardware.neuralnetworks@1.1",
+        "android.hardware.neuralnetworks@1.2",
+        "android.hidl.allocator@1.0",
+        "android.hidl.memory@1.0",
+    ],
+    static_libs: [
+        "libbase",
+        "libgmock",
+        "liblog",
+        "libneuralnetworks_common",
+    ],
+    cflags: [
+        "-Wno-extern-c-compat",
+        "-Wno-unused-variable",
+    ],
+    srcs: [
+        "UtilsTest.cpp",
+    ],
+    local_include_dirs: [ "include" ],
+    header_libs: [
+        "tensorflow_headers",
+    ],
+}
