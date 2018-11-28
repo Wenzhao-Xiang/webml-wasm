@@ -36,12 +36,10 @@ namespace toco {
 //    slice_c = tf.matmul(slice_a, slice_b)
 //    result_slices[bat] = slice_c
 //  result = tf.stack(result_slices)
-::tensorflow::Status UnrollBatchMatMul::Run(Model* model, std::size_t op_index,
-                                            bool* modified) {
-  *modified = false;
+bool UnrollBatchMatMul::Run(Model* model, std::size_t op_index) {
   auto batch_op_it = model->operators.begin() + op_index;
   if (batch_op_it->get()->type != OperatorType::kBatchMatMul) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const auto* batch_op =
       static_cast<const BatchMatMulOperator*>(batch_op_it->get());
@@ -49,8 +47,7 @@ namespace toco {
   // We must have the shape of at least one input to know our batch size.
   const auto& input_array_a = model->GetArray(batch_op->inputs[0]);
   const auto& input_array_b = model->GetArray(batch_op->inputs[1]);
-  if (!input_array_a.has_shape() || !input_array_b.has_shape())
-    return ::tensorflow::Status::OK();
+  if (!input_array_a.has_shape() || !input_array_b.has_shape()) return false;
 
   // We only support the rank 3 case. If you are batching on rank > 3 you'll
   // have to figure that out.
@@ -69,8 +66,7 @@ namespace toco {
     batch_op_it = matmul_op_it + 1;
     CHECK_EQ(batch_op_it->get(), batch_op);
     model->operators.erase(batch_op_it);
-    *modified = true;
-    return ::tensorflow::Status::OK();
+    return true;
   }
   CHECK_EQ(input_array_a.shape().dimensions_count(), 3)
       << "Input arrays must have rank 3";
@@ -80,7 +76,7 @@ namespace toco {
   AddMessageF("Unrolling BatchMatMul %s %d times", LogName(*batch_op),
               batch_count);
   auto tail_it = batch_op_it;
-  std::vector<string> pack_inputs;
+  std::vector<string> stack_inputs;
   for (int batch = 0; batch < batch_count; ++batch) {
     std::string batch_name =
         std::string(batch_op->outputs[0]) + "_b" + std::to_string(batch);
@@ -150,16 +146,15 @@ namespace toco {
     tail_it = model->operators.emplace(tail_it, matmul_op) + 1;
 
     // Add to stack.
-    pack_inputs.push_back(matmul_op->outputs[0]);
+    stack_inputs.push_back(matmul_op->outputs[0]);
   }
 
-  // The pack that will join all the individual matmul results together.
-  auto* pack_op = new PackOperator;
-  pack_op->inputs = pack_inputs;
-  pack_op->outputs = {batch_op->outputs[0]};
-  pack_op->axis = 0;
-  pack_op->values_count = pack_inputs.size();
-  model->operators.emplace(tail_it, pack_op);
+  // The stack that will join all the individual matmul results together.
+  auto* stack_op = new StackOperator;
+  stack_op->inputs = stack_inputs;
+  stack_op->outputs = {batch_op->outputs[0]};
+  stack_op->axis = 0;
+  model->operators.emplace(tail_it, stack_op);
 
   // Remove the old batch matmul now that we've unrolled.
   batch_op_it = model->operators.begin();
@@ -171,8 +166,7 @@ namespace toco {
   CHECK(batch_op_it != model->operators.end());
   CHECK(batch_op_it->get() == batch_op);
   model->operators.erase(batch_op_it);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

@@ -15,17 +15,15 @@ limitations under the License.
 #ifndef TENSORFLOW_CORE_COMMON_RUNTIME_BASE_COLLECTIVE_EXECUTOR_H_
 #define TENSORFLOW_CORE_COMMON_RUNTIME_BASE_COLLECTIVE_EXECUTOR_H_
 
-#include <memory>
 #include <string>
-
 #include "tensorflow/core/common_runtime/buf_rendezvous.h"
 #include "tensorflow/core/framework/collective.h"
 #include "tensorflow/core/framework/device_attributes.pb.h"
 
 namespace tensorflow {
-class CollectiveImplementation;
+class Broadcaster;
 class DeviceMgr;
-class Device;
+class RingReducer;
 
 // Helper interface that aliases regular subfields of a Tensor as separate
 // Tensors for in-place update.
@@ -89,13 +87,11 @@ class BaseCollectiveExecutor : public CollectiveExecutor {
  public:
   BaseCollectiveExecutor(CollectiveExecutorMgrInterface* cem,
                          PerStepCollectiveRemoteAccess* remote_access,
-                         int64 step_id, const DeviceMgr* dev_mgr,
-                         const string* gpu_ring_order)
+                         int64 step_id, const DeviceMgr* dev_mgr)
       : CollectiveExecutor(cem),
         step_id_(step_id),
         dev_mgr_(dev_mgr),
-        remote_access_(remote_access),
-        gpu_ring_order_(gpu_ring_order) {}
+        remote_access_(remote_access) {}
 
   ~BaseCollectiveExecutor() override;
 
@@ -103,10 +99,6 @@ class BaseCollectiveExecutor : public CollectiveExecutor {
 
   void ExecuteAsync(OpKernelContext* ctx, const CollectiveParams& col_params,
                     const string& exec_key, StatusCallback done) override;
-
-  void CompleteParamsAsync(const string& device, CollectiveParams* cp,
-                           CancellationManager* cancel_mgr,
-                           StatusCallback done) override;
 
   PerStepCollectiveRemoteAccess* remote_access() override {
     return remote_access_.get();
@@ -139,11 +131,20 @@ class BaseCollectiveExecutor : public CollectiveExecutor {
   const int64 step_id_;
   const DeviceMgr* dev_mgr_;  // Not owned.
   std::unique_ptr<PerStepCollectiveRemoteAccess> remote_access_;
-  const string* gpu_ring_order_;  // Not owned.
 
  private:
-  Status CreateCollective(const CollectiveParams& col_params,
-                          CollectiveImplementationInterface** col_impl);
+  RingReducer* CreateReducer(OpKernelContext* ctx,
+                             OpKernelContext::Params* params,
+                             const CollectiveParams& col_params,
+                             const string& exec_key, int64 step_id,
+                             const Tensor* input, Tensor* output,
+                             string* error);
+
+  Broadcaster* CreateBroadcaster(OpKernelContext* ctx,
+                                 OpKernelContext::Params* params,
+                                 const CollectiveParams& col_params,
+                                 const string& exec_key, int64 step_id,
+                                 Tensor* output, string* error);
 };
 
 }  // namespace tensorflow

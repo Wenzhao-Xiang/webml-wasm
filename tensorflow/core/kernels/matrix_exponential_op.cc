@@ -49,7 +49,6 @@ class MatrixExponentialOp : public LinearAlgebraOp<Scalar> {
   TF_DISALLOW_COPY_AND_ASSIGN(MatrixExponentialOp);
 };
 
-// Deprecated kernels (2018/08/21).
 REGISTER_LINALG_OP("MatrixExponential", (MatrixExponentialOp<float>), float);
 REGISTER_LINALG_OP("MatrixExponential", (MatrixExponentialOp<double>), double);
 REGISTER_LINALG_OP("MatrixExponential", (MatrixExponentialOp<complex64>),

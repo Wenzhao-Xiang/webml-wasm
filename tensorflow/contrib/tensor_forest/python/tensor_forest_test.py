@@ -149,7 +149,7 @@ class TensorForestTest(test_util.TensorFlowTestCase):
     self.assertTrue(isinstance(probs, ops.Tensor))
     self.assertTrue(isinstance(paths, ops.Tensor))
     self.assertTrue(isinstance(var, ops.Tensor))
-    with self.cached_session():
+    with self.test_session():
       variables.global_variables_initializer().run()
       resources.initialize_resources(resources.shared_resources()).run()
       self.assertEquals(probs.eval().shape, (4, 2))

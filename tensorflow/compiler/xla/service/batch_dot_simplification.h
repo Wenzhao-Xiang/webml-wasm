@@ -25,10 +25,10 @@ namespace xla {
 // Normally these would live in the algebraic simplifier, but we want to run
 // this to fixpoint (this pass reaches fixed point in one execution) before we
 // run the DotDecomposer.
-class BatchDotSimplification : public HloModulePass {
+class BatchDotSimplification : public HloPassInterface {
  public:
   StatusOr<bool> Run(HloModule* module) override;
-  absl::string_view name() const override;
+  tensorflow::StringPiece name() const override;
 
  private:
   StatusOr<bool> ElideDegenerateBatchDimensionFromBatchDot(

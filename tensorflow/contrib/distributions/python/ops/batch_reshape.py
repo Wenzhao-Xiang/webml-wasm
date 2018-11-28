@@ -45,8 +45,7 @@ class BatchReshape(distribution_lib.Distribution):
   #### Examples
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   dtype = np.float32
   dims = 2
@@ -429,6 +428,5 @@ def validate_init_args_statically(distribution, batch_shape):
 
   if batch_shape_static.dims is not None:
     if any(
-        dim.value is not None and
-        dim.value < 1 for dim in batch_shape_static.dims):
+        dim.value is not None and dim.value < 1 for dim in batch_shape_static):
       raise ValueError("`batch_shape` elements must be >=-1.")

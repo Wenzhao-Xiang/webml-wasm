@@ -15,10 +15,10 @@ limitations under the License.
 
 #include "tensorflow/contrib/lite/string_util.h"
 
-#include <stdlib.h>
 #include <string.h>
 #include <vector>
-#include "tensorflow/contrib/lite/c/c_api_internal.h"
+#include "tensorflow/contrib/lite/context.h"
+#include "tensorflow/contrib/lite/interpreter.h"
 
 namespace tflite {
 namespace {
@@ -97,19 +97,13 @@ int DynamicBuffer::WriteToBuffer(char** buffer) {
 }
 
 void DynamicBuffer::WriteToTensor(TfLiteTensor* tensor) {
-  // Set tensor content pointer to tensor_buffer, and release original data.
-  auto dims = TfLiteIntArrayCreate(1);
-  dims->data[0] = offset_.size() - 1;  // Store number of strings.
-  WriteToTensor(tensor, dims);
-}
-
-void DynamicBuffer::WriteToTensor(TfLiteTensor* tensor,
-                                  TfLiteIntArray* new_shape) {
   char* tensor_buffer;
   int bytes = WriteToBuffer(&tensor_buffer);
 
   // Set tensor content pointer to tensor_buffer, and release original data.
-  TfLiteTensorReset(tensor->type, tensor->name, new_shape, tensor->params,
+  auto dims = TfLiteIntArrayCreate(1);
+  dims->data[0] = offset_.size() - 1;  // Store number of strings.
+  TfLiteTensorReset(tensor->type, tensor->name, dims, tensor->params,
                     tensor_buffer, bytes, kTfLiteDynamic, tensor->allocation,
                     tensor->is_variable, tensor);
 }

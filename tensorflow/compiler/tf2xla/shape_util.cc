@@ -41,14 +41,6 @@ Status XLAShapeToTensorShape(const xla::Shape& shape,
 // Convert a TensorShape into the equivalent XLA Shape proto.
 Status TensorShapeToXLAShape(DataType dtype, const TensorShape& tensor_shape,
                              xla::Shape* shape) {
-  xla::PrimitiveType type;
-  TF_RETURN_IF_ERROR(DataTypeToPrimitiveType(dtype, &type));
-  *shape = TensorShapeToXLAShape(type, tensor_shape);
-  return Status::OK();
-}
-
-xla::Shape TensorShapeToXLAShape(xla::PrimitiveType type,
-                                 const TensorShape& tensor_shape) {
   int rank = tensor_shape.dims();
   std::vector<int64> dimensions(rank);
   std::vector<int64> layout(rank);
@@ -58,7 +50,11 @@ xla::Shape TensorShapeToXLAShape(xla::PrimitiveType type,
   // XLA uses minor-to-major; Tensorflow uses major-to-minor.
   std::iota(layout.rbegin(), layout.rend(), 0);
 
-  return xla::ShapeUtil::MakeShapeWithLayout(type, dimensions, layout);
+  xla::PrimitiveType type;
+  TF_RETURN_IF_ERROR(DataTypeToPrimitiveType(dtype, &type));
+
+  *shape = xla::ShapeUtil::MakeShapeWithLayout(type, dimensions, layout);
+  return Status::OK();
 }
 
 }  // namespace tensorflow

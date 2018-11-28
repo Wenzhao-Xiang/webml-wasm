@@ -45,7 +45,7 @@ from tensorflow.python.training import saver as saver_lib
 class LocalVariableTest(test.TestCase):
 
   def test_local_variable(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEquals([], variables_lib.local_variables())
       value0 = 42
       variables_lib2.local_variable(value0)
@@ -58,7 +58,7 @@ class LocalVariableTest(test.TestCase):
       self.assertAllEqual(set([value0, value1]), set(sess.run(variables)))
 
   def testLocalVariableNameAndShape(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.local_variable([1, 1, 1, 1, 1], name='a')
         self.assertEquals(a.op.name, 'A/a')
@@ -66,21 +66,21 @@ class LocalVariableTest(test.TestCase):
         self.assertListEqual([a], variables_lib2.get_local_variables())
 
   def testLocalVariableNotInAllVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.local_variable(0)
         self.assertFalse(a in variables_lib.global_variables())
         self.assertTrue(a in variables_lib.local_variables())
 
   def testLocalVariableNotInVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.local_variable(0)
         self.assertFalse(a in variables_lib2.get_variables_to_restore())
         self.assertTrue(a in variables_lib.local_variables())
 
   def testGetVariablesDontReturnsTransients(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         variables_lib2.local_variable(0)
       with variable_scope.variable_scope('B'):
@@ -89,7 +89,7 @@ class LocalVariableTest(test.TestCase):
       self.assertEquals([], variables_lib2.get_variables('B'))
 
   def testGetLocalVariablesReturnsTransients(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.local_variable(0)
       with variable_scope.variable_scope('B'):
@@ -98,7 +98,7 @@ class LocalVariableTest(test.TestCase):
       self.assertEquals([b], variables_lib2.get_local_variables('B'))
 
   def testInitializedVariableValue(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       a = variables_lib2.local_variable([0, 0, 0, 0, 0], name='a')
       sess.run(variables_lib.local_variables_initializer())
       self.assertAllEqual(a.eval(), [0] * 5)
@@ -106,15 +106,14 @@ class LocalVariableTest(test.TestCase):
   def testResourceVariable(self):
     a = variables_lib2.local_variable(0)
     b = variables_lib2.local_variable(0, use_resource=True)
-    self.assertTrue(isinstance(a, variables_lib.Variable))
-    self.assertFalse(isinstance(a, resource_variable_ops.ResourceVariable))
-    self.assertTrue(isinstance(b, resource_variable_ops.ResourceVariable))
+    self.assertEqual(type(a), variables_lib.Variable)
+    self.assertEqual(type(b), resource_variable_ops.ResourceVariable)
 
 
 class GlobalVariableTest(test.TestCase):
 
   def test_global_variable(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEquals([], variables_lib.global_variables())
       value0 = 42
       variables_lib2.global_variable(value0)
@@ -129,7 +128,7 @@ class GlobalVariableTest(test.TestCase):
       self.assertAllEqual(set([value0, value1]), set(sess.run(variables)))
 
   def testVariableNameAndShape(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.global_variable([1, 1, 1, 1, 1], name='a')
         self.assertEquals(a.op.name, 'A/a')
@@ -137,21 +136,21 @@ class GlobalVariableTest(test.TestCase):
         self.assertListEqual([a], variables_lib.global_variables())
 
   def testGlobalVariableNotInLocalVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.global_variable(0)
         self.assertFalse(a in variables_lib.local_variables())
         self.assertTrue(a in variables_lib.global_variables())
 
   def testGlobalVariableInVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.global_variable(0)
         self.assertFalse(a in variables_lib.local_variables())
         self.assertTrue(a in variables_lib2.get_variables_to_restore())
 
   def testGetVariablesReturnsThem(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.global_variable(0)
       with variable_scope.variable_scope('B'):
@@ -160,7 +159,7 @@ class GlobalVariableTest(test.TestCase):
       self.assertEquals([b], variables_lib2.get_variables('B'))
 
   def testGetLocalVariablesDontReturnsThem(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         variables_lib2.global_variable(0)
       with variable_scope.variable_scope('B'):
@@ -169,7 +168,7 @@ class GlobalVariableTest(test.TestCase):
       self.assertEquals([], variables_lib2.get_local_variables('B'))
 
   def testInitializedVariableValue(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       a = variables_lib2.global_variable([0, 0, 0, 0, 0], name='a')
       sess.run(variables_lib.global_variables_initializer())
       self.assertAllEqual(a.eval(), [0] * 5)
@@ -177,9 +176,8 @@ class GlobalVariableTest(test.TestCase):
   def testResourceVariable(self):
     a = variables_lib2.global_variable(0)
     b = variables_lib2.global_variable(0, use_resource=True)
-    self.assertTrue(isinstance(a, variables_lib.Variable))
-    self.assertFalse(isinstance(a, resource_variable_ops.ResourceVariable))
-    self.assertTrue(isinstance(b, resource_variable_ops.ResourceVariable))
+    self.assertEqual(type(a), variables_lib.Variable)
+    self.assertEqual(type(b), resource_variable_ops.ResourceVariable)
 
 
 class GlobalStepTest(test.TestCase):
@@ -192,7 +190,7 @@ class GlobalStepTest(test.TestCase):
   def test_invalid_dtype(self):
     with ops.Graph().as_default() as g:
       self.assertEquals(None, variables_lib2.get_global_step())
-      variables_lib.VariableV1(
+      variables_lib.Variable(
           0.0,
           trainable=False,
           dtype=dtypes.float32,
@@ -205,7 +203,7 @@ class GlobalStepTest(test.TestCase):
   def test_invalid_shape(self):
     with ops.Graph().as_default() as g:
       self.assertEquals(None, variables_lib2.get_global_step())
-      variables_lib.VariableV1(
+      variables_lib.Variable(
           [0],
           trainable=False,
           dtype=dtypes.int32,
@@ -229,7 +227,7 @@ class GlobalStepTest(test.TestCase):
   def test_get_global_step(self):
     with ops.Graph().as_default() as g:
       self.assertEquals(None, variables_lib2.get_global_step())
-      variables_lib.VariableV1(
+      variables_lib.Variable(
           0,
           trainable=False,
           dtype=dtypes.int32,
@@ -249,7 +247,7 @@ class GlobalStepTest(test.TestCase):
 class VariablesTest(test.TestCase):
 
   def testCreateVariable(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         self.assertEquals(a.op.name, 'A/a')
@@ -259,7 +257,7 @@ class VariablesTest(test.TestCase):
         self.assertFalse(a in variables_lib.local_variables())
 
   def testGetVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -269,7 +267,7 @@ class VariablesTest(test.TestCase):
       self.assertEquals([b], variables_lib2.get_variables('B'))
 
   def testGetVariablesWithScope(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A') as var_scope:
         a = variables_lib2.variable('a', [5])
         b = variables_lib2.variable('b', [5])
@@ -277,7 +275,7 @@ class VariablesTest(test.TestCase):
           set([a, b]), set(variables_lib2.get_variables(var_scope)))
 
   def testGetVariablesSuffix(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
       with variable_scope.variable_scope('A'):
@@ -286,13 +284,13 @@ class VariablesTest(test.TestCase):
       self.assertEquals([b], variables_lib2.get_variables(suffix='b'))
 
   def testGetVariableWithSingleVar(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('parent'):
         a = variables_lib2.variable('child', [5])
       self.assertEquals(a, variables_lib2.get_unique_variable('parent/child'))
 
   def testGetVariableWithDistractors(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('parent'):
         a = variables_lib2.variable('child', [5])
         with variable_scope.variable_scope('child'):
@@ -302,13 +300,13 @@ class VariablesTest(test.TestCase):
 
   def testGetVariableThrowsExceptionWithNoMatch(self):
     var_name = 'cant_find_me'
-    with self.cached_session():
+    with self.test_session():
       with self.assertRaises(ValueError):
         variables_lib2.get_unique_variable(var_name)
 
   def testGetThrowsExceptionWithChildrenButNoMatch(self):
     var_name = 'parent/child'
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope(var_name):
         variables_lib2.variable('grandchild1', [7])
         variables_lib2.variable('grandchild2', [9])
@@ -316,7 +314,7 @@ class VariablesTest(test.TestCase):
         variables_lib2.get_unique_variable(var_name)
 
   def testGetVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -324,7 +322,7 @@ class VariablesTest(test.TestCase):
       self.assertEquals([a, b], variables_lib2.get_variables_to_restore())
 
   def testIncludeGetVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -333,7 +331,7 @@ class VariablesTest(test.TestCase):
       self.assertEquals([a], variables_lib2.get_variables_to_restore(['A']))
 
   def testExcludeGetVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -343,7 +341,7 @@ class VariablesTest(test.TestCase):
           [a], variables_lib2.get_variables_to_restore(exclude=['B']))
 
   def testWrongIncludeGetVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -352,7 +350,7 @@ class VariablesTest(test.TestCase):
       self.assertEquals([], variables_lib2.get_variables_to_restore(['a']))
 
   def testGetMixedVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         b = variables_lib2.variable('b', [5])
@@ -365,7 +363,7 @@ class VariablesTest(test.TestCase):
           variables_lib2.get_variables_to_restore(include=['A/a', 'B/c']))
 
   def testExcludeGetMixedVariablesToRestore(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         b = variables_lib2.variable('b', [5])
@@ -378,7 +376,7 @@ class VariablesTest(test.TestCase):
           variables_lib2.get_variables_to_restore(exclude=['A/a', 'B/c']))
 
   def testReuseVariable(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [])
       with variable_scope.variable_scope('A', reuse=True):
@@ -387,14 +385,14 @@ class VariablesTest(test.TestCase):
       self.assertListEqual([a], variables_lib2.get_variables())
 
   def testVariableWithRegularizer(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [], regularizer=nn_ops.l2_loss)
       loss = ops.get_collection(ops.GraphKeys.REGULARIZATION_LOSSES)[0]
       self.assertDeviceEqual(loss.device, a.device)
 
   def testVariableWithRegularizerColocate(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable(
             'a', [], device='gpu:0', regularizer=nn_ops.l2_loss)
@@ -402,7 +400,7 @@ class VariablesTest(test.TestCase):
       self.assertDeviceEqual(loss.device, a.device)
 
   def testVariableWithDevice(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [], device='cpu:0')
         b = variables_lib2.variable('b', [], device='cpu:1')
@@ -410,7 +408,7 @@ class VariablesTest(test.TestCase):
       self.assertDeviceEqual(b.device, 'cpu:1')
 
   def testVariableWithDeviceFromScope(self):
-    with self.cached_session():
+    with self.test_session():
       with ops.device('/cpu:0'):
         a = variables_lib2.variable('a', [])
         b = variables_lib2.variable('b', [], device='cpu:1')
@@ -428,7 +426,7 @@ class VariablesTest(test.TestCase):
         self.counter += 1
         return 'cpu:%d' % self.counter
 
-    with self.cached_session():
+    with self.test_session():
       with arg_scope([variables_lib2.variable], device=DevFn()):
         a = variables_lib2.variable('a', [])
         b = variables_lib2.variable('b', [])
@@ -453,7 +451,7 @@ class VariablesTest(test.TestCase):
       self.assertDeviceEqual(e.initial_value.device, 'cpu:99')
 
   def testVariableWithReplicaDeviceSetter(self):
-    with self.cached_session():
+    with self.test_session():
       with ops.device(device_setter.replica_device_setter(ps_tasks=2)):
         a = variables_lib2.variable('a', [])
         b = variables_lib2.variable('b', [])
@@ -570,7 +568,7 @@ class VariablesTest(test.TestCase):
 class ModelVariablesTest(test.TestCase):
 
   def testNameAndShape(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.model_variable('a', [5])
         self.assertEquals(a.op.name, 'A/a')
@@ -578,7 +576,7 @@ class ModelVariablesTest(test.TestCase):
         self.assertListEqual([a], variables_lib2.get_model_variables('A'))
 
   def testNotInLocalVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.model_variable('a', [5])
         self.assertTrue(a in variables_lib.global_variables())
@@ -586,7 +584,7 @@ class ModelVariablesTest(test.TestCase):
         self.assertFalse(a in variables_lib.local_variables())
 
   def testGetVariablesReturns(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.model_variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -595,7 +593,7 @@ class ModelVariablesTest(test.TestCase):
       self.assertEquals([b], variables_lib2.get_variables('B'))
 
   def testGetModelVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.model_variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -604,18 +602,18 @@ class ModelVariablesTest(test.TestCase):
       self.assertEquals([b], variables_lib2.get_model_variables('B'))
 
   def testGetTrainableVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         variables_lib2.local_variable([5])
-        a = variables_lib.VariableV1([5])
+        a = variables_lib.Variable([5])
       with variable_scope.variable_scope('B'):
         variables_lib2.local_variable([5])
-        b = variables_lib.VariableV1([5])
+        b = variables_lib.Variable([5])
       self.assertEquals([a], variables_lib2.get_trainable_variables('A'))
       self.assertEquals([b], variables_lib2.get_trainable_variables('B'))
 
   def testGetLocalVariables(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         _ = variables_lib2.model_variable('a', [5])
       with variable_scope.variable_scope('B'):
@@ -624,7 +622,7 @@ class ModelVariablesTest(test.TestCase):
       self.assertEquals([], variables_lib2.get_local_variables('B'))
 
   def testInitializedVariableValue(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       a = variables_lib2.model_variable(
           'a', [5], initializer=init_ops.ones_initializer())
       sess.run(variables_lib.global_variables_initializer())
@@ -670,14 +668,14 @@ class ModelVariablesTest(test.TestCase):
 class GetVariablesCollections(test.TestCase):
 
   def testVariableCollection(self):
-    with self.cached_session():
+    with self.test_session():
       a = variables_lib2.variable('a', [], collections='A')
       b = variables_lib2.variable('b', [], collections='B')
       self.assertEquals(a, ops.get_collection('A')[0])
       self.assertEquals(b, ops.get_collection('B')[0])
 
   def testVariableCollections(self):
-    with self.cached_session():
+    with self.test_session():
       a = variables_lib2.variable('a', [], collections=['A', 'C'])
       b = variables_lib2.variable('b', [], collections=['B', 'C'])
       self.assertEquals(a, ops.get_collection('A')[0])
@@ -685,14 +683,14 @@ class GetVariablesCollections(test.TestCase):
       self.assertListEqual([a, b], ops.get_collection('C'))
 
   def testVariableCollectionsWithArgScope(self):
-    with self.cached_session():
+    with self.test_session():
       with arg_scope([variables_lib2.variable], collections='A'):
         a = variables_lib2.variable('a', [])
         b = variables_lib2.variable('b', [])
       self.assertListEqual([a, b], ops.get_collection('A'))
 
   def testVariableCollectionsWithArgScopeNested(self):
-    with self.cached_session():
+    with self.test_session():
       with arg_scope([variables_lib2.variable], collections='A'):
         a = variables_lib2.variable('a', [])
         with arg_scope([variables_lib2.variable], collections='B'):
@@ -701,7 +699,7 @@ class GetVariablesCollections(test.TestCase):
       self.assertEquals(b, ops.get_collection('B')[0])
 
   def testVariableCollectionsWithArgScopeNonNested(self):
-    with self.cached_session():
+    with self.test_session():
       with arg_scope([variables_lib2.variable], collections='A'):
         a = variables_lib2.variable('a', [])
       with arg_scope([variables_lib2.variable], collections='B'):
@@ -711,7 +709,7 @@ class GetVariablesCollections(test.TestCase):
       self.assertListEqual([b], ops.get_collection('B'))
 
   def testVariableRestoreWithArgScopeNested(self):
-    with self.cached_session():
+    with self.test_session():
       a = variables_lib2.variable('a', [])
       with arg_scope(
           [variables_lib2.variable], trainable=False, collections=['A', 'B']):
@@ -726,7 +724,7 @@ class GetVariablesCollections(test.TestCase):
 class GetVariablesBySuffixTest(test.TestCase):
 
   def testGetVariableGivenNameScoped(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         b = variables_lib2.variable('b', [5])
@@ -734,7 +732,7 @@ class GetVariablesBySuffixTest(test.TestCase):
         self.assertEquals([b], variables_lib2.get_variables_by_suffix('b'))
 
   def testGetVariableWithScope(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         fooa = variables_lib2.variable('fooa', [5])
@@ -748,7 +746,7 @@ class GetVariablesBySuffixTest(test.TestCase):
       self.assertEquals([a, fooa], matched_variables)
 
   def testGetVariableWithoutScope(self):
-    with self.cached_session():
+    with self.test_session():
       a = variables_lib2.variable('a', [5])
       fooa = variables_lib2.variable('fooa', [5])
       b_a = variables_lib2.variable('B/a', [5])
@@ -761,7 +759,7 @@ class GetVariablesBySuffixTest(test.TestCase):
 class GetVariablesByNameTest(test.TestCase):
 
   def testGetVariableGivenNameScoped(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         b = variables_lib2.variable('b', [5])
@@ -769,7 +767,7 @@ class GetVariablesByNameTest(test.TestCase):
         self.assertEquals([b], variables_lib2.get_variables_by_name('b'))
 
   def testGetVariableWithScope(self):
-    with self.cached_session():
+    with self.test_session():
       with variable_scope.variable_scope('A'):
         a = variables_lib2.variable('a', [5])
         fooa = variables_lib2.variable('fooa', [5])
@@ -785,7 +783,7 @@ class GetVariablesByNameTest(test.TestCase):
       self.assertEquals([a], matched_variables)
 
   def testGetVariableWithoutScope(self):
-    with self.cached_session():
+    with self.test_session():
       a = variables_lib2.variable('a', [5])
       fooa = variables_lib2.variable('fooa', [5])
       b_a = variables_lib2.variable('B/a', [5])
@@ -818,7 +816,7 @@ class AssignFromValuesTest(test.TestCase):
     init_value0 = np.asarray([1.0, 3.0, 9.0]).reshape((1, 3, 1))
     init_value1 = np.asarray([2.0, 4.0, 6.0, 8.0]).reshape((2, 1, 2))
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       initializer = init_ops.truncated_normal_initializer(stddev=.1)
       var0 = variables_lib2.variable(
           'my_var0', shape=[1, 3, 1], initializer=initializer)
@@ -844,7 +842,7 @@ class AssignFromValuesTest(test.TestCase):
     init_value0 = np.asarray([1.0, 3.0, 9.0]).reshape((1, 3, 1))
     init_value1 = np.asarray([2.0, 4.0, 6.0, 8.0]).reshape((2, 1, 2))
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       initializer = init_ops.truncated_normal_initializer(stddev=.1)
 
       with variable_scope.variable_scope('my_model/my_layer0'):
@@ -879,7 +877,7 @@ class AssignFromValuesFnTest(test.TestCase):
     init_value0 = np.asarray([1.0, 3.0, 9.0]).reshape((1, 3, 1))
     init_value1 = np.asarray([2.0, 4.0, 6.0, 8.0]).reshape((2, 1, 2))
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       initializer = init_ops.truncated_normal_initializer(stddev=.1)
       var0 = variables_lib2.variable(
           'my_var0', shape=[1, 3, 1], initializer=initializer)
@@ -904,7 +902,7 @@ class AssignFromValuesFnTest(test.TestCase):
     init_value0 = np.asarray([1.0, 3.0, 9.0]).reshape((1, 3, 1))
     init_value1 = np.asarray([2.0, 4.0, 6.0, 8.0]).reshape((2, 1, 2))
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       initializer = init_ops.truncated_normal_initializer(stddev=.1)
 
       with variable_scope.variable_scope('my_model/my_layer0'):
@@ -953,7 +951,7 @@ class AssignFromCheckpointTest(test.TestCase):
       # Create a set of variables to save in the checkpoint.
       for var_name in var_names_to_values:
         var_value = var_names_to_values[var_name]
-        var_list.append(variables_lib.VariableV1(var_value, name=var_name))
+        var_list.append(variables_lib.Variable(var_value, name=var_name))
       saver = saver_lib.Saver(var_list)
       init_op = variables_lib.variables_initializer(var_list)
       sess.run(init_op)
@@ -968,7 +966,7 @@ class AssignFromCheckpointTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[])
@@ -998,7 +996,7 @@ class AssignFromCheckpointTest(test.TestCase):
     init_value1 = np.array([20.0])  # Partitioned into 1 part, edge case.
     var_names_to_values = {'var0': init_value0, 'var1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       # var0 and var1 are PartitionedVariables.
@@ -1039,7 +1037,7 @@ class AssignFromCheckpointTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session():
+    with self.test_session():
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[])
@@ -1062,7 +1060,7 @@ class AssignFromCheckpointTest(test.TestCase):
 
     var_names_to_values = {'layer0/v0': init_value0, 'layer1/v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       with variable_scope.variable_scope('my_model/my_layer0'):
@@ -1106,7 +1104,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
       # Create a set of variables to save in the checkpoint.
       for var_name in var_names_to_values:
         var_value = var_names_to_values[var_name]
-        var_list.append(variables_lib.VariableV1(var_value, name=var_name))
+        var_list.append(variables_lib.Variable(var_value, name=var_name))
       saver = saver_lib.Saver(var_list)
       init_op = variables_lib.variables_initializer(var_list)
       sess.run(init_op)
@@ -1123,7 +1121,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[])
@@ -1154,7 +1152,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[2, 1])
@@ -1183,7 +1181,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[2, 1])
@@ -1213,7 +1211,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[])
@@ -1241,7 +1239,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('v0', shape=[])
@@ -1272,7 +1270,7 @@ class AssignFromCheckpointFnTest(test.TestCase):
     init_value1 = 20.0
     var_names_to_values = {'v0': init_value0, 'v1': init_value1}
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       model_path = self.create_checkpoint_from_values(var_names_to_values,
                                                       model_dir)
       var0 = variables_lib2.variable('my_var0', shape=[])
@@ -1297,9 +1295,9 @@ class AssignFromCheckpointFnTest(test.TestCase):
 class ZeroInitializerOpTest(test.TestCase):
 
   def _testZeroInitializer(self, shape, initializer, use_init):
-    var = variables_lib.VariableV1(initializer)
+    var = variables_lib.Variable(initializer)
     var_zero = variables_lib2.zero_initializer(var)
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       with self.assertRaisesOpError('Attempting to use uninitialized value'):
         var.eval()
       if use_init:
@@ -1324,7 +1322,7 @@ class ZeroVarInitializerOpTest(test.TestCase):
     var = resource_variable_ops.ResourceVariable(initializer)
     var_zero = variables_lib2.zero_initializer(var)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       with self.assertRaisesOpError('Error while reading resource variable'):
         var.eval()
       if use_init:
@@ -1350,12 +1348,12 @@ class FilterVariablesTest(test.TestCase):
     g = ops.Graph()
     with g.as_default():
       var_list = []
-      var_list.append(variables_lib.VariableV1(0, name='conv1/weights'))
-      var_list.append(variables_lib.VariableV1(0, name='conv1/biases'))
-      var_list.append(variables_lib.VariableV1(0, name='conv2/weights'))
-      var_list.append(variables_lib.VariableV1(0, name='conv2/biases'))
-      var_list.append(variables_lib.VariableV1(0, name='clfs/weights'))
-      var_list.append(variables_lib.VariableV1(0, name='clfs/biases'))
+      var_list.append(variables_lib.Variable(0, name='conv1/weights'))
+      var_list.append(variables_lib.Variable(0, name='conv1/biases'))
+      var_list.append(variables_lib.Variable(0, name='conv2/weights'))
+      var_list.append(variables_lib.Variable(0, name='conv2/biases'))
+      var_list.append(variables_lib.Variable(0, name='clfs/weights'))
+      var_list.append(variables_lib.Variable(0, name='clfs/biases'))
       self._var_list = var_list
 
   def _test_filter_variables(self,

@@ -21,6 +21,7 @@ import numpy as np
 
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import random_seed
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops.linalg import linalg as linalg_lib
 from tensorflow.python.ops.linalg import linear_operator_kronecker as kronecker
@@ -29,6 +30,7 @@ from tensorflow.python.ops.linalg import linear_operator_util
 from tensorflow.python.platform import test
 
 linalg = linalg_lib
+random_seed.set_random_seed(23)
 rng = np.random.RandomState(0)
 
 
@@ -68,7 +70,7 @@ class KroneckerDenseTest(test.TestCase):
         [10., 15., -2., -3.],
         [5., 10., -1., -2.]], dtype=dtypes.float32)
 
-    with self.cached_session():
+    with self.test_session():
       self.assertAllClose(_kronecker_dense([x, y]).eval(), z.eval())
       self.assertAllClose(_kronecker_dense([y, x]).eval(), w.eval())
 

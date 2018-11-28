@@ -23,7 +23,6 @@ import numpy as np
 
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.client import session
-from tensorflow.python.data.kernel_tests import test_base
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.util import nest
 from tensorflow.python.framework import dtypes
@@ -37,7 +36,7 @@ from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.platform import test
 
 
-class DatasetConstructorTest(test_base.DatasetTestBase):
+class DatasetConstructorTest(test.TestCase):
 
   def testFromTensors(self):
     """Test a dataset that represents a single tuple of tensors."""
@@ -51,13 +50,18 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
     self.assertEqual([c.shape for c in components],
                      [t.shape for t in get_next])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       results = sess.run(get_next)
       for component, result_component in zip(components, results):
         self.assertAllEqual(component, result_component)
       with self.assertRaises(errors.OutOfRangeError):
         sess.run(get_next)
+
+  def assertSparseValuesEqual(self, a, b):
+    self.assertAllEqual(a.indices, b.indices)
+    self.assertAllEqual(a.values, b.values)
+    self.assertAllEqual(a.dense_shape, b.dense_shape)
 
   def testFromTensorsSparse(self):
     """Test a dataset that represents a single tuple of tensors."""
@@ -80,7 +84,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
         [tensor_shape.TensorShape(c.dense_shape) for c in components],
         [shape for shape in iterator.output_shapes])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       results = sess.run(get_next)
       for component, result_component in zip(components, results):
@@ -111,7 +115,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
         if sparse_tensor.is_sparse(c) else c.shape for c in components
     ], [shape for shape in iterator.output_shapes])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       results = sess.run(get_next)
       for component, result_component in zip(components, results):
@@ -138,7 +142,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
     self.assertEqual([c.shape[1:] for c in components],
                      [t.shape for t in get_next])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       for i in range(4):
         results = sess.run(get_next)
@@ -168,7 +172,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
         [tensor_shape.TensorShape(c.dense_shape[1:]) for c in components],
         [shape for shape in iterator.output_shapes])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       expected = [
           (sparse_tensor.SparseTensorValue(
@@ -228,7 +232,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
         if sparse_tensor.is_sparse(c) else c.shape[1:] for c in components
     ], [shape for shape in iterator.output_shapes])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       expected = [
           (sparse_tensor.SparseTensorValue(
@@ -279,7 +283,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
     self.assertEqual((), iterator.output_shapes["foo"])
     self.assertEqual((1,), iterator.output_shapes["bar"])
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       for i in range(3):
         results = sess.run(get_next)
@@ -296,7 +300,7 @@ class DatasetConstructorTest(test_base.DatasetTestBase):
     init_op = iterator.initializer
     get_next = sparse_tensor.SparseTensor(*iterator.get_next())
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       slices = [[1., 2., 3.], [1.], [1.], [1., 2.], [], [1., 2.], [], [], []]
 
       # Test with sparse tensor in the appropriate order.

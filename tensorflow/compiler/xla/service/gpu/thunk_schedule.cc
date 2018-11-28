@@ -144,15 +144,16 @@ const std::list<const Thunk*>& ThunkSchedule::DependsOn(
 string ThunkSchedule::ToString() const {
   string result = "Total order:\n";
   for (Thunk* thunk : thunk_total_order_) {
-    absl::StrAppend(&result, "\t", thunk->hlo_instruction()->ToString(), "\n");
+    tensorflow::strings::StrAppend(&result, "\t",
+                                   thunk->hlo_instruction()->ToString(), "\n");
   }
-  absl::StrAppend(&result, "Dependencies:\n");
+  tensorflow::strings::StrAppend(&result, "Dependencies:\n");
   for (const auto& entry : depends_on_) {
     const Thunk* dependent = entry.first;
     for (const Thunk* dependency : entry.second) {
-      absl::StrAppend(&result, "\t", dependent->hlo_instruction()->name(),
-                      " depends on ", dependency->hlo_instruction()->name(),
-                      "\n");
+      tensorflow::strings::StrAppend(
+          &result, "\t", dependent->hlo_instruction()->name(), " depends on ",
+          dependency->hlo_instruction()->name(), "\n");
     }
   }
   return result;

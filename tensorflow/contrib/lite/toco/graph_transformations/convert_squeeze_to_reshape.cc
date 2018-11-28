@@ -30,13 +30,10 @@ namespace toco {
 // means that the data layout will never change with this op, just the shape.
 // By converting these to reshapes once we have run shape propagation we allow
 // standard reshape optimization transforms to do their magic.
-::tensorflow::Status ConvertSqueezeToReshape::Run(Model* model,
-                                                  std::size_t op_index,
-                                                  bool* modified) {
-  *modified = false;
+bool ConvertSqueezeToReshape::Run(Model* model, std::size_t op_index) {
   auto squeeze_it = model->operators.begin() + op_index;
   if (squeeze_it->get()->type != OperatorType::kSqueeze) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto squeeze_op = static_cast<SqueezeOperator*>(squeeze_it->get());
   CHECK_EQ(squeeze_op->inputs.size(), 1);
@@ -45,16 +42,16 @@ namespace toco {
   const auto& input_array = model->GetArray(squeeze_op->inputs[0]);
   if (!input_array.has_shape()) {
     // Yield until input dims have been resolved.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (input_array.shape().dimensions_count() == 0) {
     // Input array cannot be 0-D.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (!model->HasArray(squeeze_op->outputs[0]) ||
       !model->GetArray(squeeze_op->outputs[0]).has_shape()) {
     // Yield until shape propagation has set the output shape for us.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // We use the output shape that has been calculated by shape propagation.
@@ -62,7 +59,7 @@ namespace toco {
 
   // Empty shapes will not work as empty data arrays.
   if (output_shape.dimensions_count() == 0) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   auto* reshape_op = new TensorFlowReshapeOperator;
@@ -82,8 +79,7 @@ namespace toco {
   CHECK_EQ(squeeze_it->get(), squeeze_op);
   model->operators.erase(squeeze_it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

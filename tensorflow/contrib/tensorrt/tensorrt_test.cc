@@ -13,9 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/common_runtime/gpu/gpu_init.h"
 #include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/stream_executor.h"
 #include "tensorflow/core/platform/test.h"
 
 #if GOOGLE_CUDA
@@ -132,13 +130,6 @@ void Execute(nvinfer1::IExecutionContext* context, const float* input,
 }
 
 TEST(TensorrtTest, BasicFunctions) {
-  // Handle the case where the test is run on machine with no gpu available.
-  if (CHECK_NOTNULL(GPUMachineManager())->VisibleDeviceCount() <= 0) {
-    LOG(WARNING) << "No gpu device available, probably not being run on a gpu "
-                    "machine. Skipping...";
-    return;
-  }
-
   // Create the network model.
   nvinfer1::IHostMemory* model = CreateNetwork();
   // Use the model to create an engine and then an execution context.

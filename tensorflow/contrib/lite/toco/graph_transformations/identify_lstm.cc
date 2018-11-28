@@ -132,9 +132,7 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
 
 }  // namespace
 
-::tensorflow::Status IdentifyLstmCell::Run(Model* model, std::size_t op_index,
-                                           bool* modified) {
-  *modified = false;
+bool IdentifyLstmCell::Run(Model* model, std::size_t op_index) {
   // This LSTM cell identification method is not invariant to commutation of
   // commutative operator inputs. For example, if input[0] and input[1] of the
   // final output multiplication were swapped, this method would not identify it
@@ -145,13 +143,13 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
   auto op_it = model->operators.begin() + op_index;
   Operator* final_output_mul = op_it->get();
   if (final_output_mul->type != OperatorType::kMul) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   Operator *state_output_tanh, *fc_output_sig;
   if (!MatchOperatorInputs(*final_output_mul, *model, OperatorType::kTanh,
                            &state_output_tanh, OperatorType::kLogistic,
                            &fc_output_sig)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // State output TanH
@@ -160,7 +158,7 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
   Operator* state_combine_add;
   if (!MatchOperatorInputs(*state_output_tanh, *model, OperatorType::kAdd,
                            &state_combine_add)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // State forget & remember addition
@@ -168,7 +166,7 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
   if (!MatchOperatorInputs(*state_combine_add, *model, OperatorType::kMul,
                            &state_forget_mul, OperatorType::kMul,
                            &state_remember_mul)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const string prev_state = state_forget_mul->inputs[0];
 
@@ -177,7 +175,7 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
   if (!MatchOperatorInputs(*state_forget_mul, *model, OperatorType::kNone,
                            nullptr, OperatorType::kLogistic,
                            &state_forget_sig)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // State remember gate
@@ -185,40 +183,40 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
   if (!MatchOperatorInputs(*state_remember_mul, *model, OperatorType::kLogistic,
                            &state_remember_sig, OperatorType::kTanh,
                            &state_info_tanh)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // State remember "information" activation function
   Operator* fc_output_split;
   if (!MatchOperatorInputs(*state_info_tanh, *model, OperatorType::kSplit,
                            &fc_output_split)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // State remember gate activation function
   Operator* tmp;
   if (!MatchOperatorInputs(*state_remember_sig, *model, OperatorType::kSplit,
                            &tmp) ||
       (tmp != fc_output_split)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // State forget gate activation function
   if (!MatchOperatorInputs(*state_forget_sig, *model, OperatorType::kSplit,
                            &tmp) ||
       (tmp != fc_output_split)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Fully connected output activation function
   if (!MatchOperatorInputs(*fc_output_sig, *model, OperatorType::kSplit,
                            &tmp) ||
       (tmp != fc_output_split)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Fully connected output split
   Operator* fully_connected;
   if (!MatchOperatorInputs(*fc_output_split, *model, OperatorType::kNone,
                            nullptr, OperatorType::kFullyConnected,
                            &fully_connected)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Fully connected op
@@ -227,13 +225,13 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
                            OperatorType::kConcatenation, &concat_inputs,
                            OperatorType::kNone, nullptr, OperatorType::kNone,
                            nullptr)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (static_cast<FullyConnectedOperator*>(fully_connected)->weights_format !=
       FullyConnectedWeightsFormat::kDefault) {
     // Not yet implemented: experimental shuffled weights in fused LSTM cell.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Emplace a new LSTM cell operator
@@ -302,8 +300,7 @@ bool MatchOperatorInputs(const Operator& op, const Model& model,
   model->operators.erase(FindOperator(model, *fully_connected));
   DeleteArrayIfUnused(concat_inputs->outputs[0], model);
   model->operators.erase(FindOperator(model, *concat_inputs));
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

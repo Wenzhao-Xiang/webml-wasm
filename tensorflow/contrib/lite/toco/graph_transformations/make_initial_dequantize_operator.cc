@@ -97,10 +97,7 @@ bool AddDequantizeOperatorToInput(const string& input_name, const Operator* op,
   return true;
 }
 
-::tensorflow::Status MakeInitialDequantizeOperator::Run(Model* model,
-                                                        std::size_t op_index,
-                                                        bool* modified) {
-  *modified = false;
+bool MakeInitialDequantizeOperator::Run(Model* model, std::size_t op_index) {
   // This is effectively a transformation applied to edges.  We iterate over the
   // specified node (op) and proceed for input edges.
   const auto it = model->operators.begin() + op_index;
@@ -117,8 +114,7 @@ bool AddDequantizeOperatorToInput(const string& input_name, const Operator* op,
       }
     }
   }
-  *modified = change_made;
-  return ::tensorflow::Status::OK();
+  return change_made;
 }
 
 }  // namespace toco

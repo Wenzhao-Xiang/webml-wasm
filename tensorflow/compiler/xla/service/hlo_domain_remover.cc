@@ -47,12 +47,12 @@ Status HloDomainRemover::RunContext::VerifyAndNormalizeDomain(
                       HloDomainVerifier::VerifyDomain(domain));
   if (ref_metadata != nullptr) {
     VLOG(4) << "Applying domain normalization: " << ref_metadata->ToString();
-    TF_RETURN_IF_ERROR(remover_->normalizer_(domain, ref_metadata));
+    TF_RETURN_IF_ERROR(ref_metadata->NormalizeInstructions(domain));
   } else {
     // No kDomain instruction was present within this domain, so call the
     // generic normalization functions and have them apply their heuristic.
     VLOG(2) << "Applying domain-less normalization";
-    TF_RETURN_IF_ERROR(remover_->normalizer_(domain, nullptr));
+    TF_RETURN_IF_ERROR(remover_->normalizer_(domain));
   }
   return Status::OK();
 }

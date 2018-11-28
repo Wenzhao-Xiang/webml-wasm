@@ -23,14 +23,44 @@ limitations under the License.
 
 namespace xla {
 
-namespace {
+class HloDomainIsolator::RunContext {
+ public:
+  RunContext(HloModule* module, HloDomainIsolator* isolator)
+      : module_(module), isolator_(isolator) {}
 
-StatusOr<bool> RunInternal(HloModule* module,
-                           HloDomainIsolator::DomainCreator* creator) {
-  hlo_graph_dumper::MaybeDumpHloModule(*module, "Before Domain Isolator");
+  StatusOr<bool> Run();
+
+ private:
+  // Inserts a kDomain instruction between parent and operand, in case
+  // the attribute (ie, sharding) values change between instruction and operand.
+  // Returns the newly inserted kDomain instruction, or nullptr if no kDomain
+  // instruction was necessary.
+  StatusOr<HloInstruction*> CreateDomain(HloInstruction* instruction,
+                                         HloInstruction* parent,
+                                         HloInstruction* operand);
+
+  HloModule* module_;
+  HloDomainIsolator* isolator_;
+};
+
+StatusOr<HloInstruction*> HloDomainIsolator::RunContext::CreateDomain(
+    HloInstruction* instruction, HloInstruction* parent,
+    HloInstruction* operand) {
+  HloInstruction* domain = nullptr;
+  std::unique_ptr<HloInstruction> domain_instruction =
+      isolator_->creator_(instruction, operand);
+  if (domain_instruction != nullptr) {
+    domain = operand->parent()->AddInstruction(std::move(domain_instruction));
+    TF_RETURN_IF_ERROR(operand->ReplaceUseWith(parent, domain));
+  }
+  return domain;
+}
+
+StatusOr<bool> HloDomainIsolator::RunContext::Run() {
+  hlo_graph_dumper::MaybeDumpHloModule(*module_, "Before Domain Isolator");
 
   int64 added_domains = 0;
-  for (HloComputation* computation : module->computations()) {
+  for (HloComputation* computation : module_->computations()) {
     // Walk in post order and place all the required kDomain instructions.
     for (HloInstruction* instruction :
          computation->MakeInstructionPostOrder()) {
@@ -41,15 +71,16 @@ StatusOr<bool> RunInternal(HloModule* module,
         // When applying multiple domains, we could end up stacking more than
         // one in one edge, so here we want to build the effective
         // (kDomain-less) instruction->operand edge.
-        HloInstruction* root = operand;
-        while (root->opcode() == HloOpcode::kDomain) {
-          root = root->mutable_operand(0);
+        HloInstruction* parent = instruction;
+        while (operand->opcode() == HloOpcode::kDomain) {
+          parent = operand;
+          operand = operand->mutable_operand(0);
         }
         // Check whether a kDomain is necessary between instruction and operand.
-        HloInstruction* domain = (*creator)(instruction, root, operand);
+        TF_ASSIGN_OR_RETURN(HloInstruction * domain,
+                            CreateDomain(instruction, parent, operand));
         if (domain != nullptr) {
           VLOG(4) << "New domain: " << domain->ToString();
-          TF_RETURN_IF_ERROR(operand->ReplaceUseWith(instruction, domain));
           ++added_domains;
         }
       }
@@ -57,19 +88,17 @@ StatusOr<bool> RunInternal(HloModule* module,
   }
   VLOG(3) << "Added " << added_domains << " kDomain instructions";
   if (added_domains > 0) {
-    hlo_graph_dumper::MaybeDumpHloModule(*module, "After Domain Isolator");
+    hlo_graph_dumper::MaybeDumpHloModule(*module_, "After Domain Isolator");
   }
   return added_domains > 0;
 }
 
-}  // namespace
-
-HloDomainIsolator::HloDomainIsolator(DomainCreatorFactory creator_factory)
-    : creator_factory_(std::move(creator_factory)) {}
+HloDomainIsolator::HloDomainIsolator(DomainCreator creator)
+    : creator_(std::move(creator)) {}
 
 StatusOr<bool> HloDomainIsolator::Run(HloModule* module) {
-  DomainCreator creator = creator_factory_();
-  return RunInternal(module, &creator);
+  RunContext run_context(module, this);
+  return run_context.Run();
 }
 
 }  // namespace xla

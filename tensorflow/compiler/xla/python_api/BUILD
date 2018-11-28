@@ -10,8 +10,6 @@ py_library(
     srcs = ["types.py"],
     deps = [
         "//tensorflow/compiler/xla:xla_data_proto_py",
-        "//tensorflow/python:dtypes",
-        "//tensorflow/python:platform",
         "//third_party/py/numpy",
     ],
 )

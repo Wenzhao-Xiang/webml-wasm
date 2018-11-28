@@ -20,6 +20,7 @@
 #ifdef EMSCRIPTEN
 #define __wur
 #include <stdint.h>
+#include "tensorflow/core/platform/default/logging.h"
 enum class FusedActivationFunc : int32_t {
     NONE = 0,
     RELU = 1,

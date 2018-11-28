@@ -13,6 +13,7 @@
 # limitations under the License.
 # =============================================================================
 
+# pylint: disable=unused-import,g-bad-import-order
 """Contains the core layers: Dense, Dropout.
 
 Also contains their functional aliases.
@@ -22,13 +23,17 @@ from __future__ import division
 from __future__ import print_function
 
 
+import six
+from six.moves import xrange  # pylint: disable=redefined-builtin
+import numpy as np
+
 from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.layers import base
 from tensorflow.python.ops import init_ops
 from tensorflow.python.util.tf_export import tf_export
 
 
-@tf_export(v1=['layers.Dense'])
+@tf_export('layers.Dense')
 class Dense(keras_layers.Dense, base.Layer):
   """Densely-connected layer class.
 
@@ -109,7 +114,7 @@ class Dense(keras_layers.Dense, base.Layer):
                                 **kwargs)
 
 
-@tf_export(v1=['layers.dense'])
+@tf_export('layers.dense')
 def dense(
     inputs, units,
     activation=None,
@@ -127,8 +132,8 @@ def dense(
   """Functional interface for the densely-connected layer.
 
   This layer implements the operation:
-  `outputs = activation(inputs * kernel + bias)`
-  where `activation` is the activation function passed as the `activation`
+  `outputs = activation(inputs.kernel + bias)`
+  Where `activation` is the activation function passed as the `activation`
   argument (if not `None`), `kernel` is a weights matrix created by the layer,
   and `bias` is a bias vector created by the layer
   (only if `use_bias` is `True`).
@@ -184,7 +189,7 @@ def dense(
   return layer.apply(inputs)
 
 
-@tf_export(v1=['layers.Dropout'])
+@tf_export('layers.Dropout')
 class Dropout(keras_layers.Dropout, base.Layer):
   """Applies Dropout to the input.
 
@@ -203,7 +208,7 @@ class Dropout(keras_layers.Dropout, base.Layer):
       to be the same for all timesteps, you can use
       `noise_shape=[batch_size, 1, features]`.
     seed: A Python integer. Used to create random seeds. See
-      `tf.set_random_seed`.
+      @{tf.set_random_seed}.
       for behavior.
     name: The name of the layer (string).
   """
@@ -223,7 +228,7 @@ class Dropout(keras_layers.Dropout, base.Layer):
     return super(Dropout, self).call(inputs, training=training)
 
 
-@tf_export(v1=['layers.dropout'])
+@tf_export('layers.dropout')
 def dropout(inputs,
             rate=0.5,
             noise_shape=None,
@@ -248,7 +253,7 @@ def dropout(inputs,
       to be the same for all timesteps, you can use
       `noise_shape=[batch_size, 1, features]`.
     seed: A Python integer. Used to create random seeds. See
-      `tf.set_random_seed`
+      @{tf.set_random_seed}
       for behavior.
     training: Either a Python boolean, or a TensorFlow boolean scalar tensor
       (e.g. a placeholder). Whether to return the output in training mode
@@ -265,16 +270,9 @@ def dropout(inputs,
   return layer.apply(inputs, training=training)
 
 
-@tf_export(v1=['layers.Flatten'])
+@tf_export('layers.Flatten')
 class Flatten(keras_layers.Flatten, base.Layer):
   """Flattens an input tensor while preserving the batch axis (axis 0).
-
-  Arguments:
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, ..., channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, ...)`.
 
   Examples:
 
@@ -291,18 +289,13 @@ class Flatten(keras_layers.Flatten, base.Layer):
   pass
 
 
-@tf_export(v1=['layers.flatten'])
-def flatten(inputs, name=None, data_format='channels_last'):
+@tf_export('layers.flatten')
+def flatten(inputs, name=None):
   """Flattens an input tensor while preserving the batch axis (axis 0).
 
   Arguments:
     inputs: Tensor input.
     name: The name of the layer (string).
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, height, width, channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, height, width)`.
 
   Returns:
     Reshaped tensor.
@@ -319,7 +312,7 @@ def flatten(inputs, name=None, data_format='channels_last'):
     # now `y` has shape `(None, None)`
   ```
   """
-  layer = Flatten(name=name, data_format=data_format)
+  layer = Flatten(name=name)
   return layer.apply(inputs)
 
 

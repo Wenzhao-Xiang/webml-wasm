@@ -19,20 +19,9 @@ py_binary(
 )
 
 py_binary(
-    name = "keras_model_with_estimator",
+    name = "simple_tfkeras_example",
     srcs = [
-        "keras_model_with_estimator.py",
-    ],
-    deps = [
-        "//tensorflow:tensorflow_py",
-        "//third_party/py/numpy",
-    ],
-)
-
-py_binary(
-    name = "keras_mnist",
-    srcs = [
-        "keras_mnist.py",
+        "simple_tfkeras_example.py",
     ],
     deps = [
         "//tensorflow:tensorflow_py",

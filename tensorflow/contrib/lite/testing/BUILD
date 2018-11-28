@@ -7,20 +7,20 @@ licenses(["notice"])  # Apache 2.0
 load(
     "//tensorflow/contrib/lite:build_def.bzl",
     "gen_zip_test",
-    "generated_test_models_all",
+    "generated_test_models",
 )
 load("//tensorflow/contrib/lite:special_rules.bzl", "tflite_portable_test_suite")
 load(
     "//tensorflow:tensorflow.bzl",
     "tf_cc_test",
-    "py_test",
 )
 
 [gen_zip_test(
     name = "zip_test_%s" % test_name,
     size = "large",
     srcs = ["generated_examples_zip_test.cc"],
-    args = args + select({
+    args = [
+    ] + select({
         "//tensorflow:android": [],
         "//conditions:default": [
             "--zip_file_path=$(location :zip_%s)" % test_name,
@@ -29,15 +29,14 @@ load(
             "--unzip_binary_path=/usr/bin/unzip",
         ],
     }),
-    conversion_mode = conversion_mode,
     data = [
         ":zip_%s" % test_name,
     ],
     shard_count = 20,
-    tags = tags + [
+    tags = [
         "gen_zip_test",
         "no_oss",
-        "tflite_not_portable_intentional",
+        "tflite_not_portable",
     ],
     test_name = test_name,
     deps = [
@@ -60,7 +59,7 @@ load(
             "//tensorflow/core:android_tensorflow_test_lib",
         ],
     }),
-) for conversion_mode, test_name, tags, args in generated_test_models_all()]
+) for test_name in generated_test_models()]
 
 test_suite(
     name = "generated_zip_tests",
@@ -113,6 +112,7 @@ cc_library(
 cc_test(
     name = "message_test",
     srcs = ["message_test.cc"],
+    tags = ["no_oss"],
     deps = [
         ":message",
         "@com_google_googletest//:gtest_main",
@@ -132,6 +132,7 @@ cc_test(
     name = "split_test",
     size = "small",
     srcs = ["split_test.cc"],
+    tags = ["no_oss"],
     deps = [
         ":split",
         "@com_google_googletest//:gtest_main",
@@ -141,13 +142,13 @@ cc_test(
 cc_library(
     name = "join",
     hdrs = ["join.h"],
-    deps = ["//tensorflow/contrib/lite:string"],
 )
 
 cc_test(
     name = "join_test",
     size = "small",
     srcs = ["join_test.cc"],
+    tags = ["no_oss"],
     deps = [
         ":join",
         "@com_google_googletest//:gtest_main",
@@ -163,17 +164,17 @@ cc_library(
         ":test_runner",
         "//tensorflow/contrib/lite:builtin_op_data",
         "//tensorflow/contrib/lite:framework",
-        "//tensorflow/contrib/lite/delegates/flex:delegate",
         "//tensorflow/contrib/lite/kernels:builtin_ops",
     ],
 )
 
-tf_cc_test(
+cc_test(
     name = "tflite_driver_test",
     size = "small",
     srcs = ["tflite_driver_test.cc"],
     data = ["//tensorflow/contrib/lite:testdata/multi_add.bin"],
     tags = [
+        "no_oss",
         "tflite_not_portable_android",
         "tflite_not_portable_ios",
     ],
@@ -195,6 +196,7 @@ cc_library(
 cc_test(
     name = "tokenize_test",
     srcs = ["tokenize_test.cc"],
+    tags = ["no_oss"],
     deps = [
         ":tokenize",
         "@com_google_googletest//:gtest_main",
@@ -212,16 +214,12 @@ cc_library(
 cc_library(
     name = "util",
     hdrs = ["util.h"],
-    deps = [
-        "//tensorflow/contrib/lite:framework",
-        "//tensorflow/contrib/lite:string",
-        "//tensorflow/contrib/lite/core/api",
-    ],
 )
 
 cc_test(
     name = "test_runner_test",
     srcs = ["test_runner_test.cc"],
+    tags = ["no_oss"],
     deps = [
         ":test_runner",
         "@com_google_googletest//:gtest_main",
@@ -277,7 +275,6 @@ cc_library(
         ":join",
         ":split",
         ":tf_driver",
-        "//tensorflow/contrib/lite:string",
         "//tensorflow/core:framework",
     ],
 )
@@ -294,29 +291,6 @@ cc_test(
         ":generate_testspec",
         "@com_google_googletest//:gtest_main",
     ],
-)
-
-cc_library(
-    name = "init_tensorflow",
-    srcs = [
-        "init_tensorflow.cc",
-    ],
-    hdrs = [
-        "init_tensorflow.h",
-    ],
-    visibility = [
-        "//tensorflow/contrib/lite/java/src/main/native:__subpackages__",
-        "//tensorflow/contrib/lite/testing:__subpackages__",
-        "//tensorflow/contrib/lite/tools/benchmark:__subpackages__",
-    ],
-    deps = select({
-        "//conditions:default": [
-            "//tensorflow/core:lib",
-        ],
-        "//tensorflow:android": [
-            "//tensorflow/core:android_tensorflow_lib",
-        ],
-    }),
 )
 
 cc_library(
@@ -367,11 +341,10 @@ tf_cc_test(
     ],
     tags = [
         "no_cuda_on_cpu_tap",
-        "no_oss",  # needs test data
+        "no_oss",
         "tflite_not_portable",
     ],
     deps = [
-        ":init_tensorflow",
         ":tflite_diff_flags",
         ":tflite_diff_util",
     ],
@@ -381,7 +354,6 @@ cc_binary(
     name = "tflite_diff",
     srcs = ["tflite_diff_example_test.cc"],
     deps = [
-        ":init_tensorflow",
         ":tflite_diff_flags",
         ":tflite_diff_util",
     ],

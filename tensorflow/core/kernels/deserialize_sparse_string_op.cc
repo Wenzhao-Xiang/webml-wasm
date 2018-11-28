@@ -165,10 +165,7 @@ class DeserializeSparseOp : public OpKernel {
     std::vector<SparseTensor> tensors;
     tensors.reserve(num_sparse_tensors);
     for (int i = 0; i < num_sparse_tensors; ++i) {
-      SparseTensor tensor;
-      OP_REQUIRES_OK(context, SparseTensor::Create(indices[i], values[i], shape,
-                                                   std_order, &tensor));
-      tensors.push_back(std::move(tensor));
+      tensors.emplace_back(indices[i], values[i], shape, std_order);
     }
 
     gtl::optional<SparseTensor> maybe_output;

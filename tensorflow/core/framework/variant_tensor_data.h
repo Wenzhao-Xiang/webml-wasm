@@ -13,19 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_FRAMEWORK_VARIANT_TENSOR_DATA_H_
-#define TENSORFLOW_CORE_FRAMEWORK_VARIANT_TENSOR_DATA_H_
+#ifndef TENSORFLOW_FRAMEWORK_VARIANT_TENSOR_DATA_H
+#define TENSORFLOW_FRAMEWORK_VARIANT_TENSOR_DATA_H
 
 #include <algorithm>
 #include <vector>
 
-#include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/core/stringpiece.h"
 #include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
 
 class VariantTensorDataProto;
+class Tensor;
 
 // The serialization format for Variant objects. Objects with references to
 // other Tensors can simply store those tensors in the `tensors` field, and
@@ -38,7 +38,7 @@ class VariantTensorDataProto;
 class VariantTensorData {
  public:
   VariantTensorData();
-  VariantTensorData(VariantTensorDataProto proto);
+  VariantTensorData(const VariantTensorDataProto& proto);
   ~VariantTensorData();
 
   // Name of the type of objects being serialized.
@@ -68,14 +68,12 @@ class VariantTensorData {
 
   // Conversion to and from VariantTensorDataProto
   void ToProto(VariantTensorDataProto* proto) const;
-  // This allows optimizations via std::move.
-  bool FromProto(VariantTensorDataProto proto);
-  bool FromConstProto(const VariantTensorDataProto& proto);
+  bool FromProto(const VariantTensorDataProto& proto);
 
   // Serialization via VariantTensorDataProto
   string SerializeAsString() const;
   bool SerializeToString(string* buf);
-  bool ParseFromString(string s);
+  bool ParseFromString(const string& s);
 
   string DebugString() const;
 
@@ -114,4 +112,4 @@ string ProtoDebugString(const VariantTensorData& object);
 
 }  // namespace tensorflow
 
-#endif  // TENSORFLOW_CORE_FRAMEWORK_VARIANT_TENSOR_DATA_H_
+#endif  // TENSORFLOW_FRAMEWORK_VARIANT_TENSOR_DATA_H

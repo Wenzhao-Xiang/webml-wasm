@@ -18,8 +18,6 @@ limitations under the License.
 #include <memory>
 #include <string>
 
-#include "absl/memory/memory.h"
-#include "absl/strings/str_replace.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/LLVMContext.h"
@@ -28,6 +26,8 @@ limitations under the License.
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "tensorflow/compiler/tf2xla/str_util.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/service/llvm_ir/llvm_util.h"
 #include "tensorflow/compiler/xla/util.h"
 
@@ -38,11 +38,11 @@ using xla::llvm_ir::AsStringRef;
 
 static void AddEmbeddedProtocolBufferToLlvmModule(
     llvm::Module* module, const ::tensorflow::protobuf::MessageLite& proto,
-    absl::string_view unique_identifier, string* protobuf_array_symbol_name,
+    StringPiece unique_identifier, string* protobuf_array_symbol_name,
     int64* protobuf_array_size) {
   string protobuf_array_contents = proto.SerializeAsString();
   *protobuf_array_symbol_name =
-      absl::StrCat(unique_identifier, "_protobuf_array_contents");
+      strings::StrCat(unique_identifier, "_protobuf_array_contents");
   *protobuf_array_size = protobuf_array_contents.size();
 
   llvm::Constant* protobuf_array_initializer =
@@ -55,9 +55,9 @@ static void AddEmbeddedProtocolBufferToLlvmModule(
       protobuf_array_initializer, AsStringRef(*protobuf_array_symbol_name));
 }
 
-static string CreateCPPShimExpression(
-    absl::string_view qualified_cpp_protobuf_name,
-    absl::string_view protobuf_array_symbol_name, int64 protobuf_array_size) {
+static string CreateCPPShimExpression(StringPiece qualified_cpp_protobuf_name,
+                                      StringPiece protobuf_array_symbol_name,
+                                      int64 protobuf_array_size) {
   string code =
       "[]() {\n"
       "    {{PROTOBUF_NAME}}* proto = new {{PROTOBUF_NAME}};\n"
@@ -65,13 +65,14 @@ static string CreateCPPShimExpression(
       "    return proto;\n"
       "  }()";
 
-  return absl::StrReplaceAll(
-      code,
+  str_util::ReplaceAllPairs(
+      &code,
       {
-          {"{{ARRAY_SYMBOL}}", absl::StrCat(protobuf_array_symbol_name)},
-          {"{{ARRAY_SIZE}}", absl::StrCat(protobuf_array_size)},
-          {"{{PROTOBUF_NAME}}", absl::StrCat(qualified_cpp_protobuf_name)},
+          {"{{ARRAY_SYMBOL}}", strings::StrCat(protobuf_array_symbol_name)},
+          {"{{ARRAY_SIZE}}", strings::StrCat(protobuf_array_size)},
+          {"{{PROTOBUF_NAME}}", strings::StrCat(qualified_cpp_protobuf_name)},
       });
+  return code;
 }
 
 static StatusOr<string> CodegenModule(llvm::TargetMachine* target_machine,
@@ -93,10 +94,10 @@ static StatusOr<string> CodegenModule(llvm::TargetMachine* target_machine,
 }
 
 static StatusOr<std::unique_ptr<llvm::TargetMachine>>
-GetTargetMachineFromTriple(absl::string_view target_triple) {
+GetTargetMachineFromTriple(StringPiece target_triple) {
   std::string error;
   std::string normalized_triple =
-      llvm::Triple::normalize(AsStringRef(absl::string_view(target_triple)));
+      llvm::Triple::normalize(AsStringRef(target_triple));
   const llvm::Target* target =
       llvm::TargetRegistry::lookupTarget(normalized_triple, error);
   if (target == nullptr) {
@@ -104,20 +105,20 @@ GetTargetMachineFromTriple(absl::string_view target_triple) {
                               error.c_str());
   }
 
-  return absl::WrapUnique(target->createTargetMachine(
+  return WrapUnique(target->createTargetMachine(
       normalized_triple, /*CPU=*/"",
       /*Features=*/"", llvm::TargetOptions(), llvm::None));
 }
 
 StatusOr<EmbeddedProtocolBuffers> CreateEmbeddedProtocolBuffers(
-    absl::string_view target_triple,
-    absl::Span<const ProtobufToEmbed> protobufs_to_embed) {
+    StringPiece target_triple,
+    gtl::ArraySlice<ProtobufToEmbed> protobufs_to_embed) {
   TF_ASSIGN_OR_RETURN(std::unique_ptr<llvm::TargetMachine> target_machine,
                       GetTargetMachineFromTriple(target_triple));
 
   llvm::LLVMContext llvm_context;
   std::unique_ptr<llvm::Module> module_with_serialized_proto =
-      absl::make_unique<llvm::Module>("embedded_data_module", llvm_context);
+      MakeUnique<llvm::Module>("embedded_data_module", llvm_context);
 
   EmbeddedProtocolBuffers result;
 
@@ -135,8 +136,8 @@ StatusOr<EmbeddedProtocolBuffers> CreateEmbeddedProtocolBuffers(
           protobuf_to_embed.qualified_cpp_protobuf_name,
           protobuf_array_symbol_name, protobuf_array_size);
 
-      cpp_variable_decl =
-          absl::StrCat("extern \"C\" char ", protobuf_array_symbol_name, "[];");
+      cpp_variable_decl = strings::StrCat("extern \"C\" char ",
+                                          protobuf_array_symbol_name, "[];");
     } else {
       cpp_shim = "nullptr";
     }

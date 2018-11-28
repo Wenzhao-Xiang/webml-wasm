@@ -34,8 +34,9 @@ StatusOr<bool> GpuHloSupportChecker::Run(HloModule* module) {
               return xla::Unimplemented(
                   "GPU backend does not support HLO instruction %s with shape "
                   "containing a sparse layout: %s",
-                  instruction->ToString(),
-                  ShapeUtil::HumanStringWithLayout(instruction->shape()));
+                  instruction->ToString().c_str(),
+                  ShapeUtil::HumanStringWithLayout(instruction->shape())
+                      .c_str());
             }
             return Status::OK();
           }));

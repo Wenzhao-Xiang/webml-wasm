@@ -277,14 +277,11 @@ bool RecursivelyForwardPropagateDataType(GraphTransformation* transformation,
 // nice logging and integration with the graphviz video dumping mode.
 // In general you should not copy this style of transformation and stick to
 // local-only changes as seen in the other transformations.
-::tensorflow::Status PropagateFakeQuantNumBits::Run(Model* model,
-                                                    std::size_t op_index,
-                                                    bool* modified) {
-  *modified = false;
+bool PropagateFakeQuantNumBits::Run(Model* model, std::size_t op_index) {
   auto it = model->operators.begin() + op_index;
   auto* op = it->get();
   if (op->type != OperatorType::kFakeQuant) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto* fakequant_op = static_cast<FakeQuantOperator*>(op);
 
@@ -293,7 +290,7 @@ bool RecursivelyForwardPropagateDataType(GraphTransformation* transformation,
                                            &quantized_data_type)) {
     AddMessageF("FakeQuant op %s num_bits=%d is out of range, ignoring",
                 LogName(*op), fakequant_op->num_bits);
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const auto& final_minmax = *fakequant_op->minmax;
 
@@ -314,8 +311,7 @@ bool RecursivelyForwardPropagateDataType(GraphTransformation* transformation,
   did_change |=
       RecursivelyForwardPropagateDataType(this, model, op, quantized_data_type);
 
-  *modified = did_change;
-  return ::tensorflow::Status::OK();
+  return did_change;
 }
 
 }  // namespace toco

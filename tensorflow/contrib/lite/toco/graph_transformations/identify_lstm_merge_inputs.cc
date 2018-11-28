@@ -25,22 +25,19 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status MergeLstmCellInputs::Run(Model* model,
-                                              std::size_t op_index,
-                                              bool* modified) {
-  *modified = false;
+bool MergeLstmCellInputs::Run(Model* model, std::size_t op_index) {
   // Find lstm cell.
   auto op_it = model->operators.begin() + op_index;
   auto src_op = op_it->get();
   if (src_op->type != OperatorType::kLstmCell) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Already a compact LstmCell. Do not need to merge cell inputs.
   const auto* src_lstm_op = static_cast<LstmCellOperator*>(src_op);
   if (src_lstm_op->kernel_type != LstmCellOperator::KERNEL_FULL ||
       src_lstm_op->inputs.size() != kExtendedLstmInputCount) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Identify prev_activ_input, prev_state_input as required Op inputs,
@@ -48,12 +45,12 @@ namespace toco {
   string prev_activ_input;
   if (!GetMatchingRnnArray(model, src_op->outputs[kOutputTensor],
                            &prev_activ_input)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   string prev_state_input;
   if (!GetMatchingRnnArray(model, src_op->outputs[kCellStateTensor],
                            &prev_state_input)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Get LstmCell's cell, input, output size.
@@ -187,8 +184,7 @@ namespace toco {
   DeleteArrayIfUnused(src_op->inputs[kOutputGateBiasTensor], model);
   model->operators.erase(FindOp(*model, src_op));
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

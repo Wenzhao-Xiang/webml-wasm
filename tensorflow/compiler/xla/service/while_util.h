@@ -55,7 +55,7 @@ class WhileUtil {
   //   that contains `while_instr`.
   static StatusOr<MakeInstructionsLiveInResult> MakeInstructionsLiveIn(
       HloInstruction* while_instr,
-      absl::Span<HloInstruction* const> instructions);
+      tensorflow::gtl::ArraySlice<HloInstruction*> instructions);
 
   using LoopStateTy = std::vector<HloInstruction*>;
   using LoopBodyGeneratorTy = std::function<StatusOr<LoopStateTy>(
@@ -77,8 +77,7 @@ class WhileUtil {
   static StatusOr<LoopStateTy> MakeCountedLoop(
       HloComputation* computation, int32 trip_count,
       const LoopStateTy& init_values,
-      const LoopBodyGeneratorTy& loop_body_generator,
-      const OpMetadata& metadata);
+      const LoopBodyGeneratorTy& loop_body_generator);
 
   // Returns the GetTupleElement instructions in `while_body` that access
   // elements in the parameter tuple that don't change across iterations.

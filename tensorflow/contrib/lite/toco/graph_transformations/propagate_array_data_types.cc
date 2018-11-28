@@ -32,10 +32,7 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
 }
 }  // namespace
 
-::tensorflow::Status PropagateArrayDataTypes::Run(Model* model,
-                                                  std::size_t op_index,
-                                                  bool* modified) {
-  *modified = false;
+bool PropagateArrayDataTypes::Run(Model* model, std::size_t op_index) {
   auto it = model->operators.begin() + op_index;
   auto* op = it->get();
 
@@ -43,7 +40,7 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
   for (const auto& input : op->inputs) {
     if (!model->IsOptionalArray(input) &&
         model->GetArray(input).data_type == ArrayDataType::kNone) {
-      return ::tensorflow::Status::OK();
+      return false;
     }
   }
   // Record data types of output before processing, so we can see at the
@@ -65,10 +62,6 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
     case OperatorType::kGreaterEqual:
     case OperatorType::kEqual:
     case OperatorType::kNotEqual:
-    case OperatorType::kAny:
-    case OperatorType::kLogicalAnd:
-    case OperatorType::kLogicalNot:
-    case OperatorType::kLogicalOr:
       // These operators unconditionally produce bool outputs
       SetDataTypeForAllOutputs(model, op, ArrayDataType::kBool);
       break;
@@ -134,7 +127,7 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
       auto* rand_op = static_cast<RandomUniformOperator*>(op);
       // The output type of RandomUniform is specified with an attribute
       if (rand_op->dtype == ArrayDataType::kNone) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
       CHECK_EQ(op->outputs.size(), 1);
       SetDataTypeForAllOutputs(model, op, rand_op->dtype);
@@ -145,8 +138,7 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
       CHECK_EQ(op->inputs.size(), 2);
       CHECK_EQ(op->outputs.size(), 2);
       CHECK(model->GetArray(op->inputs[1]).data_type == ArrayDataType::kInt32);
-      model->GetArray(op->outputs[0]).data_type =
-          model->GetArray(op->inputs[0]).data_type;
+      model->GetArray(op->outputs[0]).data_type = model->GetArray(op->inputs[0]).data_type;
       model->GetArray(op->outputs[1]).data_type = ArrayDataType ::kInt32;
       break;
     }
@@ -156,18 +148,18 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
       // This can make unsupported_op->output_data_types have more elements than
       // op->outputs.
       if (unsupported_op->output_data_types.size() < op->outputs.size()) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
       for (int i = 0; i < op->outputs.size(); ++i) {
-        const string& output = op->outputs[i];
-        const ArrayDataType data_type = unsupported_op->output_data_types[i];
+        auto output = op->outputs[i];
+        auto data_type = unsupported_op->output_data_types[i];
         model->GetArray(output).data_type = data_type;
       }
       break;
     }
     case OperatorType::kExpandDims: {
       // Yield on ExpandDim until it is converted to Reshape
-      return ::tensorflow::Status::OK();
+      return false;
     }
     case OperatorType::kSelect: {
       // Select produces outputs with the same type as their 2nd input
@@ -198,53 +190,6 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
       SetDataTypeForAllOutputs(model, op, data_type);
       break;
     }
-    case OperatorType::kPack: {
-      const ArrayDataType data_type = model->GetArray(op->inputs[0]).data_type;
-      for (const auto& input : op->inputs) {
-        CHECK(data_type == model->GetArray(input).data_type);
-      }
-      SetDataTypeForAllOutputs(model, op, data_type);
-      break;
-    }
-    case OperatorType::kOneHot: {
-      CHECK_EQ(op->inputs.size(), 4);
-      CHECK_EQ(op->outputs.size(), 1);
-      const ArrayDataType on_value_type =
-          model->GetArray(op->inputs[OneHotOperator::ON_VALUE_INPUT]).data_type;
-      const ArrayDataType off_value_type =
-          model->GetArray(op->inputs[OneHotOperator::OFF_VALUE_INPUT])
-              .data_type;
-      CHECK(on_value_type == off_value_type);
-      model->GetArray(op->outputs[0]).data_type = on_value_type;
-      break;
-    }
-    case OperatorType::kCTCBeamSearchDecoder: {
-      CHECK_EQ(op->inputs.size(), 2);
-      // All outputs (sparse tensors) are int32s (although tf uses int64s)
-      // except the last one (log probabilities) is float.
-      const int output_size = op->outputs.size();
-      for (int i = 0; i < output_size - 1; ++i) {
-        model->GetArray(op->outputs[i]).data_type = ArrayDataType::kInt32;
-      }
-      model->GetArray(op->outputs[output_size - 1]).data_type =
-          ArrayDataType::kFloat;
-      break;
-    }
-    case OperatorType::kUnpack: {
-      CHECK_EQ(op->inputs.size(), 1);
-      const int output_size = op->outputs.size();
-      for (int i = 0; i < output_size; ++i) {
-        model->GetArray(op->outputs[i]).data_type =
-            model->GetArray(op->inputs[0]).data_type;
-      }
-      break;
-    }
-    case OperatorType::kUnidirectionalSequenceLstm: {
-      const ArrayDataType data_type = model->GetArray(op->inputs[0]).data_type;
-      if (data_type != ArrayDataType::kFloat) return ::tensorflow::Status::OK();
-      SetDataTypeForAllOutputs(model, op, data_type);
-      break;
-    }
     default: {
       // These operators produce outputs with the same type as their 1st input
       CHECK_GT(op->inputs.size(), 0);
@@ -257,11 +202,10 @@ void SetDataTypeForAllOutputs(Model* model, Operator* op,
   // Return true if any output data type changed, false if none changed.
   for (const auto& output : op->outputs) {
     if (old_output_data_types[output] != model->GetArray(output).data_type) {
-      *modified = true;
-      return ::tensorflow::Status::OK();
+      return true;
     }
   }
-  return ::tensorflow::Status::OK();
+  return false;
 }
 
 }  // namespace toco

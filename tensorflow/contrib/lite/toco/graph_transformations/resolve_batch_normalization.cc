@@ -25,13 +25,10 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ResolveBatchNormalization::Run(Model* model,
-                                                    std::size_t op_index,
-                                                    bool* modified) {
-  *modified = false;
+bool ResolveBatchNormalization::Run(Model* model, std::size_t op_index) {
   auto bn_it = model->operators.begin() + op_index;
   if (bn_it->get()->type != OperatorType::kBatchNormalization) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const auto* bn_op =
       static_cast<const BatchNormalizationOperator*>(bn_it->get());
@@ -56,7 +53,7 @@ namespace toco {
   // so we need to exit early if these buffers don't exist (i.e. if the params
   // haven't yet been resolved as constants).
   if (!mean_array.buffer || !multiplier_array.buffer || !offset_array.buffer) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Create the new Mul, Add operators
@@ -145,8 +142,7 @@ namespace toco {
   DCHECK_EQ(bn_it->get(), bn_op);
   model->operators.erase(bn_it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

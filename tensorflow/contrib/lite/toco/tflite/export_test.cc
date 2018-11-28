@@ -20,7 +20,6 @@ limitations under the License.
 #include "tensorflow/contrib/lite/toco/tflite/builtin_operator.h"
 #include "tensorflow/contrib/lite/toco/tflite/operator.h"
 #include "tensorflow/contrib/lite/toco/tflite/types.h"
-#include "tensorflow/core/framework/node_def.pb.h"
 
 namespace toco {
 namespace tflite {
@@ -30,110 +29,34 @@ using ::testing::ElementsAre;
 
 class ExportTest : public ::testing::Test {
  protected:
-  void ResetOperators() { input_model_.operators.clear(); }
-  void AddTensorsByName(std::initializer_list<string> names) {
-    for (const string& name : names) {
-      input_model_.GetOrCreateArray(name);
-    }
-  }
-  void AddOperatorsByName(std::initializer_list<string> names) {
-    for (const string& name : names) {
-      if (name == "Conv") {
-        auto* op = new ConvOperator;
-        op->padding.type = PaddingType::kSame;
-        input_model_.operators.emplace_back(op);
-      } else if (name == "Add") {
-        input_model_.operators.emplace_back(new AddOperator);
-      } else if (name == "Sub") {
-        input_model_.operators.emplace_back(new SubOperator);
-      } else {
-        auto* op = new TensorFlowUnsupportedOperator;
-        op->tensorflow_op = name;
-        input_model_.operators.emplace_back(op);
-      }
-    }
-  }
-
-  void BuildQuantizableTestModel() {
-    input_model_.GetOrCreateArray("inputs");
-    Array& weight_array = input_model_.GetOrCreateArray("weights");
-
-    // Make the buffer large enough for QuantizeWeights transformation to take
-    // effect.
-    int buf_size = 1296;
-    auto weight_buf = absl::make_unique<float[]>(buf_size);
-    for (int i = 0; i < buf_size; i++) {
-      // Fill the array with some garbage values.
-      weight_buf[i] = static_cast<float>(i % 128);
-    }
-
-    weight_array.data_type = ArrayDataType::kFloat;
-
-    // Initialize shape for the input array.
-    Shape* weight_array_shape = weight_array.mutable_shape();
-    std::vector<int>* weight_array_shape_dim =
-        weight_array_shape->mutable_dims();
-    weight_array_shape_dim->resize(4, 6);
-    auto& weight_array_buffer =
-        weight_array.GetMutableBuffer<ArrayDataType::kFloat>();
-    weight_array_buffer.data.resize(buf_size);
-    float* buf_ptr =
-        weight_array.GetMutableBuffer<ArrayDataType::kFloat>().data.data();
-    std::copy(weight_buf.get(), weight_buf.get() + buf_size, buf_ptr);
-
+  // This is a very simplistic model. We are not interested in testing all the
+  // details here, since tf.mini's testing framework will be exercising all the
+  // conversions multiple times, and the conversion of operators is tested by
+  // separate unittests.
+  void BuildTestModel() {
+    input_model_.GetOrCreateArray("tensor_one");
+    input_model_.GetOrCreateArray("tensor_two");
     {
       auto* op = new ConvOperator;
       op->padding.type = PaddingType::kSame;
-      op->inputs = {"inputs", "weights"};
       input_model_.operators.emplace_back(op);
     }
     input_model_.operators.emplace_back(new AddOperator);
-  }
-
-  std::vector<string> ExportAndSummarizeOperators(const ExportParams& params) {
-    std::vector<string> names;
-
-    string result;
-    auto status = Export(input_model_, &result, params);
-    if (!status.ok()) {
-      LOG(INFO) << status.error_message();
-      return names;
+    {
+      auto* op = new TensorFlowUnsupportedOperator;
+      op->tensorflow_op = "MyCrazyOp";
+      input_model_.operators.emplace_back(op);
     }
-
-    auto* model = ::tflite::GetModel(result.data());
-
-    for (const ::tflite::OperatorCode* opcode : *model->operator_codes()) {
-      if (opcode->builtin_code() != ::tflite::BuiltinOperator_CUSTOM) {
-        names.push_back(string("builtin:") + ::tflite::EnumNameBuiltinOperator(
-                                                 opcode->builtin_code()));
-      } else {
-        names.push_back(string("custom:") + opcode->custom_code()->c_str());
-      }
-    }
-
-    return names;
-  }
-
-  std::vector<uint32_t> ExportAndGetOperatorIndices(
-      const ExportParams& params) {
-    std::vector<uint32_t> indices;
-
-    string result;
-    if (!Export(input_model_, &result, params).ok()) return indices;
-    auto* model = ::tflite::GetModel(result.data());
-
-    auto operators = (*model->subgraphs())[0]->operators();
-    for (const auto* op : *operators) {
-      indices.push_back(op->opcode_index());
-    }
-    return indices;
+    // Note that Sub is not know to TF Lite, so it gets exported as a custom
+    // op (and no options).
+    input_model_.operators.emplace_back(new SubOperator);
   }
 
   Model input_model_;
 };
 
 TEST_F(ExportTest, LoadTensorsMap) {
-  AddTensorsByName({"tensor_one", "tensor_two"});
+  BuildTestModel();
 
   details::TensorsMap tensors;
   details::LoadTensorsMap(input_model_, &tensors);
@@ -142,137 +65,47 @@ TEST_F(ExportTest, LoadTensorsMap) {
 }
 
 TEST_F(ExportTest, LoadOperatorsMap) {
-  AddOperatorsByName({"Conv", "Add", "MyCrazyOp", "Sub"});
+  BuildTestModel();
 
   details::OperatorsMap operators;
   const auto ops_by_type = BuildOperatorByTypeMap();
-  details::LoadOperatorsMap(input_model_, &operators, ops_by_type, false);
-  EXPECT_EQ(
-      0, operators[details::OperatorKey(::tflite::BuiltinOperator_ADD, "", 1)]);
-  EXPECT_EQ(1, operators[details::OperatorKey(::tflite::BuiltinOperator_CONV_2D,
-                                              "", 1)]);
-  EXPECT_EQ(2, operators[details::OperatorKey(::tflite::BuiltinOperator_CUSTOM,
+  details::LoadOperatorsMap(input_model_, &operators, ops_by_type);
+  EXPECT_EQ(0, operators[details::OperatorKey(OperatorType::kAdd, "", 1)]);
+  EXPECT_EQ(1, operators[details::OperatorKey(OperatorType::kConv, "", 1)]);
+  EXPECT_EQ(2, operators[details::OperatorKey(OperatorType::kSub, "", 1)]);
+  EXPECT_EQ(3, operators[details::OperatorKey(OperatorType::kUnsupported,
                                               "MyCrazyOp", 1)]);
-  EXPECT_EQ(
-      3, operators[details::OperatorKey(::tflite::BuiltinOperator_SUB, "", 1)]);
 }
 
 TEST_F(ExportTest, Export) {
-  AddOperatorsByName({"Conv", "Add", "MyCrazyOp", "Sub"});
+  BuildTestModel();
 
-  ExportParams params;
-  params.allow_custom_ops = true;
-  params.allow_flex_ops = false;
-  params.quantize_weights = false;
+  string result;
+  Export(input_model_, true, &result);
 
-  EXPECT_THAT(ExportAndSummarizeOperators(params),
-              ElementsAre("builtin:ADD", "builtin:CONV_2D", "custom:MyCrazyOp",
-                          "builtin:SUB"));
-  EXPECT_THAT(ExportAndGetOperatorIndices(params), ElementsAre(1, 0, 2, 3));
-}
+  auto* model = ::tflite::GetModel(result.data());
 
-TEST_F(ExportTest, QuantizeWeights) {
-  // Sanity check for quantize_weights parameter.
-  BuildQuantizableTestModel();
-  string unquantized_result;
-  Export(input_model_, true, /*quantize_weights*/ false, &unquantized_result);
-
-  BuildQuantizableTestModel();
-  string quantized_result;
-  Export(input_model_, true, /*quantize_weights*/ true, &quantized_result);
-
-  // The quantized models should be smaller.
-  EXPECT_LT(quantized_result.size(), unquantized_result.size());
-}
-
-class OpSetsTest : public ExportTest {
- public:
-  enum OpSet { kTfLiteBuiltins, kSelectTfOps, kCustomOps };
-
-  void SetAllowedOpSets(std::initializer_list<OpSet> sets) {
-    import_all_ops_as_unsupported_ = true;
-    params_.allow_custom_ops = false;
-    params_.allow_flex_ops = false;
-    params_.quantize_weights = false;
-
-    for (OpSet i : sets) {
-      switch (i) {
-        case kTfLiteBuiltins:
-          import_all_ops_as_unsupported_ = false;
-          break;
-        case kSelectTfOps:
-          params_.allow_flex_ops = true;
-          break;
-        case kCustomOps:
-          params_.allow_custom_ops = true;
-          break;
-      }
-    }
-  }
-
-  std::vector<string> ImportExport(std::initializer_list<string> op_names) {
-    ResetOperators();
-    if (!import_all_ops_as_unsupported_) {
-      AddOperatorsByName(op_names);
+  std::vector<string> names;
+  for (const ::tflite::OperatorCode* opcode : *model->operator_codes()) {
+    if (opcode->builtin_code() != ::tflite::BuiltinOperator_CUSTOM) {
+      names.push_back(string("builtin:") + ::tflite::EnumNameBuiltinOperator(
+                                               opcode->builtin_code()));
     } else {
-      for (const string& name : op_names) {
-        auto* op = new TensorFlowUnsupportedOperator;
-        op->tensorflow_op = name;
-        input_model_.operators.emplace_back(op);
-      }
+      names.push_back(string("custom:") + opcode->custom_code()->c_str());
     }
-    return ExportAndSummarizeOperators(params_);
   }
 
- private:
-  bool import_all_ops_as_unsupported_;
-  ExportParams params_;
-};
+  EXPECT_THAT(names, ElementsAre("builtin:ADD", "builtin:CONV_2D",
+                                 "builtin:SUB", "custom:MyCrazyOp"));
 
-TEST_F(OpSetsTest, BuiltinsOnly) {
-  // --target_op_set=TFLITE_BUILTINS
-  SetAllowedOpSets({kTfLiteBuiltins});
-  EXPECT_THAT(ImportExport({"Add", "AdjustHue", "UnrollAndFold"}),
-              ElementsAre());
-  EXPECT_THAT(ImportExport({"Add"}), ElementsAre("builtin:ADD"));
+  std::vector<uint32_t> indices;
+  auto operators = (*model->subgraphs())[0]->operators();
+  EXPECT_EQ(operators->Length(), 4);
+  for (const auto* op : *operators) {
+    indices.push_back(op->opcode_index());
+  }
 
-  // --target_op_set=TFLITE_BUILTINS --allow_custom_ops
-  SetAllowedOpSets({kTfLiteBuiltins, kCustomOps});
-  EXPECT_THAT(
-      ImportExport({"Add", "AdjustHue", "UnrollAndFold"}),
-      ElementsAre("builtin:ADD", "custom:AdjustHue", "custom:UnrollAndFold"));
-}
-
-TEST_F(OpSetsTest, TfSelectOnly) {
-  // --target_op_set=SELECT_TF_OPS
-  SetAllowedOpSets({kSelectTfOps});
-  EXPECT_THAT(
-      ImportExport({"Add", "AdjustHue", "RandomUniform", "UnrollAndFold"}),
-      ElementsAre());
-  EXPECT_THAT(ImportExport({"Add"}), ElementsAre("custom:FlexAdd"));
-
-  // --target_op_set=SELECT_TF_OPS --allow_custom_ops
-  SetAllowedOpSets({kSelectTfOps, kCustomOps});
-  EXPECT_THAT(
-      ImportExport({"Add", "AdjustHue", "RandomUniform", "UnrollAndFold"}),
-      ElementsAre("custom:AdjustHue", "custom:FlexAdd",
-                  "custom:FlexRandomUniform", "custom:UnrollAndFold"));
-}
-
-TEST_F(OpSetsTest, BuiltinsAndTfSelect) {
-  // --target_op_set=TFLITE_BUILTINS,SELECT_TF_OPS
-  SetAllowedOpSets({kTfLiteBuiltins, kSelectTfOps});
-  EXPECT_THAT(ImportExport({"Add", "AdjustHue", "UnrollAndFold"}),
-              ElementsAre());
-  EXPECT_THAT(ImportExport({"Add", "RandomUniform"}),
-              ElementsAre("builtin:ADD", "custom:FlexRandomUniform"));
-
-  // --target_op_set=TFLITE_BUILTINS,SELECT_TF_OPS --allow_custom_ops
-  SetAllowedOpSets({kTfLiteBuiltins, kSelectTfOps, kCustomOps});
-  EXPECT_THAT(
-      ImportExport({"Add", "AdjustHue", "RandomUniform", "UnrollAndFold"}),
-      ElementsAre("builtin:ADD", "custom:AdjustHue", "custom:FlexRandomUniform",
-                  "custom:UnrollAndFold"));
+  EXPECT_THAT(indices, ElementsAre(1, 0, 3, 2));
 }
 
 // This test is based on a hypothetical scenario that dilation is supported
@@ -370,11 +203,10 @@ TEST_F(VersionedOpExportTest, LoadOperatorsMapWithOpV1) {
 
   details::OperatorsMap operators;
   const auto ops_by_type = BuildFakeOperatorByTypeMap();
-  details::LoadOperatorsMap(input_model_, &operators, ops_by_type, false);
+  details::LoadOperatorsMap(input_model_, &operators, ops_by_type);
 
   EXPECT_EQ(1, operators.size());
-  EXPECT_EQ(0, operators.at(details::OperatorKey(
-                   ::tflite::BuiltinOperator_CONV_2D, "", 1)));
+  EXPECT_EQ(0, operators.at(details::OperatorKey(OperatorType::kConv, "", 1)));
 }
 
 TEST_F(VersionedOpExportTest, LoadOperatorsMapWithOpV2) {
@@ -382,11 +214,10 @@ TEST_F(VersionedOpExportTest, LoadOperatorsMapWithOpV2) {
 
   details::OperatorsMap operators;
   const auto ops_by_type = BuildFakeOperatorByTypeMap();
-  details::LoadOperatorsMap(input_model_, &operators, ops_by_type, false);
+  details::LoadOperatorsMap(input_model_, &operators, ops_by_type);
 
   EXPECT_EQ(1, operators.size());
-  EXPECT_EQ(0, operators.at(details::OperatorKey(
-                   ::tflite::BuiltinOperator_CONV_2D, "", 2)));
+  EXPECT_EQ(0, operators.at(details::OperatorKey(OperatorType::kConv, "", 2)));
 }
 
 TEST_F(VersionedOpExportTest, LoadOperatorsMapWithBothVersions) {
@@ -395,13 +226,11 @@ TEST_F(VersionedOpExportTest, LoadOperatorsMapWithBothVersions) {
 
   details::OperatorsMap operators;
   const auto ops_by_type = BuildFakeOperatorByTypeMap();
-  details::LoadOperatorsMap(input_model_, &operators, ops_by_type, false);
+  details::LoadOperatorsMap(input_model_, &operators, ops_by_type);
 
   EXPECT_EQ(2, operators.size());
-  EXPECT_EQ(0, operators.at(details::OperatorKey(
-                   ::tflite::BuiltinOperator_CONV_2D, "", 1)));
-  EXPECT_EQ(1, operators.at(details::OperatorKey(
-                   ::tflite::BuiltinOperator_CONV_2D, "", 2)));
+  EXPECT_EQ(0, operators.at(details::OperatorKey(OperatorType::kConv, "", 1)));
+  EXPECT_EQ(1, operators.at(details::OperatorKey(OperatorType::kConv, "", 2)));
 }
 
 TEST_F(VersionedOpExportTest, Export) {
@@ -410,7 +239,7 @@ TEST_F(VersionedOpExportTest, Export) {
 
   string result;
   const auto ops_by_type = BuildFakeOperatorByTypeMap();
-  Export(input_model_, true, false, &result, ops_by_type);
+  Export(input_model_, true, &result, ops_by_type);
 
   auto* model = ::tflite::GetModel(result.data());
   auto operator_codes = model->operator_codes();
@@ -433,125 +262,7 @@ TEST_F(VersionedOpExportTest, Export) {
   EXPECT_EQ(1, (*operators)[1]->opcode_index());
 }
 
-TEST(OperatorKeyTest, TestBuiltinOp) {
-  auto op = absl::make_unique<ConvOperator>();
-
-  const auto ops_by_type = BuildOperatorByTypeMap();
-  const auto key = details::OperatorKey(*op, ops_by_type, false);
-
-  EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CONV_2D);
-  EXPECT_EQ(key.custom_code(), "");
-  EXPECT_EQ(key.version(), 1);
-}
-
-TEST(OperatorKeyTest, TestCustomOp) {
-  auto op = absl::make_unique<TensorFlowUnsupportedOperator>();
-  op->tensorflow_op = "MyCrazyCustomOp";
-
-  const auto ops_by_type = BuildOperatorByTypeMap();
-  const auto key = details::OperatorKey(*op, ops_by_type, false);
-
-  EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-  EXPECT_EQ(key.custom_code(), "MyCrazyCustomOp");
-  EXPECT_EQ(key.version(), 1);
-}
-
-TEST(OperatorKeyTest, TestFlexOp) {
-  auto op = absl::make_unique<TensorFlowUnsupportedOperator>();
-  op->tensorflow_op = "BatchMatMul";
-
-  const auto ops_by_type = BuildOperatorByTypeMap();
-  {
-    const auto key = details::OperatorKey(*op, ops_by_type, false);
-    // It shouldn't be converted to Flex op if `allow_flex_op` is false.
-    EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-    EXPECT_EQ(key.custom_code(), "BatchMatMul");
-    EXPECT_EQ(key.version(), 1);
-    EXPECT_TRUE(key.is_custom_op());
-    EXPECT_FALSE(key.is_flex_op());
-  }
-
-  {
-    // Verify that the custom op name is prefixed by "Flex" and `is_flex_op`
-    // is true.
-    const auto key = details::OperatorKey(*op, ops_by_type, true);
-    EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-    EXPECT_EQ(key.custom_code(), "FlexBatchMatMul");
-    EXPECT_EQ(key.version(), 1);
-    EXPECT_FALSE(key.is_custom_op());
-    EXPECT_TRUE(key.is_flex_op());
-  }
-}
-
-TEST(OperatorKeyTest, TestFlexWithControlFlowOp) {
-  auto op = absl::make_unique<TensorFlowUnsupportedOperator>();
-  op->tensorflow_op = "Merge";
-
-  const auto ops_by_type = BuildOperatorByTypeMap();
-  const auto key = details::OperatorKey(*op, ops_by_type, true);
-
-  EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-  EXPECT_EQ(key.custom_code(), "FlexMerge");
-  EXPECT_EQ(key.version(), 1);
-  EXPECT_FALSE(key.is_custom_op());
-  EXPECT_TRUE(key.is_flex_op());
-  // The control flow ops should be marked as unsupported.
-  EXPECT_TRUE(key.is_unsupported_flex_op());
-}
-
-TEST(OperatorKeyTest, TestFlexWithUnsupportedOp) {
-  auto op = absl::make_unique<TensorFlowUnsupportedOperator>();
-  op->tensorflow_op = "HashTableV2";
-
-  const auto ops_by_type = BuildOperatorByTypeMap();
-  const auto key = details::OperatorKey(*op, ops_by_type, true);
-
-  EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-  EXPECT_EQ(key.custom_code(), "HashTableV2");
-  EXPECT_EQ(key.version(), 1);
-  // While HashTableV2 is excluded from the whitelisted flex op list, eventually
-  // it won't be, and the following expectations will need to change as the op
-  // is explicitly blacklisted due to lack of asset support.
-  EXPECT_FALSE(key.is_flex_op());
-  EXPECT_FALSE(key.is_unsupported_flex_op());
-}
-
-TEST(OperatorKeyTest, TestFlexWithPartiallySupportedOps) {
-  // Test Toco-supported/TFLite-unsupported operators.
-  // TODO(ycling): The test will be broken if TensorFlowAssert is implemented in
-  // TFLite. Find a more robust way to test the fallback logic.
-  auto op = absl::make_unique<TensorFlowAssertOperator>();
-
-  const auto ops_by_type = BuildOperatorByTypeMap();
-
-  {
-    // If NodeDef isn't retained in the Toco op, a regular custom op
-    // will be exported.
-    const auto key = details::OperatorKey(*op, ops_by_type, true);
-    EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-    EXPECT_EQ(key.custom_code(), "Assert");
-    EXPECT_EQ(key.version(), 1);
-    EXPECT_TRUE(key.is_custom_op());
-    EXPECT_FALSE(key.is_flex_op());
-  }
-
-  ::tensorflow::NodeDef node_def;
-  node_def.set_name("TensorFlowAssert");
-  node_def.set_op("TensorFlowAssert");
-  node_def.SerializeToString(&op->tensorflow_node_def);
-
-  {
-    // If NodeDef is retained in the Toco op, a Flex op will be exported.
-    const auto key = details::OperatorKey(*op, ops_by_type, true);
-    EXPECT_EQ(key.type(), ::tflite::BuiltinOperator_CUSTOM);
-    EXPECT_EQ(key.custom_code(), "FlexAssert");
-    EXPECT_EQ(key.version(), 1);
-    EXPECT_FALSE(key.is_custom_op());
-    EXPECT_TRUE(key.is_flex_op());
-  }
-}
-
-// TODO(ahentz): tests for tensors, inputs, outputs, opcodes and operators.
+// TODO(ahentz): tests for tensors, inputs, outpus, opcodes and operators.
 
 }  // namespace
 }  // namespace tflite

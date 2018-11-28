@@ -12,7 +12,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-// LINT.IfChange
 
 #ifndef TENSORFLOW_CORE_UTIL_CTC_CTC_LOSS_UTIL_H_
 #define TENSORFLOW_CORE_UTIL_CTC_CTC_LOSS_UTIL_H_
@@ -32,10 +31,8 @@ const float kLogZero = -std::numeric_limits<float>::infinity();
 inline float LogSumExp(float log_prob_1, float log_prob_2) {
   // Always have 'b' be the smaller number to avoid the exponential from
   // blowing up.
-  if (log_prob_1 == kLogZero) {
-    return log_prob_2;
-  } else if (log_prob_2 == kLogZero) {
-    return log_prob_1;
+  if (log_prob_1 == kLogZero && log_prob_2 == kLogZero) {
+    return kLogZero;
   } else {
     return (log_prob_1 > log_prob_2)
                ? log_prob_1 + log1pf(expf(log_prob_2 - log_prob_1))
@@ -47,4 +44,3 @@ inline float LogSumExp(float log_prob_1, float log_prob_2) {
 }  // namespace tensorflow
 
 #endif  // TENSORFLOW_CORE_UTIL_CTC_CTC_LOSS_UTIL_H_
-// LINT.ThenChange(//tensorflow/contrib/lite/experimental/kernels/ctc_loss_util.h)

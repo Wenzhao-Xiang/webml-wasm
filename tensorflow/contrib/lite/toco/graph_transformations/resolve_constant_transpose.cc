@@ -101,14 +101,11 @@ void Transpose(Model* model, const Array& input_array,
 
 }  // namespace
 
-::tensorflow::Status ResolveConstantTranspose::Run(Model* model,
-                                                   std::size_t op_index,
-                                                   bool* modified) {
-  *modified = false;
+bool ResolveConstantTranspose::Run(Model* model, std::size_t op_index) {
   auto it = model->operators.begin() + op_index;
   const auto* base_op = it->get();
   if (base_op->type != OperatorType::kTranspose) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const auto* op = static_cast<const TransposeOperator*>(base_op);
 
@@ -117,25 +114,31 @@ void Transpose(Model* model, const Array& input_array,
   auto& output_array = model->GetArray(op->outputs[0]);
   if (output_array.data_type == ArrayDataType::kNone) {
     // Yield until the output type has been set by PropagateArrayDataTypes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (!output_array.has_shape()) {
     // Yield until the output shape has been set by PropagateFixedShapes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // We require constant inputs.
   if (!IsConstantParameterArray(*model, op->inputs[0]) ||
       !IsConstantParameterArray(*model, op->inputs[1])) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const Array& input_array = model->GetArray(op->inputs[0]);
 
-  CopyMinMaxAndQuantizationRelatedFields(input_array, &output_array);
+  if (input_array.minmax) {
+    output_array.GetOrCreateMinMax() = input_array.GetMinMax();
+  }
+  if (input_array.quantization_params) {
+    output_array.GetOrCreateQuantizationParams() =
+        input_array.GetQuantizationParams();
+  }
 
   if (op->perm.empty()) {
     // Yield until perm has been populated by ResolveTransposeAttributes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // We currently only support 1-4 dimensions.
@@ -159,10 +162,6 @@ void Transpose(Model* model, const Array& input_array,
       Transpose<ArrayDataType::kInt64>(model, input_array, op->perm,
                                        &output_array);
       break;
-    case ArrayDataType::kComplex64:
-      Transpose<ArrayDataType::kComplex64>(model, input_array, op->perm,
-                                           &output_array);
-      break;
     default:
       LOG(FATAL) << "Unsupported data type given to Transpose op with output \""
                  << op->outputs[0] << "\"";
@@ -181,8 +180,7 @@ void Transpose(Model* model, const Array& input_array,
 
   // Erase the operator.
   model->operators.erase(it);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

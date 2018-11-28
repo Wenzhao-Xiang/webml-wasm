@@ -23,12 +23,14 @@ namespace xla {
 // This pass should run early in the HLO pipeline and checks for HLO constructs
 // which are not supported by the CPU backend and cannot be removed via HLO
 // transformations (eg, sparse layouts).
-class CpuHloSupportChecker : public HloModulePass {
+class CpuHloSupportChecker : public HloPassInterface {
  public:
   CpuHloSupportChecker() = default;
   ~CpuHloSupportChecker() override = default;
 
-  absl::string_view name() const override { return "cpu_hlo_support_checker"; }
+  tensorflow::StringPiece name() const override {
+    return "cpu_hlo_support_checker";
+  }
 
   // Note: always returns false (no instructions are ever modified by this
   // pass).

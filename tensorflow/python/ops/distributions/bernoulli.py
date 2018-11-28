@@ -28,7 +28,6 @@ from tensorflow.python.ops import random_ops
 from tensorflow.python.ops.distributions import distribution
 from tensorflow.python.ops.distributions import kullback_leibler
 from tensorflow.python.ops.distributions import util as distribution_util
-from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import tf_export
 
 
@@ -40,14 +39,6 @@ class Bernoulli(distribution.Distribution):
   `1` outcome (vs a `0` outcome).
   """
 
-  @deprecation.deprecated(
-      "2019-01-01",
-      "The TensorFlow Distributions library has moved to "
-      "TensorFlow Probability "
-      "(https://github.com/tensorflow/probability). You "
-      "should update all references to use `tfp.distributions` "
-      "instead of `tf.distributions`.",
-      warn_once=True)
   def __init__(self,
                logits=None,
                probs=None,

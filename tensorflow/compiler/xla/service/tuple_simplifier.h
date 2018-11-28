@@ -25,12 +25,12 @@ namespace xla {
 
 // A pass which simplifies patterns of Tuple and GetTupleElement instructions in
 // the module.
-class TupleSimplifier : public HloModulePass {
+class TupleSimplifier : public HloPassInterface {
  public:
   TupleSimplifier() : TupleSimplifier(/*exclude_entry_computation=*/false) {}
   explicit TupleSimplifier(bool exclude_entry_computation);
   ~TupleSimplifier() override {}
-  absl::string_view name() const override { return "tuple-simplifier"; }
+  tensorflow::StringPiece name() const override { return "tuple-simplifier"; }
 
   // Run tuple simplification on the given computation. Returns whether the
   // computation was changed.

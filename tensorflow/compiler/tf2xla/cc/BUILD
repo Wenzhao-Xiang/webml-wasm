@@ -30,15 +30,14 @@ cc_library(
 
 tf_gen_op_wrapper_cc(
     name = "xla_jit_op_gen",
-    include_internal_ops = 1,
-    out_ops_file = "ops/xla_jit_ops",
+    out_ops_file = "ops/xla_jit_op",
     deps = ["//tensorflow/compiler/jit/ops:xla_ops"],
 )
 
 cc_library(
     name = "xla_jit_ops",
-    srcs = ["ops/xla_jit_ops.cc"],
-    hdrs = ["ops/xla_jit_ops.h"],
+    srcs = ["ops/xla_jit_op.cc"],
+    hdrs = ["ops/xla_jit_op.h"],
     deps = [
         "//tensorflow/cc:const_op",
         "//tensorflow/cc:ops",

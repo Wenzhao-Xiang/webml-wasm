@@ -25,8 +25,6 @@ tf_ops_fuzz_target_lib("string_to_number")
 
 tf_ops_fuzz_target_lib("string_split")
 
-tf_ops_fuzz_target_lib("string_split_v2")
-
 tf_ops_fuzz_target_lib("encode_base64")
 
 tf_ops_fuzz_target_lib("decode_base64")
@@ -44,7 +42,5 @@ tf_ops_fuzz_target_lib("decode_wav")
 tf_ops_fuzz_target_lib("example_proto_fast_parsing")
 
 tf_ops_fuzz_target_lib("parse_tensor_op")
-
-tf_ops_fuzz_target_lib("decode_compressed")
 
 tf_ops_fuzz_target_lib("decode_json_example")

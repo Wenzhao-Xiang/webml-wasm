@@ -965,8 +965,7 @@ BENCHMARK(BM_ConcatInputRange);
 BENCHMARK(BM_SelectInputRange);
 
 TEST(RegisteredKernels, CanCallGetAllRegisteredKernels) {
-  auto kernel_list = GetAllRegisteredKernels();
-  auto all_registered_kernels = kernel_list.kernel();
+  auto all_registered_kernels = GetAllRegisteredKernels().kernel();
   auto has_name_test1 = [](const KernelDef& k) { return k.op() == "Test1"; };
 
   // Verify we can find the "Test1" op registered above
@@ -985,21 +984,6 @@ TEST(RegisteredKernels, CanCallGetAllRegisteredKernels) {
 // Simple test just to check we can call LogAllRegisteredKernels
 TEST(RegisteredKernels, CanLogAllRegisteredKernels) {
   tensorflow::LogAllRegisteredKernels();
-}
-
-TEST(RegisteredKernels, GetFilteredRegisteredKernels) {
-  auto has_name_test1 = [](const KernelDef& k) { return k.op() == "Test1"; };
-  auto kernel_list = GetFilteredRegisteredKernels(has_name_test1);
-  ASSERT_EQ(kernel_list.kernel_size(), 1);
-  EXPECT_EQ(kernel_list.kernel(0).op(), "Test1");
-  EXPECT_EQ(kernel_list.kernel(0).device_type(), "CPU");
-}
-
-TEST(RegisteredKernels, GetRegisteredKernelsForOp) {
-  auto kernel_list = GetRegisteredKernelsForOp("Test1");
-  ASSERT_EQ(kernel_list.kernel_size(), 1);
-  EXPECT_EQ(kernel_list.kernel(0).op(), "Test1");
-  EXPECT_EQ(kernel_list.kernel(0).device_type(), "CPU");
 }
 
 }  // namespace

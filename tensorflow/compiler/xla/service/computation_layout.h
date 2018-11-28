@@ -83,10 +83,6 @@ class ComputationLayout {
   // Returns a string representation of this object.
   string ToString() const;
 
-  // Create a ProgramShape proto based on the parameter and result shapes held
-  // within this object.
-  ProgramShape ComputeProgramShape() const;
-
  private:
   std::vector<ShapeLayout> parameter_layouts_;
   ShapeLayout result_layout_;

@@ -27,7 +27,7 @@ namespace nn {
 bool concatenationFloat32(const std::vector<const float*>& inputDataPtrs,
                           const std::vector<Shape>& inputShapes, int32_t axis,
                           float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("concatenationFloat32");
+    // NNTRACE_TRANS("concatenationFloat32");
     int num_inputs = inputShapes.size();
     std::vector<tflite::Dims<4>*> inputDimsPtr(num_inputs);
     std::vector<tflite::Dims<4> > inputDims(num_inputs);
@@ -36,7 +36,7 @@ bool concatenationFloat32(const std::vector<const float*>& inputDataPtrs,
         inputDimsPtr[i] = &inputDims[i];
     }
 
-    NNTRACE_COMP_SWITCH("optimized_ops::Concatenation");
+    // NNTRACE_COMP_SWITCH("optimized_ops::Concatenation");
     tflite::optimized_ops::Concatenation<tflite::FusedActivationFunctionType::kNone, float>(
             getNumberOfDimensions(outputShape) - axis - 1,
             inputDataPtrs.data(), inputDimsPtr.data(), num_inputs,
@@ -48,7 +48,7 @@ bool concatenationFloat32(const std::vector<const float*>& inputDataPtrs,
 bool concatenationQuant8(const std::vector<const uint8_t*>& inputDataPtrs,
                          const std::vector<Shape>& inputShapes, int32_t axis,
                          uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("concatenationQuant8");
+    // NNTRACE_TRANS("concatenationQuant8");
     int num_inputs = inputShapes.size();
     std::vector<tflite::Dims<4>*> inputDimsPtr(num_inputs);
     std::vector<tflite::Dims<4> > inputDims(num_inputs);
@@ -57,7 +57,7 @@ bool concatenationQuant8(const std::vector<const uint8_t*>& inputDataPtrs,
         inputDimsPtr[i] = &inputDims[i];
     }
 
-    NNTRACE_COMP_SWITCH("optimized_ops::Concatenation");
+    // NNTRACE_COMP_SWITCH("optimized_ops::Concatenation");
     tflite::optimized_ops::Concatenation<tflite::FusedActivationFunctionType::kNone, uint8_t>(
             getNumberOfDimensions(outputShape) - axis - 1,
             inputDataPtrs.data(), inputDimsPtr.data(), num_inputs,

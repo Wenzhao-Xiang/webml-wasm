@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_FRAMEWORK_VARIANT_H_
-#define TENSORFLOW_CORE_FRAMEWORK_VARIANT_H_
+#ifndef TENSORFLOW_FRAMEWORK_VARIANT_H_
+#define TENSORFLOW_FRAMEWORK_VARIANT_H_
 
 #include <functional>
 #include <iostream>
@@ -23,6 +23,7 @@ limitations under the License.
 #include <unordered_map>
 #include <utility>
 
+#include "tensorflow/core/framework/tensor.pb.h"  // TODO(b/62899350): Remove
 #include "tensorflow/core/framework/type_index.h"
 #include "tensorflow/core/framework/variant_tensor_data.h"
 #include "tensorflow/core/lib/core/status.h"
@@ -37,19 +38,17 @@ string TypeNameVariant(const T& value);
 template <typename T>
 string DebugStringVariant(const T& value);
 
-// Allows for specializations of Variant Decoding.  `data` may be modified in
-// the process of decoding to `value`.
-template <typename T>
-bool DecodeVariant(VariantTensorData* data, T* value);
-
-template <typename T>
-bool DecodeVariant(string* buf, T* value);
-
 template <typename T>
 void EncodeVariant(const T& value, VariantTensorData* data);
 
 template <typename T>
+bool DecodeVariant(const VariantTensorData& data, T* value);
+
+template <typename T>
 void EncodeVariant(const T& value, string* buf);
+
+template <typename T>
+bool DecodeVariant(const string& buf, T* value);
 
 // This is an implementation of a type-erased container that can store an
 // object of any type. The implementation is very similar to std::any, but has
@@ -68,7 +67,7 @@ void EncodeVariant(const T& value, string* buf);
 //
 //   string TypeName() const;
 //   void Encode(VariantTensorData* data) const;
-//   void Decode(VariantTensorData data);
+//   void Decode(const VariantTensorData& data);
 //
 // Simple POD types can elide the Encode/Decode functions, they are provided by
 // helper methods.
@@ -122,7 +121,7 @@ void EncodeVariant(const T& value, string* buf);
 //   x.Encode(&serialized_f);
 //
 //   Variant y = Foo(); // default constructed Foo.
-//   y.Decode(std::move(serialized_f));
+//   y.Decode(&serialized_f);
 //   EXPECT_EQ(*x.get<Foo>(), *y.get<Foo>());
 //
 //
@@ -146,6 +145,10 @@ void EncodeVariant(const T& value, string* buf);
 //   EXPECT_EQ(x.TypeName(), y_type_unknown.TypeName());  // Looks like Foo.
 //   EXPECT_EQ(MakeTypeIndex<VariantTensorDataProto>(),
 //             y_type_unknown.TypeId());
+//   // Decode and get y_type_unknown; compare to value in x.
+//   Foo f_decoded;
+//   EXPECT_TRUE(x.MaybeDecodeAndCopy(&f_decoded));
+//   EXPECT_EQ(f_decoded, f);
 //
 class Variant {
  public:
@@ -238,7 +241,12 @@ class Variant {
   }
 
   // Deserialize `data` and update the stored object.
-  bool Decode(VariantTensorData data);
+  bool Decode(const VariantTensorData& data) {
+    if (!is_empty()) {
+      return value_->Decode(data);
+    }
+    return true;
+  }
 
   // Helper methods to directly serialize/deserialize from strings.
   void Encode(string* buf) const {
@@ -246,12 +254,30 @@ class Variant {
       value_->Encode(buf);
     }
   }
-  bool Decode(string buf) {
+  bool Decode(const string& buf) {
     if (!is_empty()) {
-      return value_->Decode(std::move(buf));
+      return value_->Decode(buf);
     }
     return true;
   }
+
+  template <typename T>
+  bool MaybeDecodeAndCopy(T* out) const {
+    const T* ret = get<T>();
+    if (ret != nullptr) {
+      *out = std::move(*ret);
+      return true;
+    };
+    Variant decoded = T();
+    if (!TryDecode(&decoded)) return false;
+    T* decoded_ret = decoded.get<T>();
+    CHECK_NOTNULL(decoded_ret);
+    *out = std::move(*decoded_ret);
+    return true;
+  }
+
+ private:
+  bool TryDecode(Variant* out) const;
 
  private:
   struct in_place_t {};
@@ -266,9 +292,9 @@ class Variant {
     virtual string TypeName() const = 0;
     virtual string DebugString() const = 0;
     virtual void Encode(VariantTensorData* data) const = 0;
-    virtual bool Decode(VariantTensorData data) = 0;
+    virtual bool Decode(const VariantTensorData& data) = 0;
     virtual void Encode(string* buf) const = 0;
-    virtual bool Decode(string data) = 0;
+    virtual bool Decode(const string& data) = 0;
   };
 
   template <typename T>
@@ -299,13 +325,15 @@ class Variant {
       EncodeVariant(value, data);
     }
 
-    bool Decode(VariantTensorData data) override {
-      return DecodeVariant(&data, &value);
+    bool Decode(const VariantTensorData& data) override {
+      return DecodeVariant(data, &value);
     }
 
     void Encode(string* buf) const override { EncodeVariant(value, buf); }
 
-    bool Decode(string buf) override { return DecodeVariant(&buf, &value); }
+    bool Decode(const string& buf) override {
+      return DecodeVariant(buf, &value);
+    }
 
     T value;
   };
@@ -323,4 +351,4 @@ const void* Variant::get() const;
 
 }  // end namespace tensorflow
 
-#endif  // TENSORFLOW_CORE_FRAMEWORK_VARIANT_H_
+#endif  // TENSORFLOW_FRAMEWORK_VARIANT_H_

@@ -56,9 +56,9 @@ uint32_t getNumberOfElements(const Shape& shape) {
 uint32_t getNumberOfElements(const Shape& shape,
                              size_t firstAxisInclusive,
                              size_t lastAxisExclusive) {
-    nnAssert(0 <= firstAxisInclusive);
-    nnAssert(firstAxisInclusive <= lastAxisExclusive);
-    nnAssert(lastAxisExclusive <= shape.dimensions.size());
+    // nnAssert(0 <= firstAxisInclusive);
+    // nnAssert(firstAxisInclusive <= lastAxisExclusive);
+    // nnAssert(lastAxisExclusive <= shape.dimensions.size());
     uint32_t count = 1;
     for (size_t i = firstAxisInclusive; i < lastAxisExclusive; i++) {
         count *= shape.dimensions[i];

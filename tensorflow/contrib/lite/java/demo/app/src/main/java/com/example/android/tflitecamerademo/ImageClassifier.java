@@ -59,14 +59,8 @@ public abstract class ImageClassifier {
 
   private static final int DIM_PIXEL_SIZE = 3;
 
-  /** Preallocated buffers for storing image data in. */
+  /* Preallocated buffers for storing image data in. */
   private int[] intValues = new int[getImageSizeX() * getImageSizeY()];
-
-  /** Options for configuring the Interpreter. */
-  private final Interpreter.Options tfliteOptions = new Interpreter.Options();
-
-  /** The loaded TensorFlow Lite model. */
-  private MappedByteBuffer tfliteModel;
 
   /** An instance of the driver class to run model inference with Tensorflow Lite. */
   protected Interpreter tflite;
@@ -95,8 +89,7 @@ public abstract class ImageClassifier {
 
   /** Initializes an {@code ImageClassifier}. */
   ImageClassifier(Activity activity) throws IOException {
-    tfliteModel = loadModelFile(activity);
-    tflite = new Interpreter(tfliteModel, tfliteOptions);
+    tflite = new Interpreter(loadModelFile(activity));
     labelList = loadLabelList(activity);
     imgData =
         ByteBuffer.allocateDirect(
@@ -112,6 +105,8 @@ public abstract class ImageClassifier {
 
   /** Classifies a frame from the preview stream. */
   void classifyFrame(Bitmap bitmap, SpannableStringBuilder builder) {
+    printTopKLabels(builder);
+
     if (tflite == null) {
       Log.e(TAG, "Image classifier has not been initialized; Skipped.");
       builder.append(new SpannableString("Uninitialized Classifier."));
@@ -127,7 +122,6 @@ public abstract class ImageClassifier {
     applyFilter();
 
     // Print the results.
-    printTopKLabels(builder);
     long duration = endTime - startTime;
     SpannableString span = new SpannableString(duration + " ms");
     span.setSpan(new ForegroundColorSpan(android.graphics.Color.LTGRAY), 0, span.length(), 0);
@@ -156,28 +150,20 @@ public abstract class ImageClassifier {
     }
   }
 
-  private void recreateInterpreter() {
-    if (tflite != null) {
-      tflite.close();
-      tflite = new Interpreter(tfliteModel, tfliteOptions);
-    }
-  }
-
   public void setUseNNAPI(Boolean nnapi) {
-    tfliteOptions.setUseNNAPI(nnapi);
-    recreateInterpreter();
+    if (tflite != null)
+        tflite.setUseNNAPI(nnapi);
   }
 
-  public void setNumThreads(int numThreads) {
-    tfliteOptions.setNumThreads(numThreads);
-    recreateInterpreter();
+  public void setNumThreads(int num_threads) {
+    if (tflite != null)
+        tflite.setNumThreads(num_threads);
   }
 
   /** Closes tflite to release resources. */
   public void close() {
     tflite.close();
     tflite = null;
-    tfliteModel = null;
   }
 
   /** Reads label list from Assets. */

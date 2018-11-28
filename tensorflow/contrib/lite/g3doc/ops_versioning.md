@@ -1,4 +1,3 @@
-
 # TensorFlow Lite Ops Versioning
 
 This document describes TensorFlow Lite's op versioning schema. Op

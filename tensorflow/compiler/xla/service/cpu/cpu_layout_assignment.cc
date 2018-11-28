@@ -17,7 +17,6 @@ limitations under the License.
 
 #include <numeric>
 
-#include "absl/container/flat_hash_map.h"
 #include "tensorflow/compiler/xla/map_util.h"
 #include "tensorflow/compiler/xla/service/cpu/dot_op_emitter.h"
 #include "tensorflow/compiler/xla/service/cpu/ir_emission_utils.h"
@@ -35,11 +34,11 @@ namespace cpu {
 // instruction stream.
 
 namespace {
-using absl::nullopt;
-using absl::optional;
+using ::tensorflow::gtl::nullopt;
+using ::tensorflow::gtl::optional;
 
 using ShouldMakeOperandColMajorCache =
-    absl::flat_hash_map<const HloInstruction*, bool>;
+    tensorflow::gtl::FlatMap<const HloInstruction*, bool>;
 }  // namespace
 
 static bool ShouldMakeAllUsersColMajor(const HloInstruction* instruction) {

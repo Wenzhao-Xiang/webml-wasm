@@ -14,8 +14,6 @@
 # ==============================================================================
 """Ops for representing Bayesian computation.
 
-Use [tfp](/probability/api_docs/python/tfp) instead.
-
 ## This package provides classes for Bayesian computation with TensorFlow.
 """
 from __future__ import absolute_import

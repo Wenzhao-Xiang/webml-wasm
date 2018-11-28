@@ -9,6 +9,8 @@ licenses(["notice"])  # Apache 2.0
 
 exports_files(["LICENSE"])
 
+load("//tensorflow:tensorflow.bzl", "tf_gen_op_libs")
+load("//tensorflow:tensorflow.bzl", "tf_gen_op_wrapper_py")
 load("//tensorflow:tensorflow.bzl", "cuda_py_test")
 load("//tensorflow:tensorflow.bzl", "tf_custom_op_py_library")
 
@@ -63,8 +65,8 @@ cuda_py_test(
     ],
     shard_count = 6,
     tags = [
-        "no_oss",  # b/117989214
-        "noasan",  # http://b/62067814
+        "manual",
+        "requires_cudnn5",
     ],
 )
 
@@ -91,7 +93,8 @@ cuda_py_test(
     ],
     shard_count = 6,
     tags = [
-        "noasan",  # http://b/62067814
+        "manual",
+        "requires_cudnn5",
     ],
 )
 
@@ -118,5 +121,6 @@ cuda_py_test(
         "noasan",  # http://b/62067814
         "nomsan",
         "notsan",
+        "requires_cudnn5",
     ],
 )

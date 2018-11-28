@@ -21,15 +21,6 @@ from __future__ import print_function
 import contextlib
 
 from tensorflow.python import pywrap_tensorflow
-from tensorflow.python.util.lazy_loader import LazyLoader
-
-# There is a circular dependency between this, ops.py, and
-# distribution_strategy_context.
-# TODO(b/117329403): Remove this circular dependency.
-distribution_strategy_context = LazyLoader(
-    "distribute_lib", globals(),
-    "tensorflow.python.training."
-    "distribution_strategy_context")
 
 
 class Tape(object):
@@ -42,10 +33,9 @@ class Tape(object):
     return pywrap_tensorflow.TFE_Py_TapeWatchedVariables(self._tape)
 
 
-def push_new_tape(persistent=False, watch_accessed_variables=True):
+def push_new_tape(persistent=False):
   """Pushes a new tape onto the tape stack."""
-  tape = pywrap_tensorflow.TFE_Py_TapeSetNew(persistent,
-                                             watch_accessed_variables)
+  tape = pywrap_tensorflow.TFE_Py_TapeSetNew(persistent)
   return Tape(tape)
 
 
@@ -54,35 +44,22 @@ def push_tape(tape):
   pywrap_tensorflow.TFE_Py_TapeSetAdd(tape._tape)  # pylint: disable=protected-access
 
 
-def watch(tape, tensor):
-  """Marks this tensor to be watched by the given tape."""
-  pywrap_tensorflow.TFE_Py_TapeWatch(tape._tape, tensor)  # pylint: disable=protected-access
+def watch(tensor):
+  """Marks this tensor to be watched by all tapes in the stack.
+
+  Args:
+    tensor: tensor to be watched.
+  """
+  pywrap_tensorflow.TFE_Py_TapeSetWatch(tensor)
 
 
-def watch_variable(tape, variable):
-  """Marks this variable to be watched by the given tape."""
-  strategy = distribution_strategy_context.get_distribution_strategy()
-  if distribution_strategy_context.get_replica_context():
-    variables = [strategy.value_container(variable)]
-  else:
-    variables = strategy.unwrap(variable)
-  for var in variables:
-    pywrap_tensorflow.TFE_Py_TapeWatchVariable(tape._tape, var)  # pylint: disable=protected-access
-
-
-def variable_accessed(variable):
-  """Notifies all tapes in the stack that a variable has been accessed.
+def watch_variable(variable):
+  """Marks this variable to be watched by all tapes in the stack.
 
   Args:
     variable: variable to be watched.
   """
-  strategy = distribution_strategy_context.get_distribution_strategy()
-  if distribution_strategy_context.get_replica_context():
-    variables = [strategy.value_container(variable)]
-  else:
-    variables = strategy.unwrap(variable)
-  for var in variables:
-    pywrap_tensorflow.TFE_Py_TapeVariableAccessed(var)
+  pywrap_tensorflow.TFE_Py_TapeSetWatchVariable(variable)
 
 
 def pop_tape(tape):

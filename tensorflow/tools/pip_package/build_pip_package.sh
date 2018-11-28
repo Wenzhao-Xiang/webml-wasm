@@ -17,12 +17,8 @@
 
 set -e
 
-function is_absolute {
-  [[ "$1" = /* ]] || [[ "$1" =~ ^[a-zA-Z]:[/\\].* ]]
-}
-
 function real_path() {
-  is_absolute "$1" && echo "$1" || echo "$PWD/${1#./}"
+  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
 
 function cp_external() {
@@ -43,7 +39,8 @@ function cp_external() {
 
 PLATFORM="$(uname -s | tr 'A-Z' 'a-z')"
 function is_windows() {
-  if [[ "${PLATFORM}" =~ (cygwin|mingw32|mingw64|msys)_nt* ]]; then
+  # On windows, the shell script is actually running in msys
+  if [[ "${PLATFORM}" =~ msys_nt* ]]; then
     true
   else
     false

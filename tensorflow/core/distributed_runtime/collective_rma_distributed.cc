@@ -20,7 +20,6 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/dma_helper.h"
 #include "tensorflow/core/common_runtime/process_util.h"
 #include "tensorflow/core/distributed_runtime/cancellable_call.h"
-#include "tensorflow/core/distributed_runtime/request_id.h"
 #include "tensorflow/core/distributed_runtime/worker_cache.h"
 #include "tensorflow/core/platform/protobuf_internal.h"
 #include "tensorflow/core/protobuf/transport_options.pb.h"
@@ -48,7 +47,6 @@ class RecvBufCall : public CancellableCall {
     req_.set_buf_ptr(reinterpret_cast<int64>(DMAHelper::base(to_tensor)));
     req_.set_src_device(peer_device);
     req_.set_dst_device(to_device->name());
-    req_.set_request_id(GetUniqueRequestId());
   }
 
   ~RecvBufCall() override {}
@@ -61,15 +59,6 @@ class RecvBufCall : public CancellableCall {
   RecvBufResponse resp_;
 };
 
-void PopulateTensorFromExtra(const RecvBufRespExtra& extra,
-                             Tensor* cpu_tensor) {
-  char* head = reinterpret_cast<char*>(DMAHelper::base(cpu_tensor));
-  for (const auto& tensor_content_chunk : extra.tensor_content()) {
-    memcpy(head, tensor_content_chunk.data(),
-           tensor_content_chunk.size());
-    head += tensor_content_chunk.size();
-  }
-}
 }  // namespace
 
 void CollectiveRemoteAccessDistributed::RecvFromPeer(
@@ -104,10 +93,7 @@ void CollectiveRemoteAccessDistributed::RecvFromPeer(
       // them into the destination tensor here.
       RecvBufRespExtra extra;
       state->call->resp_.transport_options().UnpackTo(&extra);
-      int64 num_bytes = 0;
-      for (const auto& chunk : extra.tensor_content()) {
-        num_bytes += chunk.size();
-      }
+      int64 num_bytes = extra.tensor_content().size();
       if (num_bytes != to_tensor->TotalBytes()) {
         done(errors::Internal("RecvBufResponse returned ", num_bytes,
                               " bytes where to_tensor expected ",
@@ -130,7 +116,8 @@ void CollectiveRemoteAccessDistributed::RecvFromPeer(
         cpu_attr.set_gpu_compatible(true);
         Tensor* cpu_tensor = new Tensor(cpu_dev->GetAllocator(cpu_attr),
                                         to_tensor->dtype(), to_tensor->shape());
-        PopulateTensorFromExtra(extra, cpu_tensor);
+        memcpy(DMAHelper::base(cpu_tensor), extra.tensor_content().data(),
+               num_bytes);
         // Then copy it to the GPU.
         CopyTensor::ViaDMA("",  // edge name (non-existent)
                            nullptr /*send_dev_ctx*/, to_device_ctx, cpu_dev,
@@ -146,7 +133,8 @@ void CollectiveRemoteAccessDistributed::RecvFromPeer(
         return;
       } else {
         // CPU device
-        PopulateTensorFromExtra(extra, to_tensor);
+        memcpy(DMAHelper::base(to_tensor), extra.tensor_content().data(),
+               num_bytes);
       }
     }
     if (!s.ok() && errors::IsFailedPrecondition(s)) {

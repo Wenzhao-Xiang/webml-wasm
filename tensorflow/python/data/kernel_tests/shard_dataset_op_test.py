@@ -17,19 +17,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.data.kernel_tests import test_base
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import errors
 from tensorflow.python.platform import test
 
 
-class ShardDatasetOpTest(test_base.DatasetTestBase):
+class ShardDatasetOpTest(test.TestCase):
 
   def testSimpleCase(self):
     dataset = dataset_ops.Dataset.range(10).shard(5, 2)
     iterator = dataset.make_one_shot_iterator()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEqual(2, sess.run(iterator.get_next()))
       self.assertEqual(7, sess.run(iterator.get_next()))
       with self.assertRaises(errors.OutOfRangeError):
@@ -41,7 +40,7 @@ class ShardDatasetOpTest(test_base.DatasetTestBase):
     dataset = dataset_ops.Dataset.zip((dataset_a, dataset_b)).shard(5, 2)
     iterator = dataset.make_one_shot_iterator()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEqual((2, 8), sess.run(iterator.get_next()))
       self.assertEqual((7, 3), sess.run(iterator.get_next()))
       with self.assertRaises(errors.OutOfRangeError):
@@ -51,7 +50,7 @@ class ShardDatasetOpTest(test_base.DatasetTestBase):
     dataset = dataset_ops.Dataset.range(10).shard(5, 0)
     iterator = dataset.make_one_shot_iterator()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEqual(0, sess.run(iterator.get_next()))
       self.assertEqual(5, sess.run(iterator.get_next()))
       with self.assertRaises(errors.OutOfRangeError):
@@ -77,14 +76,14 @@ class ShardDatasetOpTest(test_base.DatasetTestBase):
     dataset = dataset_ops.Dataset.range(1).shard(5, 2)
     iterator = dataset.make_one_shot_iterator()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       with self.assertRaises(errors.OutOfRangeError):
         sess.run(iterator.get_next())
 
   def testLargerWorkerPool(self):
     dataset = dataset_ops.Dataset.range(10).shard(7, 5)
     iterator = dataset.make_one_shot_iterator()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEqual(5, sess.run(iterator.get_next()))
       with self.assertRaises(errors.OutOfRangeError):
         sess.run(iterator.get_next())
@@ -92,7 +91,7 @@ class ShardDatasetOpTest(test_base.DatasetTestBase):
   def testIndexEqualsNumShards(self):
     dataset = dataset_ops.Dataset.range(10).shard(5, 4)
     iterator = dataset.make_one_shot_iterator()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEqual(4, sess.run(iterator.get_next()))
       self.assertEqual(9, sess.run(iterator.get_next()))
       with self.assertRaises(errors.OutOfRangeError):
@@ -101,7 +100,7 @@ class ShardDatasetOpTest(test_base.DatasetTestBase):
   def testIndexEqualsNumShards2(self):
     dataset = dataset_ops.Dataset.range(10).shard(4, 3)
     iterator = dataset.make_one_shot_iterator()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       self.assertEqual(3, sess.run(iterator.get_next()))
       self.assertEqual(7, sess.run(iterator.get_next()))
       with self.assertRaises(errors.OutOfRangeError):

@@ -69,9 +69,6 @@ class EagerService final {
     virtual ::grpc::Status RegisterFunction(
         ::grpc::ClientContext* context, const RegisterFunctionRequest& request,
         RegisterFunctionResponse* response) = 0;
-    virtual ::grpc::Status SendTensor(::grpc::ClientContext* context,
-                                      const SendTensorRequest& request,
-                                      SendTensorResponse* response) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -94,9 +91,6 @@ class EagerService final {
     ::grpc::Status RegisterFunction(
         ::grpc::ClientContext* context, const RegisterFunctionRequest& request,
         RegisterFunctionResponse* response) override;
-    ::grpc::Status SendTensor(::grpc::ClientContext* context,
-                              const SendTensorRequest& request,
-                              SendTensorResponse* response) override;
 
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
@@ -106,7 +100,6 @@ class EagerService final {
     const ::grpc::internal::RpcMethod rpcmethod_KeepAlive_;
     const ::grpc::internal::RpcMethod rpcmethod_CloseContext_;
     const ::grpc::internal::RpcMethod rpcmethod_RegisterFunction_;
-    const ::grpc::internal::RpcMethod rpcmethod_SendTensor_;
   };
   static std::unique_ptr<Stub> NewStub(
       const std::shared_ptr< ::grpc::ChannelInterface>& channel,
@@ -162,14 +155,6 @@ class EagerService final {
         ::grpc::CompletionQueue* new_call_cq,
         ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
       ::grpc::Service::RequestAsyncUnary(5, context, request, response,
-                                         new_call_cq, notification_cq, tag);
-    }
-    void RequestSendTensor(
-        ::grpc::ServerContext* context, SendTensorRequest* request,
-        ::grpc::ServerAsyncResponseWriter<SendTensorResponse>* response,
-        ::grpc::CompletionQueue* new_call_cq,
-        ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
-      ::grpc::Service::RequestAsyncUnary(6, context, request, response,
                                          new_call_cq, notification_cq, tag);
     }
   };

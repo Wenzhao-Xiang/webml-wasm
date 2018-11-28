@@ -87,7 +87,7 @@ handle training:
           label = tf.cast(features["label"], tf.int32)
           return image, label
 
-        dataset = tf.data.TFRecordDataset(
+        dataset = tf.contrib.data.TFRecordDataset(
             filename, buffer_size=FLAGS.dataset_reader_buffer_size)
         dataset = dataset.map(parser).cache().repeat().batch(batch_size)
         images, labels = dataset.make_one_shot_iterator().get_next()

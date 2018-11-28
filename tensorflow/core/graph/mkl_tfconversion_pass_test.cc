@@ -13,12 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#if defined(INTEL_MKL) && defined(ENABLE_MKL)
+#ifdef INTEL_MKL
 
 #include "tensorflow/core/graph/mkl_tfconversion_pass.h"
 #include "tensorflow/core/graph/mkl_graph_util.h"
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "tensorflow/core/framework/op.h"
@@ -304,4 +305,4 @@ BENCHMARK(BM_RunMklToTfConversionPass)->Arg(1000)->Arg(10000);
 }  // namespace
 }  // namespace tensorflow
 
-#endif  // INTEL_MKL && ENABLE_MKL
+#endif /* INTEL_MKL */

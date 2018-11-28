@@ -87,9 +87,6 @@ class TensorResponse {
   // modified.
   const RecvTensorResponse& metadata() const { return meta_; }
 
-  // Return pointer to the device hosting the tensor.
-  DeviceBase* device() const { return device_; }
-
  private:
   bool ParseTensorSubmessage(protobuf::io::CodedInputStream* input,
                              TensorProto* tensor_meta);

@@ -18,8 +18,8 @@ limitations under the License.
 
 #include "tensorflow/compiler/tf2xla/dump_graph.h"
 
-#include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/tf2xla/dump_graph_flags.h"
+#include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/mutex.h"
 
@@ -33,7 +33,7 @@ struct NameCounts {
   std::unordered_map<string, int> counts;
 };
 
-string MakeUniqueFilename(string name) {
+string MakeUniquePath(string name) {
   static NameCounts& instance = *new NameCounts;
 
   // Remove illegal characters from `name`.
@@ -50,41 +50,26 @@ string MakeUniqueFilename(string name) {
     count = instance.counts[name]++;
   }
 
-  string filename = name;
+  legacy_flags::DumpGraphFlags* flags = legacy_flags::GetDumpGraphFlags();
+  string path = strings::StrCat(flags->tf_dump_graph_prefix, "/", name);
   if (count > 0) {
-    absl::StrAppend(&filename, "_", count);
+    strings::StrAppend(&path, "_", count);
   }
-  absl::StrAppend(&filename, ".pbtxt");
-  return filename;
-}
-
-string WriteTextProtoToUniqueFile(
-    Env* env, const string& name, const char* proto_type,
-    const ::tensorflow::protobuf::Message& proto) {
-  const string& dirname =
-      legacy_flags::GetDumpGraphFlags()->tf_dump_graph_prefix;
-  Status status = env->RecursivelyCreateDir(dirname);
-  if (!status.ok()) {
-    LOG(WARNING) << "Failed to create " << dirname << " for dumping "
-                 << proto_type << ": " << status;
-    return "(unavailable)";
-  }
-  string filepath = absl::StrCat(dirname, "/", MakeUniqueFilename(name));
-  status = WriteTextProto(Env::Default(), filepath, proto);
-  if (!status.ok()) {
-    LOG(WARNING) << "Failed to dump " << proto_type << " to file: " << filepath
-                 << " : " << status;
-    return "(unavailable)";
-  }
-  LOG(INFO) << "Dumped " << proto_type << " to " << filepath;
-  return filepath;
+  strings::StrAppend(&path, ".pbtxt");
+  return path;
 }
 
 }  // anonymous namespace
 
 string DumpGraphDefToFile(const string& name, GraphDef const& graph_def) {
-  return WriteTextProtoToUniqueFile(Env::Default(), name, "GraphDef",
-                                    graph_def);
+  string path = MakeUniquePath(name);
+  Status status = WriteTextProto(Env::Default(), path, graph_def);
+  if (!status.ok()) {
+    VLOG(1) << "Failed to dump GraphDef to file: " << path << " : " << status;
+    path.clear();
+    path = "(unavailable)";
+  }
+  return path;
 }
 
 string DumpGraphToFile(const string& name, Graph const& graph,
@@ -98,7 +83,15 @@ string DumpGraphToFile(const string& name, Graph const& graph,
 }
 
 string DumpFunctionDefToFile(const string& name, FunctionDef const& fdef) {
-  return WriteTextProtoToUniqueFile(Env::Default(), name, "FunctionDef", fdef);
+  string path = MakeUniquePath(name);
+  Status status = WriteTextProto(Env::Default(), path, fdef);
+  if (!status.ok()) {
+    VLOG(1) << "Failed to dump FunctionDef to file: " << path << " : "
+            << status;
+    path.clear();
+    path = "(unavailable)";
+  }
+  return path;
 }
 
 }  // namespace dump_graph

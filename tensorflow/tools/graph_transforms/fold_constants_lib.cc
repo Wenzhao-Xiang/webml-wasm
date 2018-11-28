@@ -121,7 +121,7 @@ Status RewriteInputsAsPlaceholders(const TransformFuncContext& context,
                                    GraphDef* graph_def) {
   std::unordered_set<string> input_names;
   for (const string& input_name : context.input_names) {
-    input_names.emplace(ParseTensorName(input_name).first);
+    input_names.insert(ParseTensorName(input_name).first.ToString());
   }
 
   for (NodeDef& node : *graph_def->mutable_node()) {

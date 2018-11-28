@@ -132,17 +132,7 @@ class CUPTIManager {
  public:
   CUPTIManager() {
     cupti_wrapper_.reset(new perftools::gputools::profiler::CuptiWrapper());
-  }
-
-  static CUPTIManager *Create() {
-    auto manager = absl::make_unique<CUPTIManager>();
-    CUptiResult status = manager->cupti_wrapper_->ActivityRegisterCallbacks(
-        BufferRequested, BufferCompleted);
-    if (status != CUPTI_SUCCESS) {
-      LOG(ERROR) << "Failed to initialize CUPTI: " << status;
-      return nullptr;
-    }
-    return manager.release();
+    CUPTI_CALL(ActivityRegisterCallbacks(BufferRequested, BufferCompleted));
   }
 
   // Enables tracing and delivers event callbacks to 'client'.
@@ -264,7 +254,7 @@ void CUPTIManager::InternalBufferCompleted(CUcontext ctx, uint32_t streamId,
 }
 
 CUPTIManager *GetCUPTIManager() {
-  static CUPTIManager *manager = CUPTIManager::Create();
+  static CUPTIManager *manager = new CUPTIManager();
   return manager;
 }
 
@@ -301,7 +291,7 @@ class DeviceTracerImpl : public DeviceTracer,
                          public CUPTIClient,
                          public tracing::TraceCollector {
  public:
-  DeviceTracerImpl(CUPTIManager *cupti_manager);
+  DeviceTracerImpl();
   ~DeviceTracerImpl() override;
 
   // DeviceTracer interface:
@@ -329,16 +319,6 @@ class DeviceTracerImpl : public DeviceTracer,
                                                        bool) const {
     // We don't do anything with 'Activities' yet.
     return nullptr;
-  }
-
-  bool IsEnabledForAnnotations() const override {
-    // We are always enabled for 'Annotations'.
-    return true;
-  }
-
-  bool IsEnabledForActivities(bool is_expensive) const override {
-    // We don't do anything with 'Activities' so we are never 'enabled'.
-    return false;
   }
 
  protected:
@@ -399,9 +379,10 @@ class DeviceTracerImpl : public DeviceTracer,
   TF_DISALLOW_COPY_AND_ASSIGN(DeviceTracerImpl);
 };
 
-DeviceTracerImpl::DeviceTracerImpl(CUPTIManager *cupti_manager)
-    : cupti_manager_(cupti_manager) {
+DeviceTracerImpl::DeviceTracerImpl() {
   VLOG(1) << "DeviceTracer created.";
+  cupti_manager_ = GetCUPTIManager();
+  CHECK(cupti_manager_);
   cupti_wrapper_.reset(new perftools::gputools::profiler::CuptiWrapper());
   enabled_ = false;
 }
@@ -655,12 +636,7 @@ Status DeviceTracerImpl::Collect(StepStatsCollector *collector) {
 }  // namespace devicetracer
 
 std::unique_ptr<DeviceTracer> CreateDeviceTracer() {
-  devicetracer::CUPTIManager *cupti_manager = devicetracer::GetCUPTIManager();
-  if (cupti_manager == nullptr) {
-    return nullptr;
-  }
-  std::unique_ptr<DeviceTracer> tracer(
-      new devicetracer::DeviceTracerImpl(cupti_manager));
+  std::unique_ptr<DeviceTracer> tracer(new devicetracer::DeviceTracerImpl());
   return tracer;
 }
 

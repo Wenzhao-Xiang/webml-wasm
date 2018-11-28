@@ -24,24 +24,19 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ResolveTransposeAttributes::Run(Model* model,
-                                                     std::size_t op_index,
-                                                     bool* modified) {
-  *modified = false;
+bool ResolveTransposeAttributes::Run(Model* model, std::size_t op_index) {
   const auto op_it = model->operators.begin() + op_index;
-  if (op_it->get()->type != OperatorType::kTranspose)
-    return ::tensorflow::Status::OK();
+  if (op_it->get()->type != OperatorType::kTranspose) return false;
 
   auto* op = static_cast<TransposeOperator*>(op_it->get());
-  if (!op->perm.empty()) return ::tensorflow::Status::OK();
+  if (!op->perm.empty()) return false;
 
   CHECK_EQ(op->inputs.size(), 2);
-  if (!IsConstantParameterArray(*model, op->inputs[1]))
-    return ::tensorflow::Status::OK();
+  if (!IsConstantParameterArray(*model, op->inputs[1])) return false;
 
   // Handling perm.
   const auto& perm_array = model->GetArray(op->inputs[1]);
-  if (!perm_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!perm_array.has_shape()) return false;
 
   const std::vector<int>& perm_dims = perm_array.shape().dims();
   CHECK_EQ(perm_dims.size(), 1);
@@ -52,8 +47,7 @@ namespace toco {
     op->perm.push_back(perm_buffer[i]);
   }
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

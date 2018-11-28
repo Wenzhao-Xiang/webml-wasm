@@ -21,8 +21,6 @@ limitations under the License.
 #include <unordered_set>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
 #include "tensorflow/compiler/xla/service/bfloat16_support.h"
 #include "tensorflow/compiler/xla/service/hlo_dataflow_analysis.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
@@ -60,13 +58,15 @@ namespace xla {
 // BFloat16ConversionFolding. If other passes are needed after this pass, run
 // BFloat16MixedPrecisionRemoval first to undo some of the changes made by this
 // pass.
-class BFloat16Propagation : public HloModulePass {
+class BFloat16Propagation : public HloPassInterface {
  public:
   explicit BFloat16Propagation(const BFloat16Support* bfloat16_support);
 
   ~BFloat16Propagation() override = default;
 
-  absl::string_view name() const override { return "bfloat16-propagation"; }
+  tensorflow::StringPiece name() const override {
+    return "bfloat16-propagation";
+  }
 
   // Runs the pass on the given module. Returns whether the module was changed
   // (precision reductions were added).
@@ -83,7 +83,7 @@ class BFloat16Propagation : public HloModulePass {
 
   // The set of instructions to consider using bfloat16, computed in the forward
   // pass.
-  absl::flat_hash_set<const HloInstruction*> consider_using_bfloat16_;
+  tensorflow::gtl::FlatSet<const HloInstruction*> consider_using_bfloat16_;
 
   // ***************************
   // Functions called and state produced by the backward pass (from root to
@@ -112,12 +112,12 @@ class BFloat16Propagation : public HloModulePass {
 
   // The set of HloInstructions that have been visited in the
   // opportunity-finding pass.
-  absl::flat_hash_set<const HloInstruction*>
+  tensorflow::gtl::FlatSet<const HloInstruction*>
       instructions_visited_in_backward_pass_;
 
   // The set of HloComputations that have been visited in the
   // opportunity-finding pass.
-  absl::flat_hash_set<const HloComputation*>
+  tensorflow::gtl::FlatSet<const HloComputation*>
       computations_visited_in_backward_pass_;
 
   // ***************************
@@ -133,7 +133,7 @@ class BFloat16Propagation : public HloModulePass {
   // point is reached.
   bool ResolveInconsistencyOfAliasingBuffersHelper(
       HloComputation* computation,
-      absl::flat_hash_set<const HloComputation*>* visited_computations);
+      tensorflow::gtl::FlatSet<const HloComputation*>* visited_computations);
 
   // Makes the parameters of called computations match how they are called by
   // the given HLO.
@@ -184,11 +184,11 @@ class BFloat16Propagation : public HloModulePass {
                                       PrimitiveType target_type);
 
   // The set of F32 HLO values that must be kept in F32.
-  absl::flat_hash_set<const HloValue*> values_that_must_be_kept_as_f32_;
+  tensorflow::gtl::FlatSet<const HloValue*> values_that_must_be_kept_as_f32_;
 
   // Mapping from each HloComputation to the number of callers to it in the
   // module. Populated at the beginning of this pass.
-  absl::flat_hash_map<const HloComputation*, int64> caller_counts_;
+  tensorflow::gtl::FlatMap<const HloComputation*, int64> caller_counts_;
 
   // We first store the potential F32-to-BF16 changes to changes_to_bf16_, which
   // are subject to further adjustment, then finally applied to the HLOs. This
@@ -197,7 +197,8 @@ class BFloat16Propagation : public HloModulePass {
   //
   // For each HloInstruction, changes_to_bf16_ stores the affected buffers in
   // the output as a map from in-place pointers to subshapes to shape indices.
-  absl::flat_hash_map<HloInstruction*, absl::flat_hash_map<Shape*, ShapeIndex>>
+  tensorflow::gtl::FlatMap<HloInstruction*,
+                           tensorflow::gtl::FlatMap<Shape*, ShapeIndex>>
       changes_to_bf16_;
 
   // Whether the last processed HLO module has been changed by this pass.

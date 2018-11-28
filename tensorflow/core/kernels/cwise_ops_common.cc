@@ -20,9 +20,9 @@ namespace tensorflow {
 BinaryOpShared::BinaryOpShared(OpKernelConstruction* ctx, DataType out,
                                DataType in)
     : OpKernel(ctx) {
-#if !defined(INTEL_MKL) || !defined(ENABLE_MKL)
+#ifndef INTEL_MKL
   OP_REQUIRES_OK(ctx, ctx->MatchSignature({in, in}, {out}));
-#endif  // !INTEL_MKL || !ENABLE_MKL
+#endif
 }
 
 void BinaryOpShared::SetUnimplementedError(OpKernelContext* ctx) {

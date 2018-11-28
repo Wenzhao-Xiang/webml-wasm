@@ -44,7 +44,7 @@ bool depthwiseConvFloat32(const float* inputData, const Shape& inputShape,
                           int32_t stride_width, int32_t stride_height,
                           int32_t depth_multiplier, int32_t activation,
                           float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("depthwiseConvFloat32");
+    // NNTRACE_TRANS("depthwiseConvFloat32");
 
     ANDROID_NN_DEPTHWISE_CONV_PARAMETERS
 
@@ -52,7 +52,7 @@ bool depthwiseConvFloat32(const float* inputData, const Shape& inputShape,
     CalculateActivationRangeFloat(activation, &output_activation_min,
                                   &output_activation_max);
 
-    NNTRACE_COMP_SWITCH("optimized_ops::DepthwiseConv");
+    // NNTRACE_COMP_SWITCH("optimized_ops::DepthwiseConv");
     tflite::optimized_ops::DepthwiseConv(
             inputData, convertShapeToDims(inputShape),
             filterData, convertShapeToDims(filterShape),
@@ -74,7 +74,7 @@ bool depthwiseConvQuant8(const uint8_t* inputData, const Shape& inputShape,
                          int32_t stride_width, int32_t stride_height,
                          int32_t depth_multiplier, int32_t activation,
                          uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("depthwiseConvQuant8");
+    // NNTRACE_TRANS("depthwiseConvQuant8");
 
     ANDROID_NN_DEPTHWISE_CONV_PARAMETERS
 
@@ -99,7 +99,7 @@ bool depthwiseConvQuant8(const uint8_t* inputData, const Shape& inputShape,
     uint32_t filterOffset = -filterShape.offset;
     uint32_t outputOffset = outputShape.offset;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::DepthwiseConv");
+    // NNTRACE_COMP_SWITCH("optimized_ops::DepthwiseConv");
     tflite::optimized_ops::DepthwiseConv(
             inputData, convertShapeToDims(inputShape), inputOffset,
             filterData, convertShapeToDims(filterShape), filterOffset,

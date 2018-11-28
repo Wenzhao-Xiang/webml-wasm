@@ -41,7 +41,7 @@ bool averagePoolFloat32(const float* inputData, const Shape& inputShape,
                         int32_t stride_width, int32_t stride_height,
                         int32_t filter_width, int32_t filter_height, int32_t activation,
                         float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("averagePoolFloat32");
+    // NNTRACE_TRANS("averagePoolFloat32");
 
     ANDROID_NN_POOLING_PARAMETERS
 
@@ -52,7 +52,7 @@ bool averagePoolFloat32(const float* inputData, const Shape& inputShape,
     op_params.float_activation_min = output_activation_min;
     op_params.float_activation_max = output_activation_max;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::AveragePool");
+    // NNTRACE_COMP_SWITCH("optimized_ops::AveragePool");
     tflite::optimized_ops::AveragePool(
             op_params,
             convertShapeToTflshape(inputShape), inputData,
@@ -67,7 +67,7 @@ bool averagePoolQuant8(const uint8_t* inputData, const Shape& inputShape,
                        int32_t stride_width, int32_t stride_height,
                        int32_t filter_width, int32_t filter_height, int32_t activation,
                        uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("averagePoolQuant8");
+    // NNTRACE_TRANS("averagePoolQuant8");
 
     ANDROID_NN_POOLING_PARAMETERS
 
@@ -81,7 +81,7 @@ bool averagePoolQuant8(const uint8_t* inputData, const Shape& inputShape,
     op_params.quantized_activation_min = output_activation_min;
     op_params.quantized_activation_max = output_activation_max;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::AveragePool");
+    // NNTRACE_COMP_SWITCH("optimized_ops::AveragePool");
     tflite::optimized_ops::AveragePool(
             op_params,
             convertShapeToTflshape(inputShape), inputData,
@@ -96,7 +96,7 @@ bool l2PoolFloat32(const float* inputData, const Shape& inputShape,
                    int32_t stride_width, int32_t stride_height,
                    int32_t filter_width, int32_t filter_height, int32_t activation,
                    float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("l2PoolFloat32");
+    // NNTRACE_TRANS("l2PoolFloat32");
 
     ANDROID_NN_POOLING_PARAMETERS
 
@@ -107,7 +107,7 @@ bool l2PoolFloat32(const float* inputData, const Shape& inputShape,
     op_params.float_activation_min = output_activation_min;
     op_params.float_activation_max = output_activation_max;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::L2Pool");
+    // NNTRACE_COMP_SWITCH("optimized_ops::L2Pool");
     tflite::optimized_ops::L2Pool(
             op_params,
             convertShapeToTflshape(inputShape), inputData,
@@ -122,7 +122,7 @@ bool maxPoolFloat32(const float* inputData, const Shape& inputShape,
                     int32_t stride_width, int32_t stride_height,
                     int32_t filter_width, int32_t filter_height, int32_t activation,
                     float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("maxPoolFloat32");
+    // NNTRACE_TRANS("maxPoolFloat32");
 
     ANDROID_NN_POOLING_PARAMETERS
 
@@ -133,7 +133,7 @@ bool maxPoolFloat32(const float* inputData, const Shape& inputShape,
     op_params.float_activation_min = output_activation_min;
     op_params.float_activation_max = output_activation_max;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::MaxPool");
+    // NNTRACE_COMP_SWITCH("optimized_ops::MaxPool");
     tflite::optimized_ops::MaxPool(
             op_params,
             convertShapeToTflshape(inputShape), inputData,
@@ -148,7 +148,7 @@ bool maxPoolQuant8(const uint8_t* inputData, const Shape& inputShape,
                    int32_t stride_width, int32_t stride_height,
                    int32_t filter_width, int32_t filter_height, int32_t activation,
                    uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("maxPoolQuant8");
+    // NNTRACE_TRANS("maxPoolQuant8");
 
     ANDROID_NN_POOLING_PARAMETERS
 
@@ -162,7 +162,7 @@ bool maxPoolQuant8(const uint8_t* inputData, const Shape& inputShape,
     op_params.quantized_activation_min = output_activation_min;
     op_params.quantized_activation_max = output_activation_max;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::MaxPool");
+    // NNTRACE_COMP_SWITCH("optimized_ops::MaxPool");
     tflite::optimized_ops::MaxPool(
             op_params,
             convertShapeToTflshape(inputShape), inputData,

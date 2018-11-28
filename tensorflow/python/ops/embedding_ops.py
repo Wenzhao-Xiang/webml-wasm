@@ -134,10 +134,7 @@ def _embedding_lookup_and_transform(params,
                        ids, max_norm)
         if transform_fn:
           result = transform_fn(result)
-      # Make sure the final result does not have colocation contraints on the
-      # params. Similar to the case np > 1 where parallel_dynamic_stitch is
-      # outside the scioe of all with ops.colocate_with(params[p]).
-      return array_ops.identity(result)
+        return result
     else:
       # Flatten the ids. There are two cases where we need to do this.
       # - There is more than one params tensor.
@@ -155,19 +152,16 @@ def _embedding_lookup_and_transform(params,
         # Compute num_total_ids as the sum of dim-0 of params, then assign to
         # partitions based on a constant number of ids per partition. Optimize
         # if we already know the full shape statically.
-        dim_0_size = tensor_shape.Dimension(tensor_shape.dimension_value(
-            params[0].get_shape()[0]))
+        dim_0_size = params[0].get_shape()[0]
         for p in xrange(1, np):
-          dim_0_size += tensor_shape.Dimension(tensor_shape.dimension_value(
-              params[p].get_shape()[0]))
+          dim_0_size += params[p].get_shape()[0]
         if dim_0_size.value:
           num_total_ids = constant_op.constant(dim_0_size.value, flat_ids.dtype)
         else:
           dim_0_sizes = []
           for p in xrange(np):
-            param_p_dim = tensor_shape.dimension_value(params[p].get_shape()[0])
-            if param_p_dim is not None:
-              dim_0_sizes.append(param_p_dim)
+            if params[p].get_shape()[0].value is not None:
+              dim_0_sizes.append(params[p].get_shape()[0].value)
             else:
               with ops.colocate_with(params[p]):
                 dim_0_sizes.append(array_ops.shape(params[p])[0])
@@ -259,7 +253,7 @@ def embedding_lookup(
 
   This function is used to perform parallel lookups on the list of
   tensors in `params`.  It is a generalization of
-  `tf.gather`, where `params` is
+  @{tf.gather}, where `params` is
   interpreted as a partitioning of a large embedding tensor.  `params` may be
   a `PartitionedVariable` as returned by using `tf.get_variable()` with a
   partitioner.
@@ -433,8 +427,6 @@ def embedding_lookup_sparse(params,
 
     embeddings = embedding_lookup(
         params, ids, partition_strategy=partition_strategy, max_norm=max_norm)
-    if embeddings.dtype in (dtypes.float16, dtypes.bfloat16):
-      embeddings = math_ops.to_float(embeddings)
     if not ignore_weights:
       weights = sp_weights.values
       if weights.dtype != embeddings.dtype:
@@ -562,12 +554,11 @@ def safe_embedding_lookup_sparse(embedding_weights,
                                            sparse_weights]) as scope:
     # Reshape higher-rank sparse ids and weights to linear segment ids.
     original_shape = sparse_ids.dense_shape
-    original_rank_dim = tensor_shape.dimension_value(
-        sparse_ids.dense_shape.get_shape()[0])
+    original_rank_dim = sparse_ids.dense_shape.get_shape()[0]
     original_rank = (
         array_ops.size(original_shape)
-        if original_rank_dim is None
-        else original_rank_dim)
+        if original_rank_dim.value is None
+        else original_rank_dim.value)
     sparse_ids = sparse_ops.sparse_reshape(sparse_ids, [
         math_ops.reduce_prod(
             array_ops.slice(original_shape, [0], [original_rank - 1])),
@@ -621,8 +612,7 @@ def safe_embedding_lookup_sparse(embedding_weights,
             array_ops.slice(array_ops.shape(result), [1], [-1])
         ], 0))
     final_result.set_shape(tensor_shape.unknown_shape(
-        (tensor_shape.Dimension(original_rank_dim) - 1).value).concatenate(
-            result.get_shape()[1:]))
+        (original_rank_dim - 1).value).concatenate(result.get_shape()[1:]))
     return final_result
 
 

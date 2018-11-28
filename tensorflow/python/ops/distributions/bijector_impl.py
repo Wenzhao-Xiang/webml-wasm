@@ -825,21 +825,10 @@ class Bijector(object):
           min_event_ndims=self.inverse_min_event_ndims,
           event_ndims=event_ndims)):
         if not self._is_injective:  # No caching for non-injective
-          try:
-            ildjs = self._inverse_log_det_jacobian(y, **kwargs)
-            return tuple(self._reduce_jacobian_det_over_event(
-                y, ildj, self.inverse_min_event_ndims, event_ndims)
-                         for ildj in ildjs)
-          except NotImplementedError as original_exception:
-            try:
-              x = self._inverse(y, **kwargs)
-              fldjs = self._forward_log_det_jacobian(x, **kwargs)
-              return tuple(self._reduce_jacobian_det_over_event(
-                  x, -fldj, self.forward_min_event_ndims, event_ndims)
-                           for fldj in fldjs)
-            except NotImplementedError:
-              raise original_exception
-
+          ildjs = self._inverse_log_det_jacobian(y, **kwargs)
+          return tuple(self._reduce_jacobian_det_over_event(
+              y, ildj, self.inverse_min_event_ndims, event_ndims)
+                       for ildj in ildjs)
         mapping = self._lookup(y=y, kwargs=kwargs)
         if mapping.ildj_map is not None and event_ndims in mapping.ildj_map:
           return mapping.ildj_map[event_ndims]
@@ -928,21 +917,11 @@ class Bijector(object):
           return -1. * self._constant_ildj_map[event_ndims]
         x = ops.convert_to_tensor(x, name="x")
         self._maybe_assert_dtype(x)
-        if not self._is_injective:  # No caching for non-injective
-          try:
-            fldjs = self._forward_log_det_jacobian(x, **kwargs)  # No caching.
-            return tuple(self._reduce_jacobian_det_over_event(
-                x, fldj, self.forward_min_event_ndims, event_ndims)
-                         for fldj in fldjs)
-          except NotImplementedError as original_exception:
-            try:
-              y = self._forward(x, **kwargs)
-              ildjs = self._inverse_log_det_jacobian(y, **kwargs)
-              return tuple(self._reduce_jacobian_det_over_event(
-                  y, -ildj, self.inverse_min_event_ndims, event_ndims)
-                           for ildj in ildjs)
-            except NotImplementedError:
-              raise original_exception
+        if not self._is_injective:
+          fldjs = self._forward_log_det_jacobian(x, **kwargs)  # No caching.
+          return tuple(self._reduce_jacobian_det_over_event(
+              x, fldj, self.forward_min_event_ndims, event_ndims)
+                       for fldj in fldjs)
         mapping = self._lookup(x=x, kwargs=kwargs)
         if mapping.ildj_map is not None and event_ndims in mapping.ildj_map:
           return -mapping.ildj_map[event_ndims]
@@ -1032,6 +1011,12 @@ class Bijector(object):
   def _reduce_jacobian_det_over_event(
       self, y, ildj, min_event_ndims, event_ndims):
     """Reduce jacobian over event_ndims - min_event_ndims."""
+
+    if not self.is_constant_jacobian:
+      return math_ops.reduce_sum(
+          ildj,
+          self._get_event_reduce_dims(min_event_ndims, event_ndims))
+
     # In this case, we need to tile the Jacobian over the event and reduce.
     y_rank = array_ops.rank(y)
     y_shape = array_ops.shape(y)[

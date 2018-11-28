@@ -30,7 +30,6 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops.distributions import distribution as distribution_lib
 from tensorflow.python.ops.distributions import identity_bijector
 from tensorflow.python.ops.distributions import util as distribution_util
-from tensorflow.python.util import deprecation
 
 __all__ = [
     "TransformedDistribution",
@@ -228,14 +227,6 @@ class TransformedDistribution(distribution_lib.Distribution):
 
   """
 
-  @deprecation.deprecated(
-      "2019-01-01",
-      "The TensorFlow Distributions library has moved to "
-      "TensorFlow Probability "
-      "(https://github.com/tensorflow/probability). You "
-      "should update all references to use `tfp.distributions` "
-      "instead of `tf.distributions`.",
-      warn_once=True)
   def __init__(self,
                distribution,
                bijector=None,

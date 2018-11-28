@@ -144,7 +144,7 @@ Status HadoopFileSystem::Connect(StringPiece fname, hdfsFS* fs) {
 
   StringPiece scheme, namenode, path;
   io::ParseURI(fname, &scheme, &namenode, &path);
-  const string nn(namenode);
+  const string nn = namenode.ToString();
 
   hdfsBuilder* builder = hdfs_->hdfsNewBuilder();
   if (scheme == "file") {
@@ -183,7 +183,7 @@ Status HadoopFileSystem::Connect(StringPiece fname, hdfsFS* fs) {
 string HadoopFileSystem::TranslateName(const string& name) const {
   StringPiece scheme, namenode, path;
   io::ParseURI(name, &scheme, &namenode, &path);
-  return string(path);
+  return path.ToString();
 }
 
 class HDFSRandomAccessFile : public RandomAccessFile {
@@ -282,7 +282,7 @@ class HDFSWritableFile : public WritableFile {
     }
   }
 
-  Status Append(StringPiece data) override {
+  Status Append(const StringPiece& data) override {
     if (hdfs_->hdfsWrite(fs_, file_, data.data(),
                          static_cast<tSize>(data.size())) == -1) {
       return IOError(filename_, errno);
@@ -392,7 +392,7 @@ Status HadoopFileSystem::GetChildren(const string& dir,
     return IOError(dir, errno);
   }
   for (int i = 0; i < entries; i++) {
-    result->push_back(string(io::Basename(info[i].mName)));
+    result->push_back(io::Basename(info[i].mName).ToString());
   }
   hdfs_->hdfsFreeFileInfo(info, entries);
   return Status::OK();

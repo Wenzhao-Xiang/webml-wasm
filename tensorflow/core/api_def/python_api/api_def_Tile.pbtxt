@@ -1,10 +1,10 @@
 op {
   graph_op_name: "Tile"
   endpoint {
-    name: "tile"
+    name: "manip.tile"
   }
   endpoint {
-    name: "manip.tile"
-    deprecation_version: 2
+    name: "tile"
+    deprecated: true
   }
 }

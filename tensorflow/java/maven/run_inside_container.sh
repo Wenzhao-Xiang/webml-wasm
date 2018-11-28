@@ -26,6 +26,12 @@ TF_ECOSYSTEM_URL="https://github.com/tensorflow/ecosystem.git"
 DEPLOY_BINTRAY="${DEPLOY_BINTRAY:-true}"
 DEPLOY_OSSRH="${DEPLOY_OSSRH:-true}"
 
+IS_SNAPSHOT="false"
+if [[ "${TF_VERSION}" == *"-SNAPSHOT" ]]; then
+  IS_SNAPSHOT="true"
+  # Bintray does not allow snapshots.
+  DEPLOY_BINTRAY="false"
+fi
 PROTOC_RELEASE_URL="https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-linux-x86_64.zip"
 if [[ "${DEPLOY_BINTRAY}" != "true" && "${DEPLOY_OSSRH}" != "true" ]]; then
   echo "Must deploy to at least one of Bintray or OSSRH" >&2
@@ -41,7 +47,7 @@ clean() {
   mvn -q clean
   rm -rf libtensorflow_jni/src libtensorflow_jni/target libtensorflow_jni_gpu/src libtensorflow_jni_gpu/target \
     libtensorflow/src libtensorflow/target tensorflow-android/target proto/src proto/target \
-    tensorflow-hadoop/src tensorflow-hadoop/target spark-tensorflow-connector/src spark-tensorflow-connector/target
+    hadoop/src hadoop/target spark-connector/src spark-connector/target
 }
 
 update_version_in_pom() {
@@ -63,7 +69,11 @@ mvn_property() {
 }
 
 download_libtensorflow() {
-  URL="${RELEASE_URL_PREFIX}/libtensorflow-src-${TF_VERSION}.jar"
+  if [[ "${IS_SNAPSHOT}" == "true" ]]; then
+    URL="http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/TYPE=cpu-slave/lastSuccessfulBuild/artifact/lib_package/libtensorflow-src.jar"
+  else
+    URL="${RELEASE_URL_PREFIX}/libtensorflow-src-${TF_VERSION}.jar"
+  fi
   curl -L "${URL}" -o /tmp/src.jar
   cd "${DIR}/libtensorflow"
   jar -xvf /tmp/src.jar
@@ -91,9 +101,17 @@ download_libtensorflow_jni() {
   mkdir windows-x86_64
   mkdir darwin-x86_64
 
-  curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-cpu-linux-x86_64-${TF_VERSION}.tar.gz" | tar -xvz -C linux-x86_64
-  curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-cpu-darwin-x86_64-${TF_VERSION}.tar.gz" | tar -xvz -C darwin-x86_64
-  curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-cpu-windows-x86_64-${TF_VERSION}.zip" -o /tmp/windows.zip
+  if [[ "${IS_SNAPSHOT}" == "true" ]]; then
+    # Nightly builds from http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/
+    # and http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow-windows/
+    curl -L "http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/TYPE=cpu-slave/lastSuccessfulBuild/artifact/lib_package/libtensorflow_jni-cpu-linux-x86_64.tar.gz" | tar -xvz -C linux-x86_64
+    curl -L "http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/TYPE=mac-slave/lastSuccessfulBuild/artifact/lib_package/libtensorflow_jni-cpu-darwin-x86_64.tar.gz" | tar -xvz -C darwin-x86_64
+    curl -L "http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow-windows/lastSuccessfulBuild/artifact/lib_package/libtensorflow_jni-cpu-windows-x86_64.zip" -o /tmp/windows.zip
+  else
+    curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-cpu-linux-x86_64-${TF_VERSION}.tar.gz" | tar -xvz -C linux-x86_64
+    curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-cpu-darwin-x86_64-${TF_VERSION}.tar.gz" | tar -xvz -C darwin-x86_64
+    curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-cpu-windows-x86_64-${TF_VERSION}.zip" -o /tmp/windows.zip
+  fi
 
   unzip /tmp/windows.zip -d windows-x86_64
   rm -f /tmp/windows.zip
@@ -110,17 +128,17 @@ download_libtensorflow_jni_gpu() {
   cd "${NATIVE_DIR}"
 
   mkdir linux-x86_64
-  mkdir windows-x86_64
 
-  curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-gpu-linux-x86_64-${TF_VERSION}.tar.gz" | tar -xvz -C linux-x86_64
-  curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-gpu-windows-x86_64-${TF_VERSION}.zip" -o /tmp/windows.zip
-
-  unzip /tmp/windows.zip -d windows-x86_64
-  rm -f /tmp/windows.zip
+  if [[ "${IS_SNAPSHOT}" == "true" ]]; then
+    # Nightly builds from http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/
+    # and http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow-windows/
+    curl -L "http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/TYPE=gpu-linux/lastSuccessfulBuild/artifact/lib_package/libtensorflow_jni-gpu-linux-x86_64.tar.gz" | tar -xvz -C linux-x86_64
+  else
+    curl -L "${RELEASE_URL_PREFIX}/libtensorflow_jni-gpu-linux-x86_64-${TF_VERSION}.tar.gz" | tar -xvz -C linux-x86_64
+  fi
 
   # Updated timestamps seem to be required to get Maven to pick up the file.
   touch linux-x86_64/*
-  touch windows-x86_64/*
   cd "${DIR}"
 }
 
@@ -147,7 +165,11 @@ generate_java_protos() {
   rm -f "/tmp/protoc.zip"
 
   # Download the release archive of TensorFlow protos.
-  URL="${RELEASE_URL_PREFIX}/libtensorflow_proto-${TF_VERSION}.zip"
+  if [[ "${IS_SNAPSHOT}" == "true" ]]; then
+    URL="http://ci.tensorflow.org/view/Nightly/job/nightly-libtensorflow/TYPE=cpu-slave/lastSuccessfulBuild/artifact/lib_package/libtensorflow_proto.zip"
+  else
+    URL="${RELEASE_URL_PREFIX}/libtensorflow_proto-${TF_VERSION}.zip"
+  fi
   curl -L "${URL}" -o /tmp/libtensorflow_proto.zip
   mkdir -p "${DIR}/proto/tmp/src"
   unzip -d "${DIR}/proto/tmp/src" "/tmp/libtensorflow_proto.zip"
@@ -170,8 +192,8 @@ generate_java_protos() {
 # is updated for each module.
 download_tf_ecosystem() {
   ECOSYSTEM_DIR="/tmp/tensorflow-ecosystem"
-  HADOOP_DIR="${DIR}/tensorflow-hadoop"
-  SPARK_DIR="${DIR}/spark-tensorflow-connector"
+  HADOOP_DIR="${DIR}/hadoop"
+  SPARK_DIR="${DIR}/spark-connector"
 
   # Clean any previous attempts
   rm -rf "${ECOSYSTEM_DIR}"
@@ -216,7 +238,11 @@ deploy_profile() {
   # Determine the correct pom file property to use
   # for the repository url.
   local rtype
-  rtype='repository'
+  if [[ "${IS_SNAPSHOT}" == "true" ]]; then
+    rtype='snapshotRepository'
+  else
+    rtype='repository'
+  fi
   local url=$(mvn_property "${profile}" "project.distributionManagement.${rtype}.url")
   local repositoryId=$(mvn_property "${profile}" "project.distributionManagement.${rtype}.id")
   mvn gpg:sign-and-deploy-file \
@@ -274,13 +300,17 @@ mvn verify
 deploy_artifacts
 
 set +ex
-echo "Uploaded to the staging repository"
-echo "After validating the release: "
-if [[ "${DEPLOY_OSSRH}" == "true" ]]; then
-  echo "* Login to https://oss.sonatype.org/#stagingRepositories"
-  echo "* Find the 'org.tensorflow' staging release and click either 'Release' to release or 'Drop' to abort"
-fi
-if [[ "${DEPLOY_BINTRAY}" == "true" ]]; then
-  echo "* Login to https://bintray.com/google/tensorflow/tensorflow"
-  echo "* Either 'Publish' unpublished items to release, or 'Discard' to abort"
+if [[ "${IS_SNAPSHOT}" == "false" ]]; then
+  echo "Uploaded to the staging repository"
+  echo "After validating the release: "
+  if [[ "${DEPLOY_OSSRH}" == "true" ]]; then
+    echo "* Login to https://oss.sonatype.org/#stagingRepositories"
+    echo "* Find the 'org.tensorflow' staging release and click either 'Release' to release or 'Drop' to abort"
+  fi
+  if [[ "${DEPLOY_BINTRAY}" == "true" ]]; then
+    echo "* Login to https://bintray.com/google/tensorflow/tensorflow"
+    echo "* Either 'Publish' unpublished items to release, or 'Discard' to abort"
+  fi
+else
+  echo "Uploaded to the snapshot repository"
 fi

@@ -53,8 +53,7 @@ def spectrogram_to_mel_matrix(num_mel_bins=20,
                               num_spectrogram_bins=129,
                               audio_sample_rate=8000,
                               lower_edge_hertz=125.0,
-                              upper_edge_hertz=3800.0,
-                              unused_dtype=None):
+                              upper_edge_hertz=3800.0):
   """Return a matrix that can post-multiply spectrogram rows to make mel.
 
   Copied from
@@ -133,19 +132,18 @@ class LinearToMelTest(test.TestCase):
     # lower_edge_hertz, upper_edge_hertz) to test.
     configs = [
         # Defaults.
-        (20, 129, 8000.0, 125.0, 3800.0, dtypes.float64),
+        (20, 129, 8000.0, 125.0, 3800.0),
         # Settings used by Tacotron (https://arxiv.org/abs/1703.10135).
-        (80, 1025, 24000.0, 80.0, 12000.0, dtypes.float64)
+        (80, 1025, 24000.0, 80.0, 12000.0)
     ]
-    with self.session(use_gpu=True):
+    with self.test_session(use_gpu=True):
       for config in configs:
         mel_matrix_np = spectrogram_to_mel_matrix(*config)
         mel_matrix = mel_ops.linear_to_mel_weight_matrix(*config)
         self.assertAllClose(mel_matrix_np, mel_matrix.eval(), atol=3e-6)
 
   def test_dtypes(self):
-    # LinSpace is not supported for tf.float16.
-    for dtype in (dtypes.bfloat16, dtypes.float32, dtypes.float64):
+    for dtype in (dtypes.float16, dtypes.float32, dtypes.float64):
       self.assertEqual(dtype,
                        mel_ops.linear_to_mel_weight_matrix(dtype=dtype).dtype)
 
@@ -169,8 +167,7 @@ class LinearToMelTest(test.TestCase):
 
   def test_constant_folding(self):
     """Mel functions should be constant foldable."""
-    # TODO(rjryan): tf.bloat16 cannot be constant folded by Grappler.
-    for dtype in (dtypes.float32, dtypes.float64):
+    for dtype in (dtypes.float16, dtypes.float32, dtypes.float64):
       g = ops.Graph()
       with g.as_default():
         mel_matrix = mel_ops.linear_to_mel_weight_matrix(dtype=dtype)
@@ -178,7 +175,7 @@ class LinearToMelTest(test.TestCase):
         self.assertEqual(1, len(rewritten_graph.node))
 
   def test_num_spectrogram_bins_dynamic(self):
-    with self.session(use_gpu=True):
+    with self.test_session(use_gpu=True):
       num_spectrogram_bins = array_ops.placeholder(shape=(),
                                                    dtype=dtypes.int32)
       mel_matrix_np = spectrogram_to_mel_matrix(

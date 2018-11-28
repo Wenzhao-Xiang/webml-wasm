@@ -85,8 +85,7 @@ class MultivariateNormalDiag(
   #### Examples
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   # Initialize a single 2-variate Gaussian.
   mvn = tfd.MultivariateNormalDiag(

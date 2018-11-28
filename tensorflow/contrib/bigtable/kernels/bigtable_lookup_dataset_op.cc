@@ -17,7 +17,6 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 
 namespace tensorflow {
-namespace data {
 namespace {
 
 class BigtableLookupDatasetOp : public UnaryDatasetOpKernel {
@@ -28,7 +27,6 @@ class BigtableLookupDatasetOp : public UnaryDatasetOpKernel {
                    DatasetBase** output) override {
     BigtableTableResource* table;
     OP_REQUIRES_OK(ctx, LookupResource(ctx, HandleFromInput(ctx, 1), &table));
-    core::ScopedUnref scoped_unref(table);
 
     std::vector<string> column_families;
     std::vector<string> columns;
@@ -55,7 +53,7 @@ class BigtableLookupDatasetOp : public UnaryDatasetOpKernel {
   }
 
  private:
-  class Dataset : public DatasetBase {
+  class Dataset : public GraphDatasetBase {
    public:
     explicit Dataset(OpKernelContext* ctx, const DatasetBase* input,
                      BigtableTableResource* table,
@@ -63,7 +61,7 @@ class BigtableLookupDatasetOp : public UnaryDatasetOpKernel {
                      std::vector<string> columns,
                      const DataTypeVector& output_types,
                      std::vector<PartialTensorShape> output_shapes)
-        : DatasetBase(DatasetContext(ctx)),
+        : GraphDatasetBase(ctx),
           input_(input),
           table_(table),
           column_families_(std::move(column_families)),
@@ -82,8 +80,8 @@ class BigtableLookupDatasetOp : public UnaryDatasetOpKernel {
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(
         const string& prefix) const override {
-      return std::unique_ptr<IteratorBase>(
-          new Iterator({this, strings::StrCat(prefix, "::BigtableLookup")}));
+      return std::unique_ptr<IteratorBase>(new Iterator(
+          {this, strings::StrCat(prefix, "::BigtableLookupDataset")}));
     }
 
     const DataTypeVector& output_dtypes() const override {
@@ -96,14 +94,6 @@ class BigtableLookupDatasetOp : public UnaryDatasetOpKernel {
 
     string DebugString() const override {
       return "BigtableLookupDatasetOp::Dataset";
-    }
-
-   protected:
-    Status AsGraphDefInternal(SerializationContext* ctx,
-                              DatasetGraphDefBuilder* b,
-                              Node** output) const override {
-      return errors::Unimplemented("%s does not support serialization",
-                                   DebugString());
     }
 
    private:
@@ -228,5 +218,4 @@ REGISTER_KERNEL_BUILDER(Name("BigtableLookupDataset").Device(DEVICE_CPU),
                         BigtableLookupDatasetOp);
 
 }  // namespace
-}  // namespace data
 }  // namespace tensorflow

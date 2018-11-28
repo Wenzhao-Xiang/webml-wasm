@@ -23,10 +23,15 @@ namespace {
 class QROp : public XlaOpKernel {
  public:
   explicit QROp(OpKernelConstruction* ctx) : XlaOpKernel(ctx) {
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("full_matrices", &full_matrices_));
+    bool full_matrices;
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("full_matrices", &full_matrices));
+    OP_REQUIRES(
+        ctx, full_matrices,
+        errors::Unimplemented("full_matrices=False case of QR decomposition is "
+                              "not implemented in TF/XLA"));
   }
   void Compile(XlaOpKernelContext* ctx) override {
-    auto result = QRDecomposition(ctx->Input(0), full_matrices_);
+    auto result = QRDecomposition(ctx->Input(0));
     if (!result.ok()) {
       ctx->SetStatus(result.status());
       return;
@@ -34,11 +39,6 @@ class QROp : public XlaOpKernel {
     ctx->SetOutput(0, result.ValueOrDie().q);
     ctx->SetOutput(1, result.ValueOrDie().r);
   }
-
- private:
-  // If true, compute full-sized q and r. If false, compute only the leading P
-  // columns of q.
-  bool full_matrices_;
 };
 
 REGISTER_XLA_OP(Name("Qr").TypeConstraint("T", kFloatTypes), QROp);

@@ -35,11 +35,6 @@ class WorkerFreeListCache : public WorkerCacheInterface {
     wrapped_->ListWorkers(workers);
   }
 
-  void ListWorkersInJob(const string& job_name,
-                        std::vector<string>* workers) const override {
-    wrapped_->ListWorkersInJob(job_name, workers);
-  }
-
   WorkerInterface* CreateWorker(const string& target) override {
     mutex_lock l(mu_);
     auto p = workers_.find(target);

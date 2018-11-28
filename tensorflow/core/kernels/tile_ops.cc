@@ -31,7 +31,6 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/framework/type_index.h"
-#include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/macros.h"
@@ -150,12 +149,10 @@ class TileOp : public OpKernel {
 #undef HANDLE_TYPE_NAME
 #undef HANDLE_TYPE
 
-    OP_REQUIRES(
-        context, false,
-        errors::Unimplemented(
-            "TileOp : The input data type is not supported, DataType : ",
-            DataTypeString(context->input(0).dtype()),
-            ", Dimension : ", input_dims));
+    OP_REQUIRES(context, false,
+                errors::Unimplemented(
+                    "TileOp : Unhandled input dimensions, DT : ",
+                    context->input(0).dtype(), ", dims : ", input_dims));
   }
 
  private:
@@ -333,10 +330,9 @@ class TileGradientOp : public OpKernel {
 #undef HANDLE_DIM
 
     OP_REQUIRES(context, false,
-                errors::Unimplemented("TileGradientOp : The input data type or "
-                                      "dimension is not supported, DataType : ",
-                                      DataTypeString(context->input(0).dtype()),
-                                      ", Dimension : ", input_dims));
+                errors::Unimplemented(
+                    "TileGradientOp : Unhandled input dimensions, DT : ",
+                    context->input(0).dtype(), ", dims : ", input_dims));
   }
 
  private:
@@ -577,7 +573,6 @@ TF_CALL_double(REGISTER_GPU);
 TF_CALL_half(REGISTER_GPU);
 TF_CALL_int16(REGISTER_GPU);
 TF_CALL_int32(REGISTER_GPU);
-TF_CALL_int64(REGISTER_GPU);
 TF_CALL_complex64(REGISTER_GPU);
 TF_CALL_complex128(REGISTER_GPU)
 

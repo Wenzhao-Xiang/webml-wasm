@@ -17,12 +17,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.data.experimental.ops import counter
+from tensorflow.contrib.data.python.ops import scan_ops
+
+from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import dtypes
-from tensorflow.python.util import deprecation
+from tensorflow.python.framework import ops
 
 
-@deprecation.deprecated(None, "Use `tf.data.experimental.Counter(...)`.")
 def Counter(start=0, step=1, dtype=dtypes.int64):
   """Creates a `Dataset` that counts from `start` in steps of size `step`.
 
@@ -45,4 +46,8 @@ def Counter(start=0, step=1, dtype=dtypes.int64):
   Returns:
     A `Dataset` of scalar `dtype` elements.
   """
-  return counter.Counter(start, step, dtype)
+  with ops.name_scope("counter"):
+    start = ops.convert_to_tensor(start, dtype=dtype, name="start")
+    step = ops.convert_to_tensor(step, dtype=dtype, name="step")
+    return dataset_ops.Dataset.from_tensors(0).repeat(None).apply(
+        scan_ops.scan(start, lambda state, _: (state + step, state)))

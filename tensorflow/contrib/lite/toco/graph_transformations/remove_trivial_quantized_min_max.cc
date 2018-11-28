@@ -69,26 +69,22 @@ bool IsTrivialMinMax(GraphTransformation* transformation, const Model& model,
 
 // Attempts to remove min/max functions if the quantization params indicate that
 // the representable values fall inside the clip range.
-::tensorflow::Status RemoveTrivialQuantizedMinMax::Run(Model* model,
-                                                       std::size_t op_index,
-                                                       bool* modified) {
-  *modified = false;
+bool RemoveTrivialQuantizedMinMax::Run(Model* model, std::size_t op_index) {
   const auto it = model->operators.begin() + op_index;
   auto* op = it->get();
   if ((op->type != OperatorType::kMinimum &&
        op->type != OperatorType::kMaximum) ||
       op->inputs.size() != 2) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (IsTrivialMinMax(this, *model, op->type, op->inputs[0], op->inputs[1])) {
     AddMessageF(
         "Removing trivial min/max %s because the quantization parameters imply "
         "at least as tight a clamp anyway.",
         LogName(*op));
-    *modified = RemoveTrivialPassthroughOp(this, model, op_index);
-    return ::tensorflow::Status::OK();
+    return RemoveTrivialPassthroughOp(this, model, op_index);
   }
-  return ::tensorflow::Status::OK();
+  return false;
 }
 
 }  // namespace toco

@@ -21,7 +21,6 @@ py_library(
     deps = [
         ":builder",
         ":constants",
-        ":export",
         ":loader",
         ":main_op",
         ":signature_constants",
@@ -63,7 +62,6 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":constants",
-        ":utils",
         "//tensorflow/core:protos_all_py",
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:lib",
@@ -83,7 +81,6 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":constants",
-        ":utils",
         "//tensorflow/core:protos_all_py",
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:lib",
@@ -190,10 +187,8 @@ py_library(
     ],
     srcs_version = "PY2AND3",
     deps = [
-        ":constants",
         "//tensorflow/core:protos_all_py",
         "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:lib",
         "//tensorflow/python:sparse_tensor",
         "//tensorflow/python:util",
     ],
@@ -226,7 +221,6 @@ py_library(
         ":signature_constants",
         ":utils",
         "//tensorflow/core:protos_all_py",
-        "//tensorflow/python:framework_ops",
         "//tensorflow/python:util",
     ],
 )
@@ -261,39 +255,6 @@ py_test(
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:framework_ops",
         "//tensorflow/python:variables",
-    ],
-)
-
-py_library(
-    name = "export",
-    srcs = [
-        "export.py",
-    ],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":loader",
-        ":signature_constants",
-        ":signature_def_utils",
-        ":utils",
-        "//tensorflow/core:protos_all_py",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:framework_ops",
-        "//tensorflow/python:util",
-        "//tensorflow/python/eager:def_function",
-        "//tensorflow/python/eager:test",
-    ],
-)
-
-py_test(
-    name = "export_test",
-    srcs = ["export_test.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":export",
-        ":signature_constants",
-        ":tag_constants",
-        "//tensorflow/python/eager:def_function",
-        "@absl_py//absl/testing:parameterized",
     ],
 )
 

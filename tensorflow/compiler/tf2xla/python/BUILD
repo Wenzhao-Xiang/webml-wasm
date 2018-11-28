@@ -2,7 +2,6 @@ licenses(["notice"])  # Apache 2.0
 
 package(
     default_visibility = [
-        "//learning/deepmind/public/wavenet/python:__subpackages__",
         "//learning/tfx:__subpackages__",
         "//tensorflow:internal",
     ],
@@ -29,6 +28,5 @@ py_library(
     srcs = ["xla.py"],
     deps = [
         "//tensorflow/compiler/tf2xla/ops:gen_xla_ops",
-        "//tensorflow/compiler/xla:xla_data_proto_py",
     ],
 )

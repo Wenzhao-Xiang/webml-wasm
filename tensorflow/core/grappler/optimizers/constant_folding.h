@@ -16,7 +16,6 @@ limitations under the License.
 #ifndef TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_CONSTANT_FOLDING_H_
 #define TENSORFLOW_CORE_GRAPPLER_OPTIMIZERS_CONSTANT_FOLDING_H_
 
-#include "absl/container/flat_hash_set.h"
 #include "tensorflow/core/framework/device_base.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
@@ -72,11 +71,10 @@ class ConstantFolding : public GraphOptimizer {
                       const gtl::InlinedVector<TensorValue, 4>& inputs,
                       gtl::InlinedVector<TensorValue, 4>* output) const;
 
-  Status EvaluateOneFoldable(const NodeDef& node, std::vector<NodeDef>* outputs,
-                             bool* result_too_large);
+  Status EvaluateOneFoldable(const NodeDef& node,
+                             std::vector<NodeDef>* outputs);
 
-  Status FoldNode(NodeDef* node, GraphDef* output_graph,
-                  bool* result_too_large);
+  Status FoldNode(NodeDef* node, GraphDef* output_graph);
 
   bool IsOnes(const NodeDef& node) const;
   bool IsZeros(const NodeDef& node) const;
@@ -93,17 +91,14 @@ class ConstantFolding : public GraphOptimizer {
                                       NodeDef* node, GraphDef* graph,
                                       bool* success);
   void ReplaceDivisionOfOnesByReciprocal(NodeDef* node, GraphDef* graph);
-  Status FoldGraph(GraphDef* output,
-                   absl::flat_hash_set<string>* nodes_to_not_simplify);
+  Status FoldGraph(GraphDef* output);
 
   bool IsSimplifiableReduction(const NodeDef& node,
                                const GraphProperties& properties) const;
   bool IsSimplifiableReshape(const NodeDef& node,
                              const GraphProperties& properties) const;
-  Status SimplifyGraph(
-      bool use_shape_info, GraphDef* optimized_graph,
-      GraphProperties* properties,
-      const absl::flat_hash_set<string>& nodes_to_not_simplify);
+  Status SimplifyGraph(bool use_shape_info, GraphDef* optimized_graph,
+                       GraphProperties* properties);
   Status SimplifyNode(bool use_shape_info, NodeDef* node,
                       GraphDef* optimized_graph, GraphProperties* properties);
 
@@ -214,10 +209,6 @@ class ConstantFolding : public GraphOptimizer {
   // Removes Split or SplitV node if possible.
   bool RemoveSplitOrSplitV(const GraphProperties& properties,
                            GraphDef* optimized_graph, NodeDef* node);
-
-  bool MergeConcat(const GraphProperties& properties, bool use_shape_info,
-                   GraphDef* optimized_graph, NodeDef* node);
-
   // Points to an externally provided device or to owned_device_;
   RewriterConfig::Toggle opt_level_;
   DeviceBase* cpu_device_;

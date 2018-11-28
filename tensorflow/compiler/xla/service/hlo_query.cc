@@ -24,7 +24,7 @@ namespace hlo_query {
 
 bool IsConstantR0F32(HloInstruction* instruction, float* out) {
   if (instruction->opcode() == HloOpcode::kConstant &&
-      ShapeUtil::IsScalarWithElementType(instruction->shape(), F32)) {
+      ShapeUtil::IsScalarF32(instruction->shape())) {
     *out = instruction->literal().Get<float>({});
     return true;
   }

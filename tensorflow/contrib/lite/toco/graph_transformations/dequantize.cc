@@ -186,27 +186,24 @@ bool DequantizeArray(const string& array_name,
 
 }  // namespace
 
-::tensorflow::Status Dequantize::Run(Model* model, std::size_t op_index,
-                                     bool* modified) {
-  *modified = false;
+bool Dequantize::Run(Model* model, std::size_t op_index) {
   const auto op_it = model->operators.begin() + op_index;
   auto* op = op_it->get();
 
   if (op->type == OperatorType::kDequantize) {
     auto& input_array = model->GetArray(op->inputs[0]);
     if (input_array.data_type == ArrayDataType::kFloat) {
-      return ::tensorflow::Status::OK();
+      return false;
     }
     if (input_array.final_data_type != ArrayDataType::kFloat) {
-      return ::tensorflow::Status::OK();
+      return false;
     }
     input_array.data_type = ArrayDataType::kFloat;
     input_array.quantization_params = nullptr;
     auto& output_array = model->GetArray(op->outputs[0]);
     output_array.data_type = ArrayDataType::kFloat;
     output_array.quantization_params = nullptr;
-    *modified = RemoveTrivialPassthroughOp(this, model, op_index);
-    return ::tensorflow::Status::OK();
+    return RemoveTrivialPassthroughOp(this, model, op_index);
   }
 
   std::vector<string> arrays;
@@ -223,8 +220,7 @@ bool DequantizeArray(const string& array_name,
     }
   }
 
-  *modified = changed;
-  return ::tensorflow::Status::OK();
+  return changed;
 }
 
 }  // namespace toco

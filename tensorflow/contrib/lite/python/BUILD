@@ -20,7 +20,6 @@ py_library(
     deps = [
         "//tensorflow/contrib/lite/python/interpreter_wrapper:tensorflow_wrap_interpreter_wrapper",
         "//tensorflow/python:util",
-        "//third_party/py/numpy",
     ],
 )
 
@@ -61,16 +60,16 @@ py_library(
         ":lite_constants",
         ":op_hint",
         "//tensorflow/python:graph_util",
-        "//tensorflow/python/keras",
         "//tensorflow/python/saved_model:constants",
         "//tensorflow/python/saved_model:loader",
+        "//tensorflow/python/tools:freeze_graph_lib",
     ],
 )
 
 py_test(
     name = "lite_test",
     srcs = ["lite_test.py"],
-    data = ["@tflite_mobilenet_ssd_quant_protobuf//:tflite_graph.pb"],
+    data = [":interpreter_test_data"],
     srcs_version = "PY2AND3",
     tags = [
         "no_oss",
@@ -78,8 +77,6 @@ py_test(
     ],
     deps = [
         ":lite",
-        "//tensorflow/python:client_testlib",
-        "//tensorflow/python:framework_test_lib",
     ],
 )
 
@@ -114,11 +111,8 @@ py_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tensorflow/contrib/framework:framework_py",
-        "//tensorflow/contrib/graph_editor:graph_editor_py",
         "//tensorflow/core:protos_all_py",
-        "//tensorflow/python:framework",
         "//tensorflow/python:platform",
-        "//tensorflow/python:util",
     ],
 )
 
@@ -126,9 +120,12 @@ py_test(
     name = "convert_test",
     srcs = ["convert_test.py"],
     srcs_version = "PY2AND3",
+    tags = [
+        "no-internal-py3",
+        "no_oss",
+    ],
     deps = [
         ":convert",
-        ":interpreter",
         ":op_hint",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
@@ -142,12 +139,13 @@ py_library(
     name = "convert_saved_model",
     srcs = ["convert_saved_model.py"],
     srcs_version = "PY2AND3",
-    visibility = ["//tensorflow/contrib/lite:__subpackages__"],
+    visibility = ["//visibility:public"],
     deps = [
         ":convert",
+        "//tensorflow/contrib/saved_model:saved_model_py",
         "//tensorflow/python:graph_util",
         "//tensorflow/python:platform",
-        "//tensorflow/python/saved_model",
+        "//tensorflow/python/tools:freeze_graph_lib",
     ],
 )
 
@@ -169,6 +167,7 @@ py_test(
     srcs = ["convert_saved_model_test.py"],
     srcs_version = "PY2AND3",
     tags = [
+        "no_oss",
         "no_windows",
     ],
     visibility = ["//visibility:public"],
@@ -179,6 +178,7 @@ py_test(
         "//tensorflow/python:nn",
         "//tensorflow/python:platform_test",
         "//tensorflow/python:session",
+        "//tensorflow/python/estimator:estimator_py",
         "//tensorflow/python/keras",
         "//tensorflow/python/ops/losses",
         "//tensorflow/python/saved_model",

@@ -220,8 +220,7 @@ class PoissonLogNormalQuadratureCompound(distribution_lib.Distribution):
   #### Examples
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   # Create two batches of PoissonLogNormalQuadratureCompounds, one with
   # prior `loc = 0.` and another with `loc = 1.` In both cases `scale = 1.`

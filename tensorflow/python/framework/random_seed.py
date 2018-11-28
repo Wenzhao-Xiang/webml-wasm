@@ -22,7 +22,6 @@ from __future__ import print_function
 
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
-from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import tf_export
 
 
@@ -34,8 +33,7 @@ def _truncate_seed(seed):
   return seed % _MAXINT32  # Truncate to fit into 32-bit integer
 
 
-@tf_export('random.get_seed', v1=['random.get_seed', 'get_seed'])
-@deprecation.deprecated_endpoints('get_seed')
+@tf_export('get_seed')
 def get_seed(op_seed):
   """Returns the local seeds an operation should use given an op-specific seed.
 
@@ -45,7 +43,7 @@ def get_seed(op_seed):
   graph, or for only specific operations.
 
   For details on how the graph-level seed interacts with op seeds, see
-  `tf.set_random_seed`.
+  @{tf.set_random_seed}.
 
   Args:
     op_seed: integer.
@@ -82,7 +80,7 @@ def get_seed(op_seed):
   return seeds
 
 
-@tf_export('random.set_random_seed', 'set_random_seed')
+@tf_export('set_random_seed')
 def set_random_seed(seed):
   """Sets the graph-level random seed.
 

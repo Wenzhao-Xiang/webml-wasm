@@ -135,8 +135,5 @@ class GceClusterResolver(ClusterResolver):
     worker_list.sort()
     return ClusterSpec({self._job_name: worker_list})
 
-  def master(self, task_type=None, task_index=None):
-    if task_type and task_index:
-      return self.cluster_spec().task_address(task_type, task_index)
-
+  def master(self):
     return ''

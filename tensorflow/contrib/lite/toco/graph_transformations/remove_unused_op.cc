@@ -25,9 +25,7 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status RemoveUnusedOp::Run(Model* model, std::size_t op_index,
-                                         bool* modified) {
-  *modified = false;
+bool RemoveUnusedOp::Run(Model* model, std::size_t op_index) {
   const auto it = model->operators.begin() + op_index;
   const auto* op = it->get();
 
@@ -60,7 +58,7 @@ namespace toco {
     }
     for (const string& output_array : model->flags.output_arrays()) {
       if (output == output_array) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
     }
     for (const auto& rnn_state : model->flags.rnn_states()) {
@@ -69,19 +67,19 @@ namespace toco {
         if (!IsDiscardableArray(*model, rnn_state.back_edge_source_array()) ||
             !IsDiscardableArray(*model, rnn_state.state_array()) ||
             CountOpsWithInput(*model, rnn_state.state_array())) {
-          return ::tensorflow::Status::OK();
+          return false;
         }
       }
     }
     if (CountOpsWithInput(*model, output)) {
-      return ::tensorflow::Status::OK();
+      return false;
     }
   }
 
   if (op->unresolved_outputs) {
     AddMessageF("Not discarding %s because it has unresolved outputs.",
                 LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   AddMessageF("Discarding %s because none of its outputs is used.",
@@ -107,8 +105,7 @@ namespace toco {
     }
   }
   model->operators.erase(it);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

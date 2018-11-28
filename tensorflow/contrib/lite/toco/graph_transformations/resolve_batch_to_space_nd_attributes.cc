@@ -24,35 +24,31 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ResolveBatchToSpaceNDAttributes::Run(Model* model,
-                                                          std::size_t op_index,
-                                                          bool* modified) {
-  *modified = false;
+bool ResolveBatchToSpaceNDAttributes::Run(Model* model, std::size_t op_index) {
   const auto op_it = model->operators.begin() + op_index;
-  if (op_it->get()->type != OperatorType::kBatchToSpaceND)
-    return ::tensorflow::Status::OK();
+  if (op_it->get()->type != OperatorType::kBatchToSpaceND) return false;
 
   auto* op = static_cast<BatchToSpaceNDOperator*>(op_it->get());
 
   // The attributes are resolved only when the 3 attributes (block_shape,
   // before_crops, after_crops) are all constant.
   if (!op->block_shape.empty()) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK_EQ(op->inputs.size(), 3);
   if (!IsConstantParameterArray(*model, op->inputs[1]) ||
       !IsConstantParameterArray(*model, op->inputs[2]))
-    return ::tensorflow::Status::OK();
+    return false;
 
   // Handle crops
   const auto& crops_array = model->GetArray(op->inputs[2]);
-  if (!crops_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!crops_array.has_shape()) return false;
   const std::vector<int>& crops_dims = crops_array.shape().dims();
   if (crops_dims.size() != 2) {
     // Code only handles crops of 2 dimensions. Perhaps another transformation
     // will delete this op.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const std::vector<int>& crops_buffer =
       crops_array.GetBuffer<ArrayDataType::kInt32>().data;
@@ -63,7 +59,7 @@ namespace toco {
 
   // Handle block_shape
   const auto& block_shape_array = model->GetArray(op->inputs[1]);
-  if (!block_shape_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!block_shape_array.has_shape()) return false;
   const std::vector<int>& block_shape_dims = block_shape_array.shape().dims();
   CHECK_EQ(block_shape_dims.size(), 1);
   const std::vector<int>& block_shape_buffer =
@@ -72,8 +68,7 @@ namespace toco {
     op->block_shape.push_back(block_shape_buffer[i]);
   }
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

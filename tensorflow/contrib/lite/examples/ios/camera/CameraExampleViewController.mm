@@ -26,30 +26,25 @@
 #include "tensorflow/contrib/lite/kernels/register.h"
 #include "tensorflow/contrib/lite/model.h"
 #include "tensorflow/contrib/lite/string_util.h"
-#include "tensorflow/contrib/lite/op_resolver.h"
+#include "tensorflow/contrib/lite/tools/mutable_op_resolver.h"
 
 #define LOG(x) std::cerr
 
-namespace {
-
 // If you have your own model, modify this to the file name, and make sure
 // you've added the file to your app resources too.
-NSString* model_file_name = @"mobilenet_v1_1.0_224";
-NSString* model_file_type = @"tflite";
+static NSString* model_file_name = @"mobilenet_quant_v1_224";
+static NSString* model_file_type = @"tflite";
+
 // If you have your own model, point this to the labels file.
-NSString* labels_file_name = @"labels";
-NSString* labels_file_type = @"txt";
+static NSString* labels_file_name = @"labels";
+static NSString* labels_file_type = @"txt";
 
 // These dimensions need to match those the model was trained with.
-const int wanted_input_width = 224;
-const int wanted_input_height = 224;
-const int wanted_input_channels = 3;
-const float input_mean = 127.5f;
-const float input_std = 127.5f;
-const std::string input_layer_name = "input";
-const std::string output_layer_name = "softmax1";
+static const int wanted_input_width = 224;
+static const int wanted_input_height = 224;
+static const int wanted_input_channels = 3;
 
-NSString* FilePathForResourceName(NSString* name, NSString* extension) {
+static NSString* FilePathForResourceName(NSString* name, NSString* extension) {
   NSString* file_path = [[NSBundle mainBundle] pathForResource:name ofType:extension];
   if (file_path == NULL) {
     LOG(FATAL) << "Couldn't find '" << [name UTF8String] << "." << [extension UTF8String]
@@ -58,7 +53,8 @@ NSString* FilePathForResourceName(NSString* name, NSString* extension) {
   return file_path;
 }
 
-void LoadLabels(NSString* file_name, NSString* file_type, std::vector<std::string>* label_strings) {
+static void LoadLabels(NSString* file_name, NSString* file_type,
+                       std::vector<std::string>* label_strings) {
   NSString* labels_path = FilePathForResourceName(file_name, file_type);
   if (!labels_path) {
     LOG(ERROR) << "Failed to find model proto at" << [file_name UTF8String]
@@ -76,17 +72,16 @@ void LoadLabels(NSString* file_name, NSString* file_type, std::vector<std::strin
 
 // Returns the top N confidence values over threshold in the provided vector,
 // sorted by confidence in descending order.
-void GetTopN(
-    const float* prediction, const int prediction_size, const int num_results,
-    const float threshold, std::vector<std::pair<float, int> >* top_results) {
+static void GetTopN(const uint8_t* prediction, const int prediction_size, const int num_results,
+                    const float threshold, std::vector<std::pair<float, int>>* top_results) {
   // Will contain top N results in ascending order.
-  std::priority_queue<std::pair<float, int>, std::vector<std::pair<float, int> >,
-                      std::greater<std::pair<float, int> > >
+  std::priority_queue<std::pair<float, int>, std::vector<std::pair<float, int>>,
+                      std::greater<std::pair<float, int>>>
       top_result_pq;
 
   const long count = prediction_size;
   for (int i = 0; i < count; ++i) {
-    const float value = prediction[i];
+    const float value = prediction[i] / 255.0;
     // Only add it if it beats the threshold and has a chance at being in
     // the top N.
     if (value < threshold) {
@@ -108,43 +103,6 @@ void GetTopN(
   }
   std::reverse(top_results->begin(), top_results->end());
 }
-
-// Preprocess the input image and feed the TFLite interpreter buffer for a float model.
-void ProcessInputWithFloatModel(
-    uint8_t* input, float* buffer, int image_width, int image_height, int image_channels) {
-  for (int y = 0; y < wanted_input_height; ++y) {
-    float* out_row = buffer + (y * wanted_input_width * wanted_input_channels);
-    for (int x = 0; x < wanted_input_width; ++x) {
-      const int in_x = (y * image_width) / wanted_input_width;
-      const int in_y = (x * image_height) / wanted_input_height;
-      uint8_t* input_pixel =
-          input + (in_y * image_width * image_channels) + (in_x * image_channels);
-      float* out_pixel = out_row + (x * wanted_input_channels);
-      for (int c = 0; c < wanted_input_channels; ++c) {
-        out_pixel[c] = (input_pixel[c] - input_mean) / input_std;
-      }
-    }
-  }
-}
-
-// Preprocess the input image and feed the TFLite interpreter buffer for a quantized model.
-void ProcessInputWithQuantizedModel(
-    uint8_t* input, uint8_t* output, int image_width, int image_height, int image_channels) {
-  for (int y = 0; y < wanted_input_height; ++y) {
-    uint8_t* out_row = output + (y * wanted_input_width * wanted_input_channels);
-    for (int x = 0; x < wanted_input_width; ++x) {
-      const int in_x = (y * image_width) / wanted_input_width;
-      const int in_y = (x * image_height) / wanted_input_height;
-      uint8_t* in_pixel = input + (in_y * image_width * image_channels) + (in_x * image_channels);
-      uint8_t* out_pixel = out_row + (x * wanted_input_channels);
-      for (int c = 0; c < wanted_input_channels; ++c) {
-        out_pixel[c] = in_pixel[c];
-      }
-    }
-  }
-}
-
-}  // namespace
 
 @interface CameraExampleViewController (InternalMethods)
 - (void)setupAVCapture;
@@ -293,58 +251,39 @@ void ProcessInputWithQuantizedModel(
   uint8_t* in = sourceStartAddr;
 
   int input = interpreter->inputs()[0];
-  TfLiteTensor *input_tensor = interpreter->tensor(input);
 
-  bool is_quantized;
-  switch (input_tensor->type) {
-  case kTfLiteFloat32:
-    is_quantized = false;
-    break;
-  case kTfLiteUInt8:
-    is_quantized = true;
-    break;
-  default:
-    NSLog(@"Input data type is not supported by this demo app.");
-    return;
+  uint8_t* out = interpreter->typed_tensor<uint8_t>(input);
+  for (int y = 0; y < wanted_input_height; ++y) {
+    uint8_t* out_row = out + (y * wanted_input_width * wanted_input_channels);
+    for (int x = 0; x < wanted_input_width; ++x) {
+      const int in_x = (y * image_width) / wanted_input_width;
+      const int in_y = (x * image_height) / wanted_input_height;
+      uint8_t* in_pixel = in + (in_y * image_width * image_channels) + (in_x * image_channels);
+      uint8_t* out_pixel = out_row + (x * wanted_input_channels);
+      for (int c = 0; c < wanted_input_channels; ++c) {
+        out_pixel[c] = in_pixel[c];
+      }
+    }
   }
 
-  if (is_quantized) {
-    uint8_t* out = interpreter->typed_tensor<uint8_t>(input);
-    ProcessInputWithQuantizedModel(in, out, image_width, image_height, image_channels);
-  } else {
-    float* out = interpreter->typed_tensor<float>(input);
-    ProcessInputWithFloatModel(in, out, image_width, image_height, image_channels);
-  }
-
-  double start = [[NSDate new] timeIntervalSince1970];
+  double startTimestamp = [[NSDate new] timeIntervalSince1970];
   if (interpreter->Invoke() != kTfLiteOk) {
     LOG(FATAL) << "Failed to invoke!";
   }
-  double end = [[NSDate new] timeIntervalSince1970];
-  total_latency += (end - start);
+  double endTimestamp = [[NSDate new] timeIntervalSince1970];
+  total_latency += (endTimestamp - startTimestamp);
   total_count += 1;
-  NSLog(@"Time: %.4lf, avg: %.4lf, count: %d", end - start, total_latency / total_count,
-        total_count);
+  NSLog(@"Time: %.4lf, avg: %.4lf, count: %d", endTimestamp - startTimestamp,
+        total_latency / total_count, total_count);
 
   const int output_size = 1000;
   const int kNumResults = 5;
   const float kThreshold = 0.1f;
 
-  std::vector<std::pair<float, int> > top_results;
+  std::vector<std::pair<float, int>> top_results;
 
-  if (is_quantized) {
-    uint8_t* quantized_output = interpreter->typed_output_tensor<uint8_t>(0);
-    int32_t zero_point = input_tensor->params.zero_point;
-    float scale = input_tensor->params.scale;
-    float output[output_size];
-    for (int i = 0; i < output_size; ++i) {
-      output[i] = (quantized_output[i] - zero_point) * scale;
-    }
-    GetTopN(output, output_size, kNumResults, kThreshold, &top_results);
-  } else {
-    float* output = interpreter->typed_output_tensor<float>(0);
-    GetTopN(output, output_size, kNumResults, kThreshold, &top_results);
-  }
+  uint8_t* output = interpreter->typed_output_tensor<uint8_t>(0);
+  GetTopN(output, output_size, kNumResults, kThreshold, &top_results);
 
   NSMutableDictionary* newValues = [NSMutableDictionary dictionary];
   for (const auto& result : top_results) {
@@ -359,6 +298,7 @@ void ProcessInputWithQuantizedModel(
   });
 
   CVPixelBufferUnlockBaseAddress(pixelBuffer, unlockFlags);
+
   CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 }
 
@@ -375,7 +315,7 @@ void ProcessInputWithQuantizedModel(
   labelLayers = [[NSMutableArray alloc] init];
   oldPredictionValues = [[NSMutableDictionary alloc] init];
 
-  NSString* graph_path = FilePathForResourceName(model_file_name, model_file_type);
+  NSString* graph_path = FilePathForResourceName(model_file_name, @"tflite");
   model = tflite::FlatBufferModel::BuildFromFile([graph_path UTF8String]);
   if (!model) {
     LOG(FATAL) << "Failed to mmap model " << graph_path;
@@ -388,12 +328,6 @@ void ProcessInputWithQuantizedModel(
   LoadLabels(labels_file_name, labels_file_type, &labels);
 
   tflite::InterpreterBuilder(*model, resolver)(&interpreter);
-  // Explicitly resize the input tensor.
-  {
-    int input = interpreter->inputs()[0];
-    std::vector<int> sizes = {1, 224, 224, 3};
-    interpreter->ResizeInputTensor(input, sizes);
-  }
   if (!interpreter) {
     LOG(FATAL) << "Failed to construct interpreter";
   }

@@ -202,7 +202,7 @@ class TensorMapper(object):
       html += str(i) + " "
       html += tensor["name"] + " "
       html += str(tensor["type"]) + " "
-      html += (repr(tensor["shape"]) if "shape" in tensor else "[]") + "<br>"
+      html += repr(tensor["shape"]) + "<br>"
     html += "</span>"
     html += repr(x)
     html += "</span>"
@@ -334,12 +334,12 @@ def CreateHtmlFile(tflite_input, html_output):
   for key, mapping in toplevel_stuff:
     if not mapping:
       mapping = lambda x: x
-    html += "<tr><th>%s</th><td>%s</td></tr>\n" % (key, mapping(data.get(key)))
+    html += "<tr><th>%s</th><td>%s</td></tr>\n" % (key, mapping(data[key]))
   html += "</table>\n"
 
   # Spec on what keys to display
   buffer_keys_to_display = [("data", DataSizeMapper())]
-  operator_keys_to_display = [("builtin_code", None), ("custom_code", None)]
+  operator_keys_to_display = [("builtin_code", None)]
 
   for subgraph_idx, g in enumerate(data["subgraphs"]):
     # Subgraph local specs on what to display

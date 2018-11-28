@@ -18,9 +18,9 @@ limitations under the License.
 #include <memory>
 #include <utility>
 
-#include "absl/memory/memory.h"
 #include "tensorflow/compiler/xla/layout_util.h"
 #include "tensorflow/compiler/xla/literal.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 #include "tensorflow/compiler/xla/service/hlo_matchers.h"
@@ -29,14 +29,15 @@ limitations under the License.
 #include "tensorflow/compiler/xla/service/hlo_pass_fix.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/test.h"
-#include "tensorflow/compiler/xla/tests/hlo_verified_test_base.h"
+#include "tensorflow/compiler/xla/tests/hlo_test_base.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/strings/str_util.h"
 
 namespace xla {
 namespace {
 
-using BatchNormExpanderTest = HloVerifiedTestBase;
+using BatchNormExpanderTest = HloTestBase;
 
 // Test that we expand BatchNormTraining.
 TEST_F(BatchNormExpanderTest, BatchNormTraining) {
@@ -66,7 +67,7 @@ TEST_F(BatchNormExpanderTest, BatchNormTraining) {
   BatchNormExpander rewriter(/*rewrite_training_op=*/true,
                              /*rewrite_inference_op=*/true,
                              /*rewrite_grad_op=*/true);
-  ASSERT_TRUE(rewriter.Run(module).ValueOrDie());
+  ASSERT_TRUE(rewriter.Run(module.get()).ValueOrDie());
   root = computation->root_instruction();
   // Make sure this operation is expanded.
   EXPECT_EQ(root->opcode(), HloOpcode::kTuple);
@@ -108,7 +109,7 @@ TEST_F(BatchNormExpanderTest, BatchNormGrad) {
   BatchNormExpander rewriter(/*rewrite_training_op=*/true,
                              /*rewrite_inference_op=*/true,
                              /*rewrite_grad_op=*/true);
-  ASSERT_TRUE(rewriter.Run(module).ValueOrDie());
+  ASSERT_TRUE(rewriter.Run(module.get()).ValueOrDie());
   root = computation->root_instruction();
   // Make sure this operation is expanded.
   EXPECT_EQ(root->opcode(), HloOpcode::kTuple);
@@ -126,19 +127,19 @@ ENTRY entry {
     epsilon=0.001, feature_index=1, sharding={maximal device=1}
 })";
 
-  ParseAndVerifyModule(module_str);
+  TF_ASSERT_OK_AND_ASSIGN(auto module, ParseHloString(module_str));
   BatchNormExpander rewriter(/*rewrite_training_op=*/true,
                              /*rewrite_inference_op=*/true,
                              /*rewrite_grad_op=*/true);
-  ASSERT_TRUE(rewriter.Run(&module()).ValueOrDie());
+  ASSERT_TRUE(rewriter.Run(module.get()).ValueOrDie());
 
-  for (auto* instruction : module().entry_computation()->instructions()) {
+  for (auto* instruction : module->entry_computation()->instructions()) {
     if (instruction->opcode() == HloOpcode::kParameter) {
       continue;
     }
-    auto device = instruction->sharding_unique_device();
-    ASSERT_TRUE(device);
-    EXPECT_EQ(*device, 1);
+    ASSERT_TRUE(instruction->has_sharding());
+    TF_ASSERT_OK_AND_ASSIGN(int device, instruction->sharding().UniqueDevice());
+    EXPECT_EQ(device, 1);
   }
 }
 

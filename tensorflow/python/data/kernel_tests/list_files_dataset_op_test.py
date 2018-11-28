@@ -22,7 +22,6 @@ from os import path
 import shutil
 import tempfile
 
-from tensorflow.python.data.kernel_tests import test_base
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -31,7 +30,7 @@ from tensorflow.python.platform import test
 from tensorflow.python.util import compat
 
 
-class ListFilesDatasetOpTest(test_base.DatasetTestBase):
+class ListFilesDatasetOpTest(test.TestCase):
 
   def setUp(self):
     self.tmp_dir = tempfile.mkdtemp()
@@ -45,7 +44,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
 
   def testEmptyDirectory(self):
     dataset = dataset_ops.Dataset.list_files(path.join(self.tmp_dir, '*'))
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_one_shot_iterator()
       next_element = itr.get_next()
       with self.assertRaises(errors.OutOfRangeError):
@@ -56,7 +55,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
     self._touchTempFiles(filenames)
 
     dataset = dataset_ops.Dataset.list_files(path.join(self.tmp_dir, '*'))
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_one_shot_iterator()
       next_element = itr.get_next()
 
@@ -76,7 +75,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
 
     dataset = dataset_ops.Dataset.list_files(
         path.join(self.tmp_dir, '*'), shuffle=False)
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_one_shot_iterator()
       next_element = itr.get_next()
 
@@ -92,7 +91,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
 
     dataset = dataset_ops.Dataset.list_files(
         path.join(self.tmp_dir, '*'), shuffle=True, seed=37)
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_initializable_iterator()
       next_element = itr.get_next()
 
@@ -122,13 +121,15 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
     filename_placeholder = array_ops.placeholder(dtypes.string, shape=[])
     dataset = dataset_ops.Dataset.list_files(filename_placeholder)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_initializable_iterator()
-      with self.assertRaisesRegexp(
-          errors.InvalidArgumentError, 'No files matched pattern: '):
-        sess.run(
-            itr.initializer,
-            feed_dict={filename_placeholder: path.join(self.tmp_dir, '*')})
+      next_element = itr.get_next()
+      sess.run(
+          itr.initializer,
+          feed_dict={filename_placeholder: path.join(self.tmp_dir, '*')})
+
+      with self.assertRaises(errors.OutOfRangeError):
+        sess.run(next_element)
 
   def testSimpleDirectoryInitializer(self):
     filenames = ['a', 'b', 'c']
@@ -137,7 +138,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
     filename_placeholder = array_ops.placeholder(dtypes.string, shape=[])
     dataset = dataset_ops.Dataset.list_files(filename_placeholder)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_initializable_iterator()
       next_element = itr.get_next()
       sess.run(
@@ -163,7 +164,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
     filename_placeholder = array_ops.placeholder(dtypes.string, shape=[])
     dataset = dataset_ops.Dataset.list_files(filename_placeholder)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_initializable_iterator()
       next_element = itr.get_next()
       sess.run(
@@ -188,7 +189,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
     filename_placeholder = array_ops.placeholder(dtypes.string, shape=[])
     dataset = dataset_ops.Dataset.list_files(filename_placeholder)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_initializable_iterator()
       next_element = itr.get_next()
       sess.run(
@@ -222,7 +223,7 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
     # more meaningful.
     dataset = dataset_ops.Dataset.list_files(
         path.join(self.tmp_dir, '*'), shuffle=False).repeat(2)
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       itr = dataset.make_one_shot_iterator()
       next_element = itr.get_next()
 
@@ -237,54 +238,6 @@ class ListFilesDatasetOpTest(test_base.DatasetTestBase):
       self.assertItemsEqual(full_filenames, produced_filenames)
       self.assertEqual(produced_filenames[:len(filenames)],
                        produced_filenames[len(filenames):])
-
-  def testMultiplePatternsAsList(self):
-    filenames = ['a.txt', 'b.py', 'c.py', 'd.pyc']
-    self._touchTempFiles(filenames)
-
-    patterns = [path.join(self.tmp_dir, pat) for pat in ['*.py', '*.txt']]
-    dataset = dataset_ops.Dataset.list_files(patterns)
-    with self.cached_session() as sess:
-      itr = dataset.make_one_shot_iterator()
-      next_element = itr.get_next()
-
-      full_filenames = []
-      produced_filenames = []
-      for filename in filenames[:-1]:
-        full_filenames.append(
-            compat.as_bytes(path.join(self.tmp_dir, filename)))
-        produced_filenames.append(compat.as_bytes(sess.run(next_element)))
-      self.assertItemsEqual(full_filenames, produced_filenames)
-
-      with self.assertRaises(errors.OutOfRangeError):
-        sess.run(itr.get_next())
-
-  def testMultiplePatternsAsTensor(self):
-    filenames = ['a.txt', 'b.py', 'c.py', 'd.pyc']
-    self._touchTempFiles(filenames)
-
-    filename_placeholder = array_ops.placeholder(
-        dtypes.string, shape=[
-            2,
-        ])
-    dataset = dataset_ops.Dataset.list_files(filename_placeholder)
-
-    with self.cached_session() as sess:
-      itr = dataset.make_initializable_iterator()
-      next_element = itr.get_next()
-      patterns = [path.join(self.tmp_dir, pat) for pat in ['*.py', '*.txt']]
-      sess.run(itr.initializer, feed_dict={filename_placeholder: patterns})
-
-      full_filenames = []
-      produced_filenames = []
-      for filename in filenames[:-1]:
-        full_filenames.append(
-            compat.as_bytes(path.join(self.tmp_dir, filename)))
-        produced_filenames.append(compat.as_bytes(sess.run(next_element)))
-      self.assertItemsEqual(full_filenames, produced_filenames)
-
-      with self.assertRaises(errors.OutOfRangeError):
-        sess.run(itr.get_next())
 
 
 if __name__ == '__main__':

@@ -42,7 +42,7 @@ limitations under the License.
 
 #include <vector>
 
-#include "tensorflow/contrib/lite/c/c_api_internal.h"
+#include "tensorflow/contrib/lite/context.h"
 #include "tensorflow/contrib/lite/string.h"
 
 namespace tflite {
@@ -74,11 +74,7 @@ class DynamicBuffer {
   // The function allocates space for the buffer but does NOT take ownership.
   int WriteToBuffer(char** buffer);
 
-  // Fill content into a string tensor, with the given new_shape. The new
-  // shape must match the number of strings in this object.
-  void WriteToTensor(TfLiteTensor* tensor, TfLiteIntArray* new_shape);
-
-  // Fill content into a string tensor. Set shape to {num_strings}.
+  // Fill content into a string tensor.
   void WriteToTensor(TfLiteTensor* tensor);
 
  private:

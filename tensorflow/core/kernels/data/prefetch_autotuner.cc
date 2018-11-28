@@ -16,7 +16,6 @@ limitations under the License.
 #include "tensorflow/core/kernels/data/prefetch_autotuner.h"
 
 namespace tensorflow {
-namespace data {
 
 PrefetchAutotuner::PrefetchAutotuner(int64 initial_buffer_size)
     : buffer_limit_(initial_buffer_size) {
@@ -25,13 +24,6 @@ PrefetchAutotuner::PrefetchAutotuner(int64 initial_buffer_size)
     buffer_limit_ = 1;
   }
 }
-
-namespace {
-// Determines what strategy to use for increasing the buffer size limit. For
-// limits less than the threshold, an exponential increase is used, while for
-// limits greater than or equal to the threshold, a linear increase is used.
-size_t kBufferLimitThreshold = 2048;
-}  // namespace
 
 void PrefetchAutotuner::RecordConsumption(size_t current_buffer_size) {
   switch (mode_) {
@@ -44,16 +36,11 @@ void PrefetchAutotuner::RecordConsumption(size_t current_buffer_size) {
       return;
     case Mode::kDownswing:
       if (current_buffer_size == 0) {
-        if (buffer_limit_ >= kBufferLimitThreshold) {
-          buffer_limit_ += kBufferLimitThreshold;
-        } else {
-          buffer_limit_ *= 2;
-        }
+        buffer_limit_ *= 2;  // Increase the buffer size.
         mode_ = Mode::kUpswing;
       }
       return;
   }
 }
 
-}  // namespace data
 }  // namespace tensorflow

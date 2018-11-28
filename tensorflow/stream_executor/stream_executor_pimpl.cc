@@ -22,8 +22,6 @@ limitations under the License.
 #include <atomic>
 #include <utility>
 
-#include "absl/strings/str_cat.h"
-#include "tensorflow/core/util/env_var.h"
 #include "tensorflow/stream_executor/blas.h"
 #include "tensorflow/stream_executor/fft.h"
 #include "tensorflow/stream_executor/lib/env.h"
@@ -46,7 +44,7 @@ namespace {
 
 string StackTraceIfVLOG10() {
   if (VLOG_IS_ON(10)) {
-    return absl::StrCat(" ", port::CurrentStackTrace(), "\n");
+    return port::StrCat(" ", port::CurrentStackTrace(), "\n");
   } else {
     return "";
   }
@@ -165,15 +163,6 @@ StreamExecutor::StreamExecutor(PlatformKind platform_kind,
   CheckPlatformKindIsValid(platform_kind);
 }
 
-// Get per-device memory limit in bytes. Returns 0 if
-// TF_PER_DEVICE_MEMORY_LIMIT_MB environment variable is not set.
-static int64 GetMemoryLimitBytes() {
-  int64 value;
-  SE_CHECK_OK(tensorflow::ReadInt64FromEnvVar("TF_PER_DEVICE_MEMORY_LIMIT_MB",
-                                              0, &value));
-  return value * (1ll << 20);
-}
-
 StreamExecutor::StreamExecutor(
     const Platform *platform,
     std::unique_ptr<internal::StreamExecutorInterface> implementation)
@@ -183,9 +172,7 @@ StreamExecutor::StreamExecutor(
       background_threads_(new port::ThreadPool(
           port::Env::Default(), "stream_executor", kNumBackgroundThreads)),
       live_stream_count_(0),
-      tracing_enabled_(false),
-      mem_alloc_bytes_(0),
-      memory_limit_bytes_(GetMemoryLimitBytes()) {
+      tracing_enabled_(false) {
   if (port::Lowercase(platform_->Name()) == "cuda") {
     platform_kind_ = PlatformKind::kCuda;
   } else if (port::Lowercase(platform_->Name()) == "opencl") {
@@ -231,15 +218,6 @@ bool StreamExecutor::GetKernel(const MultiKernelLoaderSpec &spec,
 
 void StreamExecutor::UnloadKernel(const KernelBase *kernel) {
   implementation_->UnloadKernel(kernel);
-}
-
-bool StreamExecutor::LoadModule(const MultiModuleLoaderSpec &spec,
-                                ModuleHandle *module_handle) {
-  return implementation_->LoadModule(spec, module_handle);
-}
-
-bool StreamExecutor::UnloadModule(ModuleHandle module_handle) {
-  return implementation_->UnloadModule(module_handle);
 }
 
 void StreamExecutor::Deallocate(DeviceMemoryBase *mem) {
@@ -473,14 +451,6 @@ port::Status StreamExecutor::BlockHostUntilDone(Stream *stream) {
 }
 
 void *StreamExecutor::Allocate(uint64 size) {
-  if (memory_limit_bytes_ > 0 &&
-      mem_alloc_bytes_ + size > memory_limit_bytes_) {
-    LOG(WARNING) << "Not enough memory to allocate " << size << " on device "
-                 << device_ordinal_
-                 << " within provided limit. [used=" << mem_alloc_bytes_
-                 << ", limit=" << memory_limit_bytes_ << "]";
-    return nullptr;
-  }
   void *buf = implementation_->Allocate(size);
   VLOG(1) << "Called StreamExecutor::Allocate(size=" << size << ") returns "
           << buf << StackTraceIfVLOG10();
@@ -489,34 +459,9 @@ void *StreamExecutor::Allocate(uint64 size) {
   return buf;
 }
 
-port::StatusOr<DeviceMemoryBase> StreamExecutor::GetUntypedSymbol(
-    const string &symbol_name, ModuleHandle module_handle) {
-  // If failed to get the symbol, opaque/bytes are unchanged. Initialize them to
-  // be nullptr/0 for consistency with DeviceMemory semantics.
-  void *opaque = nullptr;
-  size_t bytes = 0;
-  if (GetSymbol(symbol_name, module_handle, &opaque, &bytes)) {
-    return DeviceMemoryBase(opaque, bytes);
-  }
-
-  if (static_cast<bool>(module_handle)) {
-    return port::Status(
-        port::error::NOT_FOUND,
-        absl::StrCat("Check if module containing symbol ", symbol_name,
-                     " is loaded (module_handle = ",
-                     reinterpret_cast<uintptr_t>(module_handle.id()), ")"));
-  } else {
-    return port::Status(
-        port::error::NOT_FOUND,
-        absl::StrCat("Check if kernel using the symbol is loaded: ",
-                     symbol_name));
-  }
-}
-
-bool StreamExecutor::GetSymbol(const string &symbol_name,
-                               ModuleHandle module_handle, void **mem,
+bool StreamExecutor::GetSymbol(const string &symbol_name, void **mem,
                                size_t *bytes) {
-  return implementation_->GetSymbol(symbol_name, module_handle, mem, bytes);
+  return implementation_->GetSymbol(symbol_name, mem, bytes);
 }
 
 void *StreamExecutor::UnifiedMemoryAllocate(uint64 bytes) {
@@ -720,11 +665,6 @@ bool StreamExecutor::HostCallback(Stream *stream,
   return implementation_->HostCallback(stream, std::move(callback));
 }
 
-bool StreamExecutor::HostCallback(Stream *stream,
-                                  std::function<port::Status()> callback) {
-  return implementation_->HostCallback(stream, std::move(callback));
-}
-
 port::Status StreamExecutor::AllocateEvent(Event *event) {
   return implementation_->AllocateEvent(event);
 }
@@ -800,7 +740,6 @@ void StreamExecutor::CreateAllocRecord(void *opaque, uint64 bytes) {
     mutex_lock lock(mu_);
     mem_allocs_[opaque] = AllocRecord{
         bytes, ""};
-    mem_alloc_bytes_ += bytes;
   }
 }
 
@@ -811,7 +750,6 @@ void StreamExecutor::EraseAllocRecord(void *opaque) {
       LOG(ERROR) << "Deallocating unknown pointer: "
                  << port::Printf("0x%p", opaque);
     } else {
-      mem_alloc_bytes_ -= mem_allocs_[opaque].bytes;
       mem_allocs_.erase(opaque);
     }
   }

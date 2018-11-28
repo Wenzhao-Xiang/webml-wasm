@@ -25,23 +25,21 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status DropFakeQuant::Run(Model* model, std::size_t op_index,
-                                        bool* modified) {
-  *modified = false;
+bool DropFakeQuant::Run(Model* model, std::size_t op_index) {
   const auto fakequant_it = model->operators.begin() + op_index;
   auto* fakequant_base_op = fakequant_it->get();
   if (fakequant_base_op->type != OperatorType::kFakeQuant) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto* fakequant_op = static_cast<FakeQuantOperator*>(fakequant_base_op);
 
   if (!fakequant_op->minmax) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto& output_array = model->GetArray(fakequant_op->outputs[0]);
   if (!output_array.minmax) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Drop min/max inputs
@@ -52,8 +50,7 @@ namespace toco {
   }
   fakequant_op->inputs.resize(1);
 
-  *modified = RemoveTrivialPassthroughOp(this, model, op_index);
-  return ::tensorflow::Status::OK();
+  return RemoveTrivialPassthroughOp(this, model, op_index);
 }
 
 }  // namespace toco

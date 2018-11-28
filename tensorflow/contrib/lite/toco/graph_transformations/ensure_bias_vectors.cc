@@ -62,20 +62,17 @@ bool ProcessLinearOperator(Model* model, Operator* op) {
 }
 }  // namespace
 
-::tensorflow::Status EnsureBiasVectors::Run(Model* model, std::size_t op_index,
-                                            bool* modified) {
-  *modified = false;
+bool EnsureBiasVectors::Run(Model* model, std::size_t op_index) {
   auto* op = model->operators[op_index].get();
   if (op->type == OperatorType::kConv ||
       op->type == OperatorType::kDepthwiseConv ||
       op->type == OperatorType::kFullyConnected) {
     if (ProcessLinearOperator(model, op)) {
       AddMessageF("Added bias vector to %s as %s", LogName(*op), op->inputs[2]);
-      *modified = true;
-      return ::tensorflow::Status::OK();
+      return true;
     }
   }
-  return ::tensorflow::Status::OK();
+  return false;
 }
 
 }  // namespace toco

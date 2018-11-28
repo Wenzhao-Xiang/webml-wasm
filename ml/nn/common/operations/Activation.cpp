@@ -16,6 +16,7 @@
 
 #include "Operations.h"
 #include "CpuOperationUtils.h"
+#include "float.h"
 
 #include "tensorflow/contrib/lite/kernels/internal/optimized/legacy_optimized_ops.h"
 #include "tensorflow/contrib/lite/kernels/internal/optimized/optimized_ops.h"
@@ -27,7 +28,7 @@ namespace nn {
 
 bool reluFloat32(const float* inputData, const Shape& inputShape,
                  float* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("reluFloat32");
+    // NNTRACE_COMP("reluFloat32");
     int numElements = getNumberOfElements(inputShape);
     for (int i=0; i<numElements; i++, inputData++, outputData++) {
         *outputData = std::max(0.f, *inputData);
@@ -37,7 +38,7 @@ bool reluFloat32(const float* inputData, const Shape& inputShape,
 
 bool relu1Float32(const float* inputData, const Shape& inputShape,
                   float* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("relu1Float32");
+    // NNTRACE_COMP("relu1Float32");
     int numElements = getNumberOfElements(inputShape);
     for (int i=0; i<numElements; i++, inputData++, outputData++) {
         *outputData = std::min(std::max(-1.f, *inputData), 1.f);
@@ -47,7 +48,7 @@ bool relu1Float32(const float* inputData, const Shape& inputShape,
 
 bool relu6Float32(const float* inputData, const Shape& inputShape,
                   float* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("relu6Float32");
+    // NNTRACE_COMP("relu6Float32");
     int numElements = getNumberOfElements(inputShape);
     for (int i=0; i<numElements; i++, inputData++, outputData++) {
         *outputData = std::min(std::max(0.f, *inputData), 6.f);
@@ -57,7 +58,7 @@ bool relu6Float32(const float* inputData, const Shape& inputShape,
 
 bool tanhFloat32(const float* inputData, const Shape& inputShape,
                  float* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("tanhFloat32");
+    // NNTRACE_COMP("tanhFloat32");
     int numElements = getNumberOfElements(inputShape);
     for (int i=0; i<numElements; i++, inputData++, outputData++) {
         *outputData = std::tanh(*inputData);
@@ -67,7 +68,7 @@ bool tanhFloat32(const float* inputData, const Shape& inputShape,
 
 bool logisticFloat32(const float* inputData, const Shape& inputShape,
                      float* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("logisticFloat32");
+    // NNTRACE_COMP("logisticFloat32");
     int numElements = getNumberOfElements(inputShape);
     for (int i=0; i<numElements; i++, inputData++, outputData++) {
         *outputData = 1.f / (1.f + std::exp(-*inputData));
@@ -77,7 +78,7 @@ bool logisticFloat32(const float* inputData, const Shape& inputShape,
 
 inline bool softmaxFloat32Impl(const float* inputData, const Shape& inputShape, const float beta,
                                int32_t axis, float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("softmaxFloat32");
+    // NNTRACE_TRANS("softmaxFloat32");
     const uint32_t outerSize = getNumberOfElements(inputShape, 0, axis);
     const uint32_t axisSize = getSizeOfDimension(inputShape, axis);
     const uint32_t innerSize =
@@ -107,20 +108,21 @@ inline bool softmaxFloat32Impl(const float* inputData, const Shape& inputShape, 
     return true;
 }
 
-bool softmaxFloat32(const float* inputData, const Shape& inputShape, const float beta, int32_t axis,
+bool softmaxFloat32(const float* inputData, const Shape& inputShape, const float beta,
                     float* outputData, const Shape& outputShape) {
     int32_t ndim = getNumberOfDimensions(inputShape);
+    int32_t axis = ndim - 1;
     NN_CHECK(handleNegativeAxis(inputShape, &axis));
     // TFLite optimized implementation only supports computation along the last axis
-    if (axis == ndim - 1) {
-        NNTRACE_COMP("optimized_ops::Softmax::float");
+    /*if (axis == ndim - 1) {
+        // NNTRACE_COMP("optimized_ops::Softmax::float");
         tflite::SoftmaxParams param = {.beta = beta};
         tflite::optimized_ops::Softmax(param, convertShapeToTflshape(inputShape), inputData,
                                        convertShapeToTflshape(outputShape), outputData);
         return true;
-    } else {
+    } else {*/
         return softmaxFloat32Impl(inputData, inputShape, beta, axis, outputData, outputShape);
-    }
+    // }
 }
 
 #define ANDROID_NN_RELUX_QUANT8(activation)                             \
@@ -140,21 +142,21 @@ bool softmaxFloat32(const float* inputData, const Shape& inputShape, const float
 
 bool reluQuant8(const uint8_t* inputData, const Shape& inputShape,
                 uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("reluQuant8");
+    // NNTRACE_COMP("reluQuant8");
     ANDROID_NN_RELUX_QUANT8(kActivationRelu)
     return true;
 }
 
 bool relu1Quant8(const uint8_t* inputData, const Shape& inputShape,
                  uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("relu1Quant8");
+    // NNTRACE_COMP("relu1Quant8");
     ANDROID_NN_RELUX_QUANT8(kActivationRelu1)
     return true;
 }
 
 bool relu6Quant8(const uint8_t* inputData, const Shape& inputShape,
                  uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_COMP("relu6Quant8");
+    // NNTRACE_COMP("relu6Quant8");
     ANDROID_NN_RELUX_QUANT8(kActivationRelu6)
     return true;
 }
@@ -163,7 +165,7 @@ bool relu6Quant8(const uint8_t* inputData, const Shape& inputShape,
 
 bool tanhQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outputData,
                 const Shape& outputShape) {
-    NNTRACE_TRANS("tanhQuant8");
+    // NNTRACE_TRANS("tanhQuant8");
     if (outputShape.offset != 128 || outputShape.scale != 1.f / 128) {
         LOG(ERROR) << "incorrect scale or offset for TANH output";
         return false;
@@ -183,7 +185,7 @@ bool tanhQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outp
     }
     int32_t input_range_radius = CalculateInputRadius(kInputIntegerBits, input_left_shift);
 
-    NNTRACE_COMP_SWITCH("optimized_ops::Tanh");
+    // NNTRACE_COMP_SWITCH("optimized_ops::Tanh");
     tflite::optimized_ops::Tanh(inputData, convertShapeToTflshape(inputShape), inputShape.offset,
                                 input_range_radius, input_multiplier, input_left_shift, outputData,
                                 convertShapeToTflshape(outputShape));
@@ -193,7 +195,7 @@ bool tanhQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outp
 
 bool logisticQuant8(const uint8_t* inputData, const Shape& inputShape,
                     uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("logisticQuant8");
+    // NNTRACE_TRANS("logisticQuant8");
     if (outputShape.offset != 0 || outputShape.scale != 1.f / 256) {
         LOG(ERROR) << "incorrect scale / offset for output";
         return false;
@@ -216,7 +218,7 @@ bool logisticQuant8(const uint8_t* inputData, const Shape& inputShape,
     int32_t input_range_radius =
             CalculateInputRadius(kInputIntegerBits, input_left_shift);
 
-    NNTRACE_COMP_SWITCH("optimized_ops::Logistic");
+    // NNTRACE_COMP_SWITCH("optimized_ops::Logistic");
     tflite::optimized_ops::Logistic(
             inputData, convertShapeToTflshape(inputShape),
             inputShape.offset, input_range_radius,
@@ -229,7 +231,7 @@ bool logisticQuant8(const uint8_t* inputData, const Shape& inputShape,
 bool softmaxQuant8Impl(const uint8_t* inputData, const Shape& inputShape, const float beta,
                        int32_t axis, int32_t inputMultiplier, int32_t inputLeftShift, float diffMin,
                        uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("softmaxQuant8");
+    // NNTRACE_TRANS("softmaxQuant8");
     // The representation chosen for the input to the exp() function is Q5.26.
     // We need to leave extra space since values that we skip might be as large as
     // -32 before multiplying by input_beta_multiplier, and therefore as large as
@@ -331,8 +333,8 @@ bool softmaxQuant8(const uint8_t* inputData, const Shape& inputShape, const floa
     int32_t diffMin = -CalculateInputRadius(kScaledDiffIntegerBits, inputLeftShift);
 
     // TFLite optimized implementation only supports computation along the last axis
-    if (axis == ndim - 1) {
-        NNTRACE_COMP("optimized_ops::Softmax::uint8");
+    /*if (axis == ndim - 1) {
+        // NNTRACE_COMP("optimized_ops::Softmax::uint8");
         tflite::SoftmaxParams param = {.beta = beta,
                                        .input_multiplier = inputMultiplier,
                                        .input_left_shift = inputLeftShift,
@@ -340,10 +342,10 @@ bool softmaxQuant8(const uint8_t* inputData, const Shape& inputShape, const floa
         tflite::optimized_ops::Softmax(param, convertShapeToTflshape(inputShape), inputData,
                                        convertShapeToTflshape(outputShape), outputData);
         return true;
-    } else {
+    } else {*/
         return softmaxQuant8Impl(inputData, inputShape, beta, axis, inputMultiplier, inputLeftShift,
                                  diffMin, outputData, outputShape);
-    }
+    // }
 }
 
 }  // namespace nn

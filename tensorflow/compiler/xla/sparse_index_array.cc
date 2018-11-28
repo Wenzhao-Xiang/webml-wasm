@@ -29,11 +29,11 @@ SparseIndexArray::SparseIndexArray(int64 max_indices, int64 rank,
   CHECK_GT(rank_, 0);
   CHECK_EQ(indices_.size() % rank_, 0)
       << "indices_.size(): " << indices_.size() << ", rank_: " << rank_;
-  CHECK_LE(index_count(), max_indices_);
+  CHECK_LT(index_count(), max_indices_);
 }
 
 SparseIndexArray::SparseIndexArray(int64 max_indices, int64 rank,
-                                   absl::Span<const int64> indices)
+                                   tensorflow::gtl::ArraySlice<int64> indices)
     : SparseIndexArray(max_indices, rank,
                        std::vector<int64>(indices.begin(), indices.end())) {}
 
@@ -48,24 +48,25 @@ int64 SparseIndexArray::index_count() const {
   return indices_.size() / rank_;
 }
 
-absl::Span<const int64> SparseIndexArray::At(
+tensorflow::gtl::ArraySlice<int64> SparseIndexArray::At(
     int64 sparse_element_number) const {
   CHECK_GT(rank_, 0);
   CHECK_GE(sparse_element_number, 0);
   CHECK_LE(rank_ * sparse_element_number + rank_, indices_.size());
-  return absl::Span<const int64>(
+  return tensorflow::gtl::ArraySlice<int64>(
       indices_.data() + rank_ * sparse_element_number, rank_);
 }
 
-absl::Span<int64> SparseIndexArray::At(int64 sparse_element_number) {
+tensorflow::gtl::MutableArraySlice<int64> SparseIndexArray::At(
+    int64 sparse_element_number) {
   CHECK_GT(rank_, 0);
   CHECK_GE(sparse_element_number, 0);
   CHECK_LE(rank_ * sparse_element_number + rank_, indices_.size());
-  return absl::Span<int64>(indices_.data() + rank_ * sparse_element_number,
-                           rank_);
+  return tensorflow::gtl::MutableArraySlice<int64>(
+      indices_.data() + rank_ * sparse_element_number, rank_);
 }
 
-void SparseIndexArray::Append(absl::Span<const int64> index) {
+void SparseIndexArray::Append(tensorflow::gtl::ArraySlice<int64> index) {
   CHECK_GT(rank_, 0);
   CHECK_EQ(index.size(), rank_);
   indices_.insert(indices_.end(), index.begin(), index.end());
@@ -89,12 +90,12 @@ bool SparseIndexArray::Validate(const Shape& shape) const {
   if (num_indices < 2) {
     return true;
   }
-  absl::Span<const int64> last = At(0);
+  tensorflow::gtl::ArraySlice<int64> last = At(0);
   if (!IndexUtil::IndexInBounds(shape, last)) {
     return false;
   }
   for (int64 n = 1; n < num_indices; ++n) {
-    absl::Span<const int64> next = At(n);
+    tensorflow::gtl::ArraySlice<int64> next = At(n);
     if (!IndexUtil::IndexInBounds(shape, next)) {
       return false;
     }

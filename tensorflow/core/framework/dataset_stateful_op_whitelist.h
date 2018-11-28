@@ -16,38 +16,38 @@ limitations under the License.
 #ifndef TENSORFLOW_CORE_FRAMEWORK_DATASET_STATEFUL_OP_WHITELIST_H_
 #define TENSORFLOW_CORE_FRAMEWORK_DATASET_STATEFUL_OP_WHITELIST_H_
 
-#include <unordered_set>
 #include "tensorflow/core/lib/core/status.h"
 
 namespace tensorflow {
-namespace data {
+namespace dataset {
 // Registry for stateful ops that need to be used in dataset functions.
 // See below macro for usage details.
 class WhitelistedStatefulOpRegistry {
  public:
-  Status Add(string op_name) {
-    op_names_.insert(std::move(op_name));
+  Status Add(StringPiece op_name) {
+    op_names_.insert(op_name);
     return Status::OK();
   }
 
-  bool Contains(const string& op_name) { return op_names_.count(op_name); }
+  bool Contains(StringPiece op_name) {
+    return op_names_.find(op_name) != op_names_.end();
+  }
 
   static WhitelistedStatefulOpRegistry* Global() {
-    static auto* reg = new WhitelistedStatefulOpRegistry;
+    static WhitelistedStatefulOpRegistry* reg =
+        new WhitelistedStatefulOpRegistry;
     return reg;
   }
 
  private:
-  WhitelistedStatefulOpRegistry() = default;
-  WhitelistedStatefulOpRegistry(WhitelistedStatefulOpRegistry const& copy) =
-      delete;
+  WhitelistedStatefulOpRegistry() {}
+  WhitelistedStatefulOpRegistry(WhitelistedStatefulOpRegistry const& copy);
   WhitelistedStatefulOpRegistry operator=(
-      WhitelistedStatefulOpRegistry const& copy) = delete;
-
-  std::unordered_set<string> op_names_;
+      WhitelistedStatefulOpRegistry const& copy);
+  std::set<StringPiece> op_names_;
 };
 
-}  // namespace data
+}  // namespace dataset
 
 // Use this macro to whitelist an op that is marked stateful but needs to be
 // used inside a map_fn in an input pipeline. This is only needed if you wish
@@ -67,9 +67,10 @@ class WhitelistedStatefulOpRegistry {
   WHITELIST_STATEFUL_OP_FOR_DATASET_FUNCTIONS_UNIQ_HELPER(__COUNTER__, name)
 #define WHITELIST_STATEFUL_OP_FOR_DATASET_FUNCTIONS_UNIQ_HELPER(ctr, name) \
   WHITELIST_STATEFUL_OP_FOR_DATASET_FUNCTIONS_UNIQ(ctr, name)
-#define WHITELIST_STATEFUL_OP_FOR_DATASET_FUNCTIONS_UNIQ(ctr, name)   \
-  static ::tensorflow::Status whitelist_op##ctr TF_ATTRIBUTE_UNUSED = \
-      ::tensorflow::data::WhitelistedStatefulOpRegistry::Global()->Add(name)
+#define WHITELIST_STATEFUL_OP_FOR_DATASET_FUNCTIONS_UNIQ(ctr, name)        \
+  static ::tensorflow::Status whitelist_op##ctr TF_ATTRIBUTE_UNUSED =      \
+      ::tensorflow::dataset::WhitelistedStatefulOpRegistry::Global()->Add( \
+          name)
 
 }  // namespace tensorflow
 

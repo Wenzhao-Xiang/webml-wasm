@@ -16,6 +16,7 @@ limitations under the License.
 // SVDF op that compresses a fully connected op via low-rank matrix
 // factorization. See https://research.google.com/pubs/archive/43813.pdf for
 // details.
+#include <unistd.h>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -23,8 +24,8 @@ limitations under the License.
 #include <iostream>
 #include <limits>
 
-#include "tensorflow/contrib/lite/c/builtin_op_data.h"
-#include "tensorflow/contrib/lite/c/c_api_internal.h"
+#include "tensorflow/contrib/lite/builtin_op_data.h"
+#include "tensorflow/contrib/lite/context.h"
 #include "tensorflow/contrib/lite/kernels/activation_functor.h"
 #include "tensorflow/contrib/lite/kernels/internal/tensor_utils.h"
 #include "tensorflow/contrib/lite/kernels/kernel_util.h"
@@ -40,21 +41,19 @@ namespace {
 struct OpData {
   int scratch_tensor_index;
   bool float_weights_time_initialized;
-  int activation_state_tensor_index;
 };
 
 static inline void ApplyTimeWeightsBiasAndActivation(
     int batch_size, int memory_size, int num_filters, int num_units, int rank,
     const TfLiteTensor* weights_time, const TfLiteTensor* bias,
-    TfLiteFusedActivation activation, TfLiteTensor* activation_state,
+    TfLiteFusedActivation activation, TfLiteTensor* state,
     TfLiteTensor* scratch, TfLiteTensor* output) {
   // Compute matmul(state, weights_time).
   // The right most column is used to save temporary output (with the size of
-  // num_filters). This is achieved by starting at activation_state->data.f,
-  // and having the stride equal to memory_size.
+  // num_filters). This is achieved by starting at state->data.f and having the
+  // stride equal to memory_size.
   for (int b = 0; b < batch_size; ++b) {
-    float* state_ptr_batch =
-        activation_state->data.f + b * memory_size * num_filters;
+    float* state_ptr_batch = state->data.f + b * memory_size * num_filters;
     float* scratch_ptr_batch = scratch->data.f + b * num_filters;
     tensor_utils::BatchVectorBatchVectorDotProduct(
         weights_time->data.f, state_ptr_batch, memory_size, num_filters,
@@ -84,14 +83,13 @@ static inline void ApplyTimeWeightsBiasAndActivation(
                                           activation, output_ptr_batch);
   }
 
-  // Left shift the activation_state to make room for next cycle's activation.
+  // Left shift the state to make room for next cycle's activation.
   // TODO(alanchiao): explore collapsing this into a single loop.
   for (int b = 0; b < batch_size; ++b) {
-    float* state_ptr_batch =
-        activation_state->data.f + b * memory_size * num_filters;
+    float* state_ptr_batch = state->data.f + b * memory_size * num_filters;
     for (int f = 0; f < num_filters; ++f) {
       tensor_utils::VectorShiftLeft(state_ptr_batch, memory_size,
-                                    /*shift_value=*/0.0f);
+                                    /*shift_value=*/0.0);
       state_ptr_batch += memory_size;
     }
   }
@@ -99,19 +97,15 @@ static inline void ApplyTimeWeightsBiasAndActivation(
 
 }  // namespace
 
-// Input tensors.
 constexpr int kInputTensor = 0;
 constexpr int kWeightsFeatureTensor = 1;
 constexpr int kWeightsTimeTensor = 2;
 constexpr int kBiasTensor = 3;
-// This is a variable tensor, and will be modified by this op.
-constexpr int kInputActivationStateTensor = 4;
-
-// Output tensor.
-constexpr int kOutputTensor = 0;
+constexpr int kStateTensor = 0;
+constexpr int kOutputTensor = 1;
 
 void* Init(TfLiteContext* context, const char* buffer, size_t length) {
-  auto* op_data = new OpData();
+  auto* op_data = new OpData;
   op_data->float_weights_time_initialized = false;
   context->AddTensors(context, /*tensors_to_add=*/4,
                       &op_data->scratch_tensor_index);
@@ -128,10 +122,8 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   int scratch_tensor_index = op_data->scratch_tensor_index;
 
   // Check we have all the inputs and outputs we need.
-  TF_LITE_ENSURE_EQ(context, node->outputs->size, 1);
-  TF_LITE_ENSURE_EQ(context, node->inputs->size, 5);
-  op_data->activation_state_tensor_index =
-      node->inputs->data[kInputActivationStateTensor];
+  TF_LITE_ENSURE_EQ(context, node->inputs->size, 4);
+  TF_LITE_ENSURE_EQ(context, node->outputs->size, 2);
 
   const TfLiteTensor* input = GetInput(context, node, kInputTensor);
   const TfLiteTensor* weights_feature =
@@ -146,27 +138,33 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   const int rank = params->rank;
   const int batch_size = input->dims->data[0];
   const int num_filters = weights_feature->dims->data[0];
-  TF_LITE_ENSURE_EQ(context, num_filters % rank, 0);
+  TF_LITE_ASSERT_EQ(num_filters % rank, 0);
   const int num_units = num_filters / rank;
   const int memory_size = weights_time->dims->data[1];
-  TF_LITE_ENSURE_EQ(context, input->dims->data[1],
-                    weights_feature->dims->data[1]);
-  TF_LITE_ENSURE_EQ(context, weights_time->dims->data[0], num_filters);
+  TF_LITE_ASSERT_EQ(input->dims->data[1], weights_feature->dims->data[1]);
+  TF_LITE_ASSERT_EQ(weights_time->dims->data[0], num_filters);
 
   const TfLiteTensor* bias = GetOptionalInputTensor(context, node, kBiasTensor);
   if (bias) {
-    TF_LITE_ENSURE_EQ(context, bias->dims->data[0], num_units);
+    TF_LITE_ASSERT_EQ(bias->dims->data[0], num_units);
   }
 
-  TfLiteTensor* activation_state =
-      &context->tensors[op_data->activation_state_tensor_index];
+  TfLiteTensor* state = GetOutput(context, node, kStateTensor);
   TfLiteTensor* output = GetOutput(context, node, kOutputTensor);
 
-  // Check the shape of input state tensors.
-  TF_LITE_ENSURE_EQ(context, NumDimensions(activation_state), 2);
-  TF_LITE_ENSURE_EQ(context, SizeOfDimension(activation_state, 0), batch_size);
-  TF_LITE_ENSURE_EQ(context, SizeOfDimension(activation_state, 1),
-                    memory_size * num_filters);
+  // Resize state.
+  // For each batch, the state is a 2-D tensor: memory_size * num_filters
+  // The left most column is used to save current cycle activation.
+  // The right most column is used to save temporary output which will be
+  // reduced to num_units outputs.
+  TfLiteIntArray* state_size_array = TfLiteIntArrayCreate(2);
+  state_size_array->data[0] = batch_size;
+  state_size_array->data[1] = memory_size * num_filters;
+  TF_LITE_ENSURE_OK(context,
+                    context->ResizeTensor(context, state, state_size_array));
+
+  // Mark state as a persistent tensor.
+  state->allocation_type = kTfLiteArenaRwPersistent;
 
   // Resize output.
   TfLiteIntArray* output_size_array = TfLiteIntArrayCreate(2);
@@ -216,16 +214,15 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
     TfLiteTensor* scaling_factors = GetTemporary(context, node, /*index=*/2);
     scaling_factors->type = kTfLiteFloat32;
     scaling_factors->allocation_type = kTfLiteArenaRw;
-    int scaling_dims[1] = {batch_size};
-    if (!TfLiteIntArrayEqualsArray(scaling_factors->dims, 1, scaling_dims)) {
-      TfLiteIntArray* scaling_factors_size = TfLiteIntArrayCreate(1);
-      scaling_factors_size->data[0] = batch_size;
+    TfLiteIntArray* scaling_factors_size = TfLiteIntArrayCreate(1);
+    scaling_factors_size->data[0] = batch_size;
+    if (!TfLiteIntArrayEqual(scaling_factors->dims, scaling_factors_size)) {
       TF_LITE_ENSURE_OK(context, context->ResizeTensor(context, scaling_factors,
                                                        scaling_factors_size));
     }
 
-    // Used to store dequantized weights_time matrix for hybrid computation of
-    // matmul(activation_state, weights_time), which occurs in floating point.
+    // Used to store dequantized weights_time matrix for hybrid computation
+    // of matmul(state, weights_time), which occurs in floating point.
     node->temporaries->data[3] = scratch_tensor_index + 3;
     TfLiteTensor* float_weights_time = GetTemporary(context, node, /*index=*/3);
     float_weights_time->type = kTfLiteFloat32;
@@ -257,13 +254,13 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
   const int memory_size = weights_time->dims->data[1];
 
   // Clear the activation (state left most column).
-  // TODO(ghodrat): Add a test which initialize activation_state with invalid
-  // values in left most column and make sure it passes.
+  // TODO(ghodrat): Add a test which initialize state with invalid values in
+  // left most column and make sure it passes.
   for (int b = 0; b < batch_size; ++b) {
     float* state_ptr_batch = state->data.f + b * memory_size * num_filters;
     for (int c = 0; c < num_filters; ++c) {
       float* state_ptr = state_ptr_batch + c * memory_size;
-      state_ptr[memory_size - 1] = 0.0f;
+      state_ptr[memory_size - 1] = 0.0;
     }
   }
 
@@ -311,7 +308,7 @@ TfLiteStatus EvalHybrid(
 
   // Clear the activation (state left most column).
   // TODO(ghodrat): Add a test which initialize state with invalid values in
-  // the left most column and make sure it passes.
+  // left most column and make sure it passes.
   for (int b = 0; b < batch_size; ++b) {
     float* state_ptr_batch = state->data.f + b * memory_size * num_filters;
     for (int c = 0; c < num_filters; ++c) {
@@ -333,10 +330,9 @@ TfLiteStatus EvalHybrid(
     }
 
     // Compute conv1d(inputs, weights_feature).
-    // The rightmost column of state is used to save the current cycle
-    // activation.
-    // This is achieved by starting at state->data.f[memory_size - 1]
-    // and having the stride equal to memory_size.
+    // The state right most column is used to save current cycle activation.
+    // This is achieved by starting at state->data.f[memory_size - 1] and having
+    // the stride equal to memory_size.
     tensor_utils::MatrixBatchVectorMultiplyAccumulate(
         weights_feature_ptr, num_filters, input_size, quantized_input_ptr_batch,
         scaling_factors_ptr, batch_size, &state->data.f[memory_size - 1],
@@ -364,14 +360,13 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 
   TfLiteTensor* scratch = GetTemporary(context, node, /*index=*/0);
 
-  TfLiteTensor* activation_state =
-      &context->tensors[op_data->activation_state_tensor_index];
+  TfLiteTensor* state = GetOutput(context, node, kStateTensor);
   TfLiteTensor* output = GetOutput(context, node, kOutputTensor);
 
   switch (weights_feature->type) {
     case kTfLiteFloat32: {
       return EvalFloat(context, node, input, weights_feature, weights_time,
-                       bias, params, scratch, activation_state, output);
+                       bias, params, scratch, state, output);
       break;
     }
     case kTfLiteUInt8: {
@@ -398,8 +393,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
       }
       return EvalHybrid(context, node, input, weights_feature,
                         float_weights_time, bias, params, scratch,
-                        scaling_factors, input_quantized, activation_state,
-                        output);
+                        scaling_factors, input_quantized, state, output);
       break;
     }
     default:

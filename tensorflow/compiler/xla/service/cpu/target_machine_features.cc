@@ -14,7 +14,6 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/compiler/xla/service/cpu/target_machine_features.h"
-#include "tensorflow/core/platform/logging.h"
 
 namespace xla {
 namespace cpu {

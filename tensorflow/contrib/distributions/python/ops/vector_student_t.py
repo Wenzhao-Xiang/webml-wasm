@@ -92,8 +92,7 @@ class _VectorStudentT(transformed_distribution.TransformedDistribution):
   Extra leading dimensions, if provided, allow for batches.
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   # Initialize a single 3-variate vector Student's t-distribution.
   mu = [1., 2, 3]

@@ -20,6 +20,8 @@ from __future__ import print_function
 
 import os
 
+from tensorflow.contrib.data.python.ops import batching
+from tensorflow.contrib.data.python.ops import interleave_ops
 from tensorflow.contrib.distribute.python import input_ops
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.ops import readers
@@ -89,7 +91,7 @@ class AutoShardDatasetTest(test.TestCase):
   def _verifySimpleShardingOutput(self, dataset, record_fn):
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       for f in range(self._shard_index, self._num_files, self._num_shards):
         for r in range(self._num_records):
           self.assertAllEqual(record_fn(r, f), sess.run(next_element))
@@ -124,6 +126,20 @@ class AutoShardDatasetTest(test.TestCase):
     # contain records in order of files.
     self._verifySimpleShardingOutput(dataset, self._record)
 
+  def testParallelInterleave(self):
+    dataset = dataset_ops.Dataset.from_tensor_slices(
+        self._createTFRecordFiles())
+    dataset = dataset.apply(interleave_ops.parallel_interleave(
+        readers.TFRecordDataset,
+        cycle_length=4,
+        block_length=self._num_records))
+    dataset = input_ops.auto_shard_dataset(
+        dataset, self._num_shards, self._shard_index)
+
+    # Since block_length == num records in each file, the output will still
+    # contain records in order of files.
+    self._verifySimpleShardingOutput(dataset, self._record)
+
   def testListfiles(self):
     filenames = self._createTFRecordFiles()
     file_pattern = filenames[0].rsplit("/", 1)[0] + "/tf_record.*.txt"
@@ -134,7 +150,7 @@ class AutoShardDatasetTest(test.TestCase):
 
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       actual, expected = [], []
       for f in range(self._shard_index, self._num_files, self._num_shards):
         for r in range(self._num_records):
@@ -155,8 +171,8 @@ class AutoShardDatasetTest(test.TestCase):
     dataset = dataset.prefetch(buffer_size=batch_size)
     dataset = dataset.shuffle(2 * self._num_files * self._num_records)
     dataset = dataset.repeat(num_epochs)
-    dataset = dataset.map(lambda x: x)
-    dataset = dataset.batch(batch_size)
+    dataset = dataset.apply(batching.map_and_batch(
+        lambda x: x, batch_size=batch_size))
     dataset = dataset.prefetch(buffer_size=None)
 
     # Auto shard.
@@ -166,7 +182,7 @@ class AutoShardDatasetTest(test.TestCase):
     # Verify output.
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       actual = []
       num_iterations = (self._num_files * self._num_records * num_epochs) // (
           self._num_shards * batch_size)
@@ -202,7 +218,7 @@ class AutoShardDatasetTest(test.TestCase):
 
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       for f in range(self._shard_index, self._num_files, self._num_shards):
         for r in range(self._num_records):
           self.assertAllEqual(self._record(r, f), sess.run(next_element))

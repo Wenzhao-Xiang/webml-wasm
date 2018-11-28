@@ -14,7 +14,6 @@ cc_library(
     hdrs = ["graphcycles.h"],
     deps = [
         "//tensorflow/core:lib",
-        "@com_google_absl//absl/container:inlined_vector",
     ],
 )
 

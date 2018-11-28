@@ -38,7 +38,7 @@ class TupleUtil {
   // `input_tuple`.
   static HloInstruction* AppendSuffix(
       HloInstruction* input_tuple,
-      absl::Span<HloInstruction* const> trailing_values);
+      tensorflow::gtl::ArraySlice<HloInstruction*> trailing_values);
 };
 }  // namespace xla
 

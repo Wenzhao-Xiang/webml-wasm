@@ -26,17 +26,14 @@ limitations under the License.
 namespace toco {
 
 template <ArrayDataType A>
-void GetBoundsForQuantizedDataType(float* min, float* max) {
+void GetBoundsForQuantizedDataType(double* min, double* max) {
   using limits = std::numeric_limits<DataType<A>>;
   *min = limits::min();
   *max = limits::max();
 }
 
 void GetBoundsForQuantizedDataType(ArrayDataType quantized_data_type,
-                                   float* min, float* max) {
-  // It is important for matching accuracy between TF training and TFLite
-  // inference, that the min and max values are float to match TF's
-  // FakeQuantWithMinMaxVarsFunctor.
+                                   double* min, double* max) {
   switch (quantized_data_type) {
     case ArrayDataType::kUint8:
       return GetBoundsForQuantizedDataType<ArrayDataType::kUint8>(min, max);
@@ -59,14 +56,11 @@ void GetBoundsForQuantizedDataType(ArrayDataType quantized_data_type,
   }
 }
 
-::tensorflow::Status ResolveConstantFakeQuant::Run(Model* model,
-                                                   std::size_t op_index,
-                                                   bool* modified) {
-  *modified = false;
+bool ResolveConstantFakeQuant::Run(Model* model, std::size_t op_index) {
   const auto fakequant_it = model->operators.begin() + op_index;
   const auto* fakequant_base_op = fakequant_it->get();
   if (fakequant_base_op->type != OperatorType::kFakeQuant) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto* fakequant_op =
@@ -74,12 +68,12 @@ void GetBoundsForQuantizedDataType(ArrayDataType quantized_data_type,
 
   // Yield until the fakequant MinMax has been resolved.
   if (!fakequant_op->minmax) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // This transformation only applies when the input array is constant.
   if (!IsConstantParameterArray(*model, fakequant_op->inputs[0])) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto& input_array = model->GetArray(fakequant_op->inputs[0]);
@@ -90,7 +84,7 @@ void GetBoundsForQuantizedDataType(ArrayDataType quantized_data_type,
   if (!InferQuantizedDataTypeFromFakeQuant(*fakequant_op,
                                            &quantized_data_type)) {
     AddMessageF("Unsupported FakeQuant num_bits=%d", fakequant_op->num_bits);
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   AddMessageF("Resolving constant %s", LogName(*fakequant_op));
@@ -115,23 +109,22 @@ void GetBoundsForQuantizedDataType(ArrayDataType quantized_data_type,
   QuantizationParams qparams;
   ChooseQuantizationParamsForArrayAndQuantizedDataType(
       output_array, quantized_data_type, &qparams);
-  float quantized_min, quantized_max;
+  double quantized_min, quantized_max;
   GetBoundsForQuantizedDataType(quantized_data_type, &quantized_min,
                                 &quantized_max);
   if (fakequant_op->narrow_range) {
     quantized_min++;
-    output_array.narrow_range = true;
   }
 
-  // It is important for matching accuracy between TF training and TFLite
-  // inference, that the following variables are float to match TF's
-  // FakeQuantWithMinMaxVarsFunctor.
-  const float scale = qparams.scale;
-  const float nudged_min = (quantized_min - qparams.zero_point) * scale;
-  const float nudged_max = (quantized_max - qparams.zero_point) * scale;
-  tflite::FakeQuantizeArray(scale, nudged_min, nudged_max,
-                            input_buffer.data.data(), output_buffer.data.data(),
-                            size);
+  for (int i = 0; i < size; i++) {
+    const double src_val = input_buffer.data[i];
+    const double unclamped_quantized_val =
+        std::round(qparams.zero_point + src_val / qparams.scale);
+    const double quantized_val = std::min(
+        quantized_max, std::max(quantized_min, unclamped_quantized_val));
+    const double dst_val = qparams.scale * (quantized_val - qparams.zero_point);
+    output_buffer.data[i] = dst_val;
+  }
 
   if (IsDiscardableArray(*model, fakequant_op->inputs[0]) &&
       CountOpsWithInput(*model, fakequant_op->inputs[0]) == 1) {
@@ -139,8 +132,7 @@ void GetBoundsForQuantizedDataType(ArrayDataType quantized_data_type,
   }
   model->operators.erase(fakequant_it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

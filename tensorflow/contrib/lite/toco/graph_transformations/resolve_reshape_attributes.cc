@@ -25,29 +25,25 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ResolveReshapeAttributes::Run(Model* model,
-                                                   std::size_t op_index,
-                                                   bool* modified) {
-  *modified = false;
+bool ResolveReshapeAttributes::Run(Model* model, std::size_t op_index) {
   const auto reshape_it = model->operators.begin() + op_index;
   auto* reshape_op = reshape_it->get();
   if (reshape_op->type != OperatorType::kReshape) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   auto* op = static_cast<TensorFlowReshapeOperator*>(reshape_op);
 
-  if (!op->shape.empty()) return ::tensorflow::Status::OK();
+  if (!op->shape.empty()) return false;
 
   if (IsConstantParameterArray(*model, reshape_op->inputs[1])) {
     const auto& constant_input_array = model->GetArray(reshape_op->inputs[1]);
     op->shape = constant_input_array.GetBuffer<ArrayDataType::kInt32>().data;
   }
 
-  if (op->shape.empty()) return ::tensorflow::Status::OK();
+  if (op->shape.empty()) return false;
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

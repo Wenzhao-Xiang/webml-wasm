@@ -90,7 +90,7 @@ static Status ValidateGraphDefForDevices(const GraphDef& gdef) {
   for (const auto& ndef : gdef.node()) {
     if (!DeviceNameUtils::ParseFullName(ndef.device(), &parsed)) {
       return errors::InvalidArgument("Missing device name in: ",
-                                     FormatNodeDefForError(ndef));
+                                     SummarizeNodeDef(ndef));
     }
   }
   return Status::OK();
@@ -233,11 +233,14 @@ Status GraphMgr::InitItem(const string& session, const GraphDef& gdef,
     params.function_library = lib;
     params.create_kernel = [session, lib, opseg](const NodeDef& ndef,
                                                  OpKernel** kernel) {
+      // We do not share the kernel via the OpSegment if the node is
+      // stateless, or a function.
       // NOTE(mrry): We must not share function kernels (implemented
       // using `CallOp`) between subgraphs, because `CallOp::handle_`
       // is tied to a particular subgraph. Even if the function itself
       // is stateful, the `CallOp` that invokes it is not.
-      if (!OpSegment::ShouldOwnKernel(lib, ndef.op())) {
+      if (!lib->IsStateful(ndef.op()) ||
+          lib->GetFunctionLibraryDefinition()->Find(ndef.op()) != nullptr) {
         return lib->CreateKernel(ndef, kernel);
       }
       auto create_fn = [lib, &ndef](OpKernel** kernel) {
@@ -249,7 +252,8 @@ Status GraphMgr::InitItem(const string& session, const GraphDef& gdef,
       return opseg->FindOrCreate(session, ndef.name(), kernel, create_fn);
     };
     params.delete_kernel = [lib](OpKernel* kernel) {
-      if (kernel && !OpSegment::ShouldOwnKernel(lib, kernel->type_string())) {
+      // If the node is stateful, opseg owns it. Otherwise, delete it.
+      if (kernel && !lib->IsStateful(kernel->type_string())) {
         delete kernel;
       }
     };
@@ -475,7 +479,10 @@ void GraphMgr::StartParallelExecutors(const string& handle, int64 step_id,
                             delete step_container;
                           });
   Executor::Args args;
-  args.step_id = step_id;
+  {
+    mutex_lock l(mu_);
+    args.step_id = ++next_id_;
+  }
   args.rendezvous = rendezvous;
   args.collective_executor = ce_handle ? ce_handle->get() : nullptr;
   args.cancellation_manager = cancellation_manager;

@@ -23,6 +23,8 @@ namespace tflite {
 namespace profiling {
 namespace {
 
+using Detail = tensorflow::StatsCalculator::Detail;
+
 struct OperatorDetails {
   std::string name;
   std::vector<std::string> inputs;
@@ -81,7 +83,7 @@ OperatorDetails GetOperatorDetails(const tflite::Interpreter& interpreter,
   OperatorDetails details;
   details.name = op_name;
   if (profiling_string) {
-    details.name += ":" + std::string(profiling_string);
+    details.name += ":" + string(profiling_string);
   }
   details.inputs = GetTensorNames(interpreter, inputs);
   details.outputs = GetTensorNames(interpreter, outputs);
@@ -123,17 +125,28 @@ void ProfileSummarizer::ProcessProfiles(
   int64_t base_start_us = events[0]->begin_timestamp_us;
   int node_num = 0;
   int64_t curr_total_us = 0;
+  std::map<std::string, Detail> details;
   for (auto event : events) {
     auto op_details = GetOperatorDetails(interpreter, event->event_metadata);
     auto node_name = ToString(op_details.outputs);
-    int64_t start_us = event->begin_timestamp_us - base_start_us;
+    auto result = details.emplace(node_name, Detail());
+    Detail* detail = &(result.first->second);
+    detail->start_us.UpdateStat(event->begin_timestamp_us - base_start_us);
     int64_t node_exec_time =
         event->end_timestamp_us - event->begin_timestamp_us;
-    stats_calculator_->AddNodeStats(node_name, op_details.name, node_num,
-                                    start_us, node_exec_time, 0 /*memory */);
+    detail->rel_end_us.UpdateStat(node_exec_time);
     curr_total_us += node_exec_time;
     ++node_num;
+
+    if (result.second) {
+      detail->name = node_name;
+      detail->type = op_details.name;
+      detail->run_order = node_num;
+      detail->times_called = 0;
+    }
+    ++detail->times_called;
   }
+  stats_calculator_->UpdateDetails(details);
   stats_calculator_->UpdateRunTotalUs(curr_total_us);
 }
 }  // namespace profiling

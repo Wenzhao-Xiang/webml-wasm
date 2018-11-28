@@ -42,7 +42,7 @@ class DecodeVideoOpTest(test.TestCase):
       bmp_filename: The filename for the bmp file.
       index: Index location inside the video.
     """
-    with self.cached_session():
+    with self.test_session():
       path = os.path.join(resource_loader.get_data_files_path(), 'testdata',
                           filename)
       with open(path, 'rb') as f:

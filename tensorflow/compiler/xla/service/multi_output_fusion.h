@@ -19,11 +19,10 @@ limitations under the License.
 #include <queue>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
-#include "absl/strings/string_view.h"
 #include "tensorflow/compiler/xla/service/hlo_module.h"
 #include "tensorflow/compiler/xla/service/hlo_pass_interface.h"
 #include "tensorflow/compiler/xla/statusor.h"
+#include "tensorflow/core/lib/core/stringpiece.h"
 
 namespace xla {
 
@@ -45,11 +44,13 @@ namespace xla {
 //  Note that the reachability map is updated based on the original computation.
 //  This works because the reachability is monotonically increasing with
 //  instruction fusion.
-class MultiOutputFusion : public HloModulePass {
+class MultiOutputFusion : public HloPassInterface {
  public:
   MultiOutputFusion(int64 fuel) : fuel_(fuel) {}
 
-  absl::string_view name() const override { return "multi_output_fusion"; }
+  tensorflow::StringPiece name() const override {
+    return "multi_output_fusion";
+  }
 
   // Run multi-output fusion on the given module. Returns whether the module
   // was changed.
@@ -93,7 +94,7 @@ class MultiOutputFusion : public HloModulePass {
   // Update the reachability map after fusing instr1 and instr2.
   void UpdateReachability(
       HloInstruction* instr1, HloInstruction* instr2,
-      absl::Span<HloInstruction* const> instrs_to_update,
+      tensorflow::gtl::ArraySlice<HloInstruction*> instrs_to_update,
       const std::function<bool(HloInstruction*)>& skip = nullptr);
 
   // Hook for multi-output fusion along producer-consumer edges.
@@ -103,16 +104,16 @@ class MultiOutputFusion : public HloModulePass {
   // InstructionFusion instead.
   virtual bool DoProducerConsumerMultiOutputFusion();
 
+ private:
+  // Update the internal data structures after instr1 and instr2 are fused into
+  // one fusion instruction.
+  void Update(HloInstruction* instr1, HloInstruction* instr2);
+
   // Optimization fuel is a compiler debugging technique that makes an
   // optimization pass stop what it is doing after having made N changes to the
   // program, where N is the fuel. By varying N, this can be used to find the
   // first single change that makes a test fail.
   int64 fuel_;
-
- private:
-  // Update the internal data structures after instr1 and instr2 are fused into
-  // one fusion instruction.
-  void Update(HloInstruction* instr1, HloInstruction* instr2);
 
   // Computation for the pass.
   HloComputation* computation_;
@@ -127,7 +128,7 @@ class MultiOutputFusion : public HloModulePass {
   std::vector<FusionCandidate> candidates_;
 
   // A map that maps an instruction to the index_.
-  absl::flat_hash_map<HloInstruction*, int> candidates_index_;
+  tensorflow::gtl::FlatMap<HloInstruction*, int> candidates_index_;
 
   // The reachability map of current computation.
   std::unique_ptr<HloReachabilityMap> reachability_;

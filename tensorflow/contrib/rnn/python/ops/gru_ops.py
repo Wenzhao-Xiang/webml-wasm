@@ -20,7 +20,6 @@ from __future__ import print_function
 from tensorflow.contrib.rnn.ops import gen_gru_ops
 from tensorflow.contrib.util import loader
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import init_ops
@@ -177,7 +176,7 @@ class GRUBlockCell(LayerRNNCell):
 
   def build(self, input_shape):
     # Check if the input size exist.
-    input_size = tensor_shape.dimension_value(input_shape[1])
+    input_size = input_shape[1].value
     if input_size is None:
       raise ValueError("Expecting input_size to be set.")
 
@@ -222,7 +221,7 @@ class GRUBlockCellV2(GRUBlockCell):
 
   def build(self, input_shape):
     """GRU cell."""
-    input_size = tensor_shape.dimension_value(input_shape[1])
+    input_size = input_shape[1].value
     if input_size is None:
       raise ValueError("Expecting input_size to be set.")
 

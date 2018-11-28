@@ -25,13 +25,10 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ConvertExpandDimsToReshape::Run(Model* model,
-                                                     std::size_t op_index,
-                                                     bool* modified) {
-  *modified = false;
+bool ConvertExpandDimsToReshape::Run(Model* model, std::size_t op_index) {
   auto expand_it = model->operators.begin() + op_index;
   if (expand_it->get()->type != OperatorType::kExpandDims) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   ExpandDimsOperator* expand_op =
       static_cast<ExpandDimsOperator*>(expand_it->get());
@@ -41,18 +38,23 @@ namespace toco {
   const auto& input_array = model->GetArray(expand_op->inputs[0]);
   if (!input_array.has_shape()) {
     // Yield until input dims have been resolved.
-    return ::tensorflow::Status::OK();
+    return false;
+  }
+  if (input_array.shape().dimensions_count() == 0) {
+    // Input array cannot be 0-D.
+    // (Unsure if this is TF behavior, but was required to get a test to pass.)
+    return false;
   }
 
   const auto& axis_array = model->GetArray(expand_op->inputs[1]);
   if (!axis_array.has_shape()) {
     // Yield until input axis array shape has been resolved.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   CHECK_EQ(RequiredBufferSizeForShape(axis_array.shape()), 1);
   if (!axis_array.buffer) {
     // Yield until the input axis array is constant
-    return ::tensorflow::Status::OK();
+    return false;
   }
   int axis = axis_array.GetBuffer<ArrayDataType::kInt32>().data[0];
   std::vector<int> reshape_dims(input_array.shape().dims());
@@ -93,8 +95,7 @@ namespace toco {
   CHECK_EQ(expand_it->get(), expand_op);
   model->operators.erase(expand_it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

@@ -48,32 +48,26 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
   def _RunTestOverParameters(self, test_fn):
     parameters_list = [
         # (relu, relu_op_name, with_bypass, has_scaling, fused_batch_norm,
-        # freeze_batch_norm_delay, insert identity node)
-        (nn_ops.relu6, 'Relu6', False, False, False, 100, False),
-        (nn_ops.relu, 'Relu', False, False, False, None, False),
-        (nn_ops.relu6, 'Relu6', True, False, False, 100, False),
-        (nn_ops.relu, 'Relu', True, False, False, None, False),
-        (nn_ops.relu6, 'Relu6', False, True, False, 100, False),
-        (nn_ops.relu, 'Relu', False, True, False, None, False),
-        (nn_ops.relu6, 'Relu6', True, True, False, 100, False),
-        (nn_ops.relu, 'Relu', True, True, False, None, False),
+        # freeze_batch_norm_delay)
+        (nn_ops.relu6, 'Relu6', False, False, False, 100),
+        (nn_ops.relu, 'Relu', False, False, False, None),
+        (nn_ops.relu6, 'Relu6', True, False, False, 100),
+        (nn_ops.relu, 'Relu', True, False, False, None),
+        (nn_ops.relu6, 'Relu6', False, True, False, 100),
+        (nn_ops.relu, 'Relu', False, True, False, None),
+        (nn_ops.relu6, 'Relu6', True, True, False, 100),
+        (nn_ops.relu, 'Relu', True, True, False, None),
         # Fused batch norm always has scaling enabled.
-        (nn_ops.relu6, 'Relu6', False, True, True, None, False),
-        (nn_ops.relu, 'Relu', False, True, True, 100, False),
-        (nn_ops.relu6, 'Relu6', True, True, True, None, False),
-        (nn_ops.relu, 'Relu', True, True, True, 100, False),
-        (nn_ops.relu6, 'Relu6', False, True, True, None, True),
-        (nn_ops.relu, 'Relu', False, True, True, 100, True),
-        (nn_ops.relu6, 'Relu6', True, True, True, None, True),
-        (nn_ops.relu, 'Relu', True, True, True, 100, True),
+        (nn_ops.relu6, 'Relu6', False, True, True, None),
+        (nn_ops.relu, 'Relu', False, True, True, 100),
+        (nn_ops.relu6, 'Relu6', True, True, True, None),
+        (nn_ops.relu, 'Relu', True, True, True, 100),
     ]
     for params in parameters_list:
-      test_fn(params[0], params[1], params[2], params[3], params[4], params[5],
-              params[6])
+      test_fn(params[0], params[1], params[2], params[3], params[4], params[5])
 
   def _TestFoldConv2d(self, relu, relu_op_name, with_bypass, has_scaling,
-                      fused_batch_norm, freeze_batch_norm_delay,
-                      insert_identity_node):
+                      fused_batch_norm, freeze_batch_norm_delay):
     """Tests folding cases: inputs -> Conv2d with batch norm -> Relu*.
 
     Args:
@@ -85,8 +79,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
       switches to using frozen mean and variance
-      insert_identity_node: Bool, insert identity node between conv and batch
-      norm
     """
     g = ops.Graph()
     with g.as_default():
@@ -95,42 +87,18 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       out_depth = 3 if with_bypass else 32
       stride = 1 if with_bypass else 2
       activation_fn = None if with_bypass else relu
-      name = 'test/test2' if with_bypass else 'test'
-      if insert_identity_node:
-        with g.name_scope(name):
-          node = conv2d(
-              inputs,
-              out_depth, [5, 5],
-              stride=stride,
-              padding='SAME',
-              weights_initializer=self._WeightInit(0.09),
-              activation_fn=None,
-              normalizer_fn=None,
-              biases_initializer=None)
-          conv_out = array_ops.identity(node, name='conv_out')
-
-          node = batch_norm(
-              conv_out,
-              center=True,
-              scale=has_scaling,
-              decay=1.0 - 0.003,
-              fused=fused_batch_norm)
-          if activation_fn is not None:
-            node = activation_fn(node)
-          conv_name = name + '/Conv'
-      else:
-        node = conv2d(
-            inputs,
-            out_depth, [5, 5],
-            stride=stride,
-            padding='SAME',
-            weights_initializer=self._WeightInit(0.09),
-            activation_fn=activation_fn,
-            normalizer_fn=batch_norm,
-            normalizer_params=self._BatchNormParams(
-                scale=has_scaling, fused=fused_batch_norm),
-            scope=name)
-        conv_name = name
+      scope = 'test/test2' if with_bypass else 'test'
+      node = conv2d(
+          inputs,
+          out_depth, [5, 5],
+          stride=stride,
+          padding='SAME',
+          weights_initializer=self._WeightInit(0.09),
+          activation_fn=activation_fn,
+          normalizer_fn=batch_norm,
+          normalizer_params=self._BatchNormParams(
+              scale=has_scaling, fused=fused_batch_norm),
+          scope=scope)
       if with_bypass:
         node = math_ops.add(inputs, node, name='test/Add')
         relu(node, name='test/' + relu_op_name)
@@ -138,30 +106,28 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fold_batch_norms.FoldBatchNorms(
           g, is_training=True, freeze_batch_norm_delay=freeze_batch_norm_delay)
 
-    folded_mul = g.get_operation_by_name(conv_name + '/mul_fold')
+    folded_mul = g.get_operation_by_name(scope + '/mul_fold')
     self.assertEqual(folded_mul.type, 'Mul')
     self._AssertInputOpsAre(folded_mul, [
-        conv_name + '/correction_mult',
-        self._BatchNormMultiplierName(conv_name, has_scaling, fused_batch_norm)
+        scope + '/correction_mult',
+        self._BatchNormMultiplierName(scope, has_scaling, fused_batch_norm)
     ])
-    self._AssertOutputGoesToOps(folded_mul, g, [conv_name + '/Conv2D_Fold'])
+    self._AssertOutputGoesToOps(folded_mul, g, [scope + '/Conv2D_Fold'])
 
-    folded_conv = g.get_operation_by_name(conv_name + '/Conv2D_Fold')
+    folded_conv = g.get_operation_by_name(scope + '/Conv2D_Fold')
     self.assertEqual(folded_conv.type, 'Conv2D')
     self._AssertInputOpsAre(folded_conv,
-                            [conv_name + '/mul_fold', inputs.op.name])
-    self._AssertOutputGoesToOps(folded_conv, g, [conv_name + '/post_conv_mul'])
+                            [scope + '/mul_fold', inputs.op.name])
+    self._AssertOutputGoesToOps(folded_conv, g, [scope + '/post_conv_mul'])
 
-    folded_add = g.get_operation_by_name(conv_name + '/add_fold')
+    folded_add = g.get_operation_by_name(scope + '/add_fold')
     self.assertEqual(folded_add.type, 'Add')
     self._AssertInputOpsAre(folded_add, [
-        conv_name + '/correction_add',
-        self._BathNormBiasName(conv_name, fused_batch_norm)
+        scope + '/correction_add',
+        self._BathNormBiasName(scope, fused_batch_norm)
     ])
     output_op_names = ['test/Add' if with_bypass else 'test/' + relu_op_name]
     self._AssertOutputGoesToOps(folded_add, g, output_op_names)
-    if freeze_batch_norm_delay is not None:
-      self._AssertMovingAveragesAreFrozen(g, name)
 
     for op in g.get_operations():
       self.assertFalse('//' in op.name, 'Double slash in op %s' % op.name)
@@ -174,8 +140,7 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
                               relu_op_name='Relu',
                               has_scaling=True,
                               fused_batch_norm=False,
-                              freeze_batch_norm_delay=None,
-                              insert_identity_node=False):
+                              freeze_batch_norm_delay=None):
     """Tests folding cases for a network with multiple layers.
 
     Args:
@@ -185,8 +150,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
       switches to using frozen mean and variance
-      insert_identity_node: Bool, insert identity node between conv and batch
-      norm
     """
     g = ops.Graph()
     with g.as_default():
@@ -253,20 +216,13 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
     ])
     output_op_names = [scope + '/' + relu_op_name]
     self._AssertOutputGoesToOps(folded_add, g, output_op_names)
-    if freeze_batch_norm_delay is not None:
-      self._AssertMovingAveragesAreFrozen(g, scope)
 
     for op in g.get_operations():
       self.assertFalse('//' in op.name, 'Double slash in op %s' % op.name)
 
-  def _TestFoldConv2dUnknownShape(self,
-                                  relu,
-                                  relu_op_name,
-                                  with_bypass,
-                                  has_scaling,
-                                  fused_batch_norm,
-                                  freeze_batch_norm_delay,
-                                  insert_identity_node=False):
+  def _TestFoldConv2dUnknownShape(self, relu, relu_op_name, with_bypass,
+                                  has_scaling, fused_batch_norm,
+                                  freeze_batch_norm_delay):
     """Tests folding cases: inputs -> Conv2d with batch norm -> Relu*.
 
     Tests that folding works even with an input shape where some dimensions are
@@ -281,8 +237,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
       switches to using frozen mean and variance
-      insert_identity_node: Bool, insert identity node between conv and batch
-      norm
     """
     g = ops.Graph()
     with g.as_default():
@@ -330,8 +284,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
     ])
     output_op_names = ['test/Add' if with_bypass else 'test/' + relu_op_name]
     self._AssertOutputGoesToOps(folded_add, g, output_op_names)
-    if freeze_batch_norm_delay is not None:
-      self._AssertMovingAveragesAreFrozen(g, scope)
 
     for op in g.get_operations():
       self.assertFalse('//' in op.name, 'Double slash in op %s' % op.name)
@@ -339,9 +291,9 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
   def testFoldConv2dUnknownShape(self):
     self._RunTestOverParameters(self._TestFoldConv2dUnknownShape)
 
-  def _TestFoldFullyConnectedLayer(
-      self, relu, relu_op_name, with_bypass, has_scaling, fused_batch_norm,
-      freeze_batch_norm_delay, insert_identity_node):
+  def _TestFoldFullyConnectedLayer(self, relu, relu_op_name, with_bypass,
+                                   has_scaling, fused_batch_norm,
+                                   freeze_batch_norm_delay):
     """Tests folding cases: inputs -> FC with batch norm -> Relu*.
 
     Args:
@@ -353,8 +305,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
       switches to using frozen mean and variance
-      insert_identity_node: Bool, insert identity node between conv and batch
-      norm
     """
     g = ops.Graph()
     with g.as_default():
@@ -362,40 +312,16 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       inputs = array_ops.zeros((batch_size, depth))
       out_depth = 256 if with_bypass else 128
       activation_fn = None if with_bypass else relu
-      name = 'test/test2' if with_bypass else 'test'
-      insert_identity_node = fused_batch_norm
-      if insert_identity_node:
-        with g.name_scope(name):
-          node = fully_connected(
-              inputs,
-              out_depth,
-              weights_initializer=self._WeightInit(0.03),
-              activation_fn=None,
-              normalizer_fn=None,
-              biases_initializer=None)
-          node = array_ops.identity(node, name='fc_out')
-
-          node = batch_norm(
-              node,
-              center=True,
-              scale=has_scaling,
-              decay=1.0 - 0.003,
-              fused=fused_batch_norm)
-          if activation_fn is not None:
-            node = activation_fn(node)
-          fc_name = name + '/fully_connected'
-      else:
-
-        node = fully_connected(
-            inputs,
-            out_depth,
-            weights_initializer=self._WeightInit(0.03),
-            activation_fn=activation_fn,
-            normalizer_fn=batch_norm,
-            normalizer_params=self._BatchNormParams(
-                scale=has_scaling, fused=fused_batch_norm),
-            scope=name)
-        fc_name = name
+      scope = 'test/test2' if with_bypass else 'test'
+      node = fully_connected(
+          inputs,
+          out_depth,
+          weights_initializer=self._WeightInit(0.03),
+          activation_fn=activation_fn,
+          normalizer_fn=batch_norm,
+          normalizer_params=self._BatchNormParams(
+              scale=has_scaling, fused=fused_batch_norm),
+          scope=scope)
       if with_bypass:
         node = math_ops.add(inputs, node, name='test/Add')
         relu(node, name='test/' + relu_op_name)
@@ -403,30 +329,28 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fold_batch_norms.FoldBatchNorms(
           g, is_training=True, freeze_batch_norm_delay=freeze_batch_norm_delay)
 
-    folded_mul = g.get_operation_by_name(fc_name + '/mul_fold')
+    folded_mul = g.get_operation_by_name(scope + '/mul_fold')
     self.assertEqual(folded_mul.type, 'Mul')
     self._AssertInputOpsAre(folded_mul, [
-        fc_name + '/correction_mult',
-        self._BatchNormMultiplierName(fc_name, has_scaling, fused_batch_norm)
+        scope + '/correction_mult',
+        self._BatchNormMultiplierName(scope, has_scaling, fused_batch_norm)
     ])
-    self._AssertOutputGoesToOps(folded_mul, g, [fc_name + '/MatMul_Fold'])
+    self._AssertOutputGoesToOps(folded_mul, g, [scope + '/MatMul_Fold'])
 
-    folded_conv = g.get_operation_by_name(fc_name + '/MatMul_Fold')
+    folded_conv = g.get_operation_by_name(scope + '/MatMul_Fold')
     self.assertEqual(folded_conv.type, 'MatMul')
     self._AssertInputOpsAre(folded_conv,
-                            [fc_name + '/mul_fold', inputs.op.name])
-    self._AssertOutputGoesToOps(folded_conv, g, [fc_name + '/post_conv_mul'])
+                            [scope + '/mul_fold', inputs.op.name])
+    self._AssertOutputGoesToOps(folded_conv, g, [scope + '/post_conv_mul'])
 
-    folded_add = g.get_operation_by_name(fc_name + '/add_fold')
+    folded_add = g.get_operation_by_name(scope + '/add_fold')
     self.assertEqual(folded_add.type, 'Add')
     self._AssertInputOpsAre(folded_add, [
-        fc_name + '/correction_add',
-        self._BathNormBiasName(fc_name, fused_batch_norm)
+        scope + '/correction_add',
+        self._BathNormBiasName(scope, fused_batch_norm)
     ])
     output_op_names = ['test/Add' if with_bypass else 'test/' + relu_op_name]
     self._AssertOutputGoesToOps(folded_add, g, output_op_names)
-    if freeze_batch_norm_delay is not None:
-      self._AssertMovingAveragesAreFrozen(g, name)
 
     for op in g.get_operations():
       self.assertFalse('//' in op.name, 'Double slash in op %s' % op.name)
@@ -436,7 +360,7 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
 
   def _TestFoldDepthwiseConv2d(self, relu, relu_op_name, with_bypass,
                                has_scaling, fused_batch_norm,
-                               freeze_batch_norm_delay, insert_identity_node):
+                               freeze_batch_norm_delay):
     """Tests folding: inputs -> DepthwiseConv2d with batch norm -> Relu*.
 
     Args:
@@ -447,8 +371,7 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       has_scaling: Bool, when true the batch norm has scaling.
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
-      insert_identity_node: Bool, insert identity node between conv and batch
-        norm switches to using frozen mean and variance
+      switches to using frozen mean and variance
     """
     g = ops.Graph()
     with g.as_default():
@@ -456,44 +379,19 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       inputs = array_ops.zeros((batch_size, height, width, 3))
       stride = 1 if with_bypass else 2
       activation_fn = None if with_bypass else relu
-      name = 'test/test2' if with_bypass else 'test'
-      if insert_identity_node:
-        with g.name_scope(name):
-          node = separable_conv2d(
-              inputs,
-              None, [5, 5],
-              stride=stride,
-              depth_multiplier=1.0,
-              padding='SAME',
-              weights_initializer=self._WeightInit(0.09),
-              activation_fn=None,
-              normalizer_fn=None,
-              biases_initializer=None)
-          node = array_ops.identity(node, name='sep_conv_out')
-
-          node = batch_norm(
-              node,
-              center=True,
-              scale=has_scaling,
-              decay=1.0 - 0.003,
-              fused=fused_batch_norm)
-          if activation_fn is not None:
-            node = activation_fn(node)
-          sep_conv_name = name + '/SeparableConv2d'
-      else:
-        node = separable_conv2d(
-            inputs,
-            None, [5, 5],
-            stride=stride,
-            depth_multiplier=1.0,
-            padding='SAME',
-            weights_initializer=self._WeightInit(0.09),
-            activation_fn=activation_fn,
-            normalizer_fn=batch_norm,
-            normalizer_params=self._BatchNormParams(
-                scale=has_scaling, fused=fused_batch_norm),
-            scope=name)
-        sep_conv_name = name
+      scope = 'test/test2' if with_bypass else 'test'
+      node = separable_conv2d(
+          inputs,
+          None, [5, 5],
+          stride=stride,
+          depth_multiplier=1.0,
+          padding='SAME',
+          weights_initializer=self._WeightInit(0.09),
+          activation_fn=activation_fn,
+          normalizer_fn=batch_norm,
+          normalizer_params=self._BatchNormParams(
+              scale=has_scaling, fused=fused_batch_norm),
+          scope=scope)
       if with_bypass:
         node = math_ops.add(inputs, node, name='test/Add')
         relu(node, name='test/' + relu_op_name)
@@ -501,43 +399,38 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fold_batch_norms.FoldBatchNorms(
           g, is_training=True, freeze_batch_norm_delay=freeze_batch_norm_delay)
 
-    folded_mul = g.get_operation_by_name(sep_conv_name + '/mul_fold')
+    folded_mul = g.get_operation_by_name(scope + '/mul_fold')
     self.assertEqual(folded_mul.type, 'Mul')
     if fused_batch_norm:
-      scale_reshape_op_name = sep_conv_name + '/BatchNorm_Fold/scale_reshape'
+      scale_reshape_op_name = scope + '/BatchNorm_Fold/scale_reshape'
     else:
-      scale_reshape_op_name = sep_conv_name + '/scale_reshape'
-    self._AssertInputOpsAre(
-        folded_mul, [sep_conv_name + '/correction_mult', scale_reshape_op_name])
-    self._AssertOutputGoesToOps(folded_mul, g,
-                                [sep_conv_name + '/depthwise_Fold'])
+      scale_reshape_op_name = scope + '/scale_reshape'
+    self._AssertInputOpsAre(folded_mul,
+                            [scope + '/correction_mult', scale_reshape_op_name])
+    self._AssertOutputGoesToOps(folded_mul, g, [scope + '/depthwise_Fold'])
 
     scale_reshape = g.get_operation_by_name(scale_reshape_op_name)
     self.assertEqual(scale_reshape.type, 'Reshape')
     self._AssertInputOpsAre(scale_reshape, [
-        self._BatchNormMultiplierName(sep_conv_name, has_scaling,
-                                      fused_batch_norm),
+        self._BatchNormMultiplierName(scope, has_scaling, fused_batch_norm),
         scale_reshape_op_name + '/shape'
     ])
-    self._AssertOutputGoesToOps(scale_reshape, g, [sep_conv_name + '/mul_fold'])
+    self._AssertOutputGoesToOps(scale_reshape, g, [scope + '/mul_fold'])
 
-    folded_conv = g.get_operation_by_name(sep_conv_name + '/depthwise_Fold')
+    folded_conv = g.get_operation_by_name(scope + '/depthwise_Fold')
     self.assertEqual(folded_conv.type, 'DepthwiseConv2dNative')
     self._AssertInputOpsAre(folded_conv,
-                            [sep_conv_name + '/mul_fold', inputs.op.name])
-    self._AssertOutputGoesToOps(folded_conv, g,
-                                [sep_conv_name + '/post_conv_mul'])
+                            [scope + '/mul_fold', inputs.op.name])
+    self._AssertOutputGoesToOps(folded_conv, g, [scope + '/post_conv_mul'])
 
-    folded_add = g.get_operation_by_name(sep_conv_name + '/add_fold')
+    folded_add = g.get_operation_by_name(scope + '/add_fold')
     self.assertEqual(folded_add.type, 'Add')
     self._AssertInputOpsAre(folded_add, [
-        sep_conv_name + '/correction_add',
-        self._BathNormBiasName(sep_conv_name, fused_batch_norm)
+        scope + '/correction_add',
+        self._BathNormBiasName(scope, fused_batch_norm)
     ])
     output_op_names = ['test/Add' if with_bypass else 'test/' + relu_op_name]
     self._AssertOutputGoesToOps(folded_add, g, output_op_names)
-    if freeze_batch_norm_delay is not None:
-      self._AssertMovingAveragesAreFrozen(g, name)
 
     for op in g.get_operations():
       self.assertFalse('//' in op.name, 'Double slash in op %s' % op.name)
@@ -546,8 +439,7 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
     self._RunTestOverParameters(self._TestFoldDepthwiseConv2d)
 
   def _TestFoldAtrousConv2d(self, relu, relu_op_name, with_bypass, has_scaling,
-                            fused_batch_norm, freeze_batch_norm_delay,
-                            insert_identity_node):
+                            fused_batch_norm, freeze_batch_norm_delay):
     """Tests folding: inputs -> AtrousConv2d with batch norm -> Relu*.
 
     Args:
@@ -558,9 +450,7 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       has_scaling: Bool, when true the batch norm has scaling.
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
-        switches to using frozen mean and variance
-      insert_identity_node: Bool, insert identity node between conv and batch
-        norm
+      switches to using frozen mean and variance
     """
     g = ops.Graph()
     with g.as_default():
@@ -568,44 +458,19 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       inputs = array_ops.zeros((batch_size, height, width, 3))
       dilation_rate = 2
       activation_fn = None if with_bypass else relu
-      name = 'test/test2' if with_bypass else 'test'
-      if insert_identity_node:
-        with g.name_scope(name):
-          node = separable_conv2d(
-              inputs,
-              None, [3, 3],
-              rate=dilation_rate,
-              depth_multiplier=1.0,
-              padding='SAME',
-              weights_initializer=self._WeightInit(0.09),
-              activation_fn=None,
-              normalizer_fn=None,
-              biases_initializer=None)
-          node = array_ops.identity(node, name='sep_conv_out')
-
-          node = batch_norm(
-              node,
-              center=True,
-              scale=has_scaling,
-              decay=1.0 - 0.003,
-              fused=fused_batch_norm)
-          if activation_fn is not None:
-            node = activation_fn(node)
-          sep_conv_name = name + '/SeparableConv2d'
-      else:
-        node = separable_conv2d(
-            inputs,
-            None, [3, 3],
-            rate=dilation_rate,
-            depth_multiplier=1.0,
-            padding='SAME',
-            weights_initializer=self._WeightInit(0.09),
-            activation_fn=activation_fn,
-            normalizer_fn=batch_norm,
-            normalizer_params=self._BatchNormParams(
-                scale=has_scaling, fused=fused_batch_norm),
-            scope=name)
-        sep_conv_name = name
+      scope = 'test/test2' if with_bypass else 'test'
+      node = separable_conv2d(
+          inputs,
+          None, [3, 3],
+          rate=dilation_rate,
+          depth_multiplier=1.0,
+          padding='SAME',
+          weights_initializer=self._WeightInit(0.09),
+          activation_fn=activation_fn,
+          normalizer_fn=batch_norm,
+          normalizer_params=self._BatchNormParams(
+              scale=has_scaling, fused=fused_batch_norm),
+          scope=scope)
       if with_bypass:
         node = math_ops.add(inputs, node, name='test/Add')
         relu(node, name='test/' + relu_op_name)
@@ -613,48 +478,43 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fold_batch_norms.FoldBatchNorms(
           g, is_training=True, freeze_batch_norm_delay=freeze_batch_norm_delay)
 
-    folded_mul = g.get_operation_by_name(sep_conv_name + '/mul_fold')
+    folded_mul = g.get_operation_by_name(scope + '/mul_fold')
     self.assertEqual(folded_mul.type, 'Mul')
     if fused_batch_norm:
-      scale_reshape_op_name = sep_conv_name + '/BatchNorm_Fold/scale_reshape'
+      scale_reshape_op_name = scope + '/BatchNorm_Fold/scale_reshape'
     else:
-      scale_reshape_op_name = sep_conv_name + '/scale_reshape'
-    self._AssertInputOpsAre(
-        folded_mul, [sep_conv_name + '/correction_mult', scale_reshape_op_name])
-    self._AssertOutputGoesToOps(folded_mul, g,
-                                [sep_conv_name + '/depthwise_Fold'])
+      scale_reshape_op_name = scope + '/scale_reshape'
+    self._AssertInputOpsAre(folded_mul,
+                            [scope + '/correction_mult', scale_reshape_op_name])
+    self._AssertOutputGoesToOps(folded_mul, g, [scope + '/depthwise_Fold'])
 
     scale_reshape = g.get_operation_by_name(scale_reshape_op_name)
     self.assertEqual(scale_reshape.type, 'Reshape')
     self._AssertInputOpsAre(scale_reshape, [
-        self._BatchNormMultiplierName(sep_conv_name, has_scaling,
-                                      fused_batch_norm),
+        self._BatchNormMultiplierName(scope, has_scaling, fused_batch_norm),
         scale_reshape_op_name + '/shape'
     ])
-    self._AssertOutputGoesToOps(scale_reshape, g, [sep_conv_name + '/mul_fold'])
+    self._AssertOutputGoesToOps(scale_reshape, g, [scope + '/mul_fold'])
 
-    folded_conv = g.get_operation_by_name(sep_conv_name + '/depthwise_Fold')
+    folded_conv = g.get_operation_by_name(scope + '/depthwise_Fold')
     self.assertEqual(folded_conv.type, 'DepthwiseConv2dNative')
-    self._AssertInputOpsAre(folded_conv, [
-        sep_conv_name + '/mul_fold', sep_conv_name + '/depthwise/SpaceToBatchND'
-    ])
+    self._AssertInputOpsAre(
+        folded_conv, [scope + '/mul_fold', scope + '/depthwise/SpaceToBatchND'])
     if fused_batch_norm:
       self._AssertOutputGoesToOps(folded_conv, g,
-                                  [sep_conv_name + '/BatchToSpaceND_Fold'])
+                                  [scope + '/BatchToSpaceND_Fold'])
     else:
-      self._AssertOutputGoesToOps(
-          folded_conv, g, [sep_conv_name + '/depthwise/BatchToSpaceND_Fold'])
+      self._AssertOutputGoesToOps(folded_conv, g,
+                                  [scope + '/depthwise/BatchToSpaceND_Fold'])
 
-    folded_add = g.get_operation_by_name(sep_conv_name + '/add_fold')
+    folded_add = g.get_operation_by_name(scope + '/add_fold')
     self.assertEqual(folded_add.type, 'Add')
     self._AssertInputOpsAre(folded_add, [
-        sep_conv_name + '/correction_add',
-        self._BathNormBiasName(sep_conv_name, fused_batch_norm)
+        scope + '/correction_add',
+        self._BathNormBiasName(scope, fused_batch_norm)
     ])
     output_op_names = ['test/Add' if with_bypass else 'test/' + relu_op_name]
     self._AssertOutputGoesToOps(folded_add, g, output_op_names)
-    if freeze_batch_norm_delay is not None:
-      self._AssertMovingAveragesAreFrozen(g, name)
 
     for op in g.get_operations():
       self.assertFalse('//' in op.name, 'Double slash in op %s' % op.name)
@@ -662,14 +522,9 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
   def testFoldAtrousConv2d(self):
     self._RunTestOverParameters(self._TestFoldAtrousConv2d)
 
-  def _TestCompareFoldAndUnfolded(self,
-                                  relu,
-                                  relu_op_name,
-                                  with_bypass,
-                                  has_scaling,
-                                  fused_batch_norm,
-                                  freeze_batch_norm_delay,
-                                  insert_identity_node=False):
+  def _TestCompareFoldAndUnfolded(self, relu, relu_op_name, with_bypass,
+                                  has_scaling, fused_batch_norm,
+                                  freeze_batch_norm_delay):
     """Tests that running folded and unfolded BN returns the same results.
 
     Args:
@@ -681,8 +536,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
       fused_batch_norm: Bool, when true the batch norm is fused.
       freeze_batch_norm_delay: None or the number of steps after which training
       switches to using frozen mean and variance
-      insert_identity_node: Bool, insert identity node between conv and batch
-      norm
     """
     random_seed.set_random_seed(1234)
     unfolded_g = ops.Graph()
@@ -790,22 +643,6 @@ class FoldBatchNormsTest(test_util.TensorFlowTestCase):
     for out_op_name in out_op_names:
       out_op = graph.get_operation_by_name(out_op_name)
       self.assertIn(op.outputs[0].name, [str(t.name) for t in out_op.inputs])
-
-  def _AssertMovingAveragesAreFrozen(self, graph, scope):
-    """Asserts to check if moving mean and variance are frozen.
-
-    Args:
-      graph: Graph where the operations are located.
-      scope: Scope of batch norm op
-    """
-    moving_average_mult = graph.get_operation_by_name(
-        scope + '/BatchNorm/AssignMovingAvg/mul')
-    self.assertTrue(
-        moving_average_mult.inputs[1].name.find('freeze_moving_mean/Merge') > 0)
-    moving_var_mult = graph.get_operation_by_name(
-        scope + '/BatchNorm/AssignMovingAvg_1/mul')
-    self.assertTrue(
-        moving_var_mult.inputs[1].name.find('freeze_moving_var/Merge') > 0)
 
   def _CopyGraph(self, graph):
     """Return a copy of graph."""

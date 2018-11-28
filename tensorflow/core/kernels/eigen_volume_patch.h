@@ -43,7 +43,6 @@ struct CustomTensorEvaluator {
     IsAligned = false,
     PacketAccess = TensorEvaluator<ArgType, Device>::PacketAccess,
     BlockAccess = false,
-    PreferBlockAccess = false,
     Layout = TensorEvaluator<ArgType, Device>::Layout,
     CoordAccess = NumDims == 6,
     RawAccess = false

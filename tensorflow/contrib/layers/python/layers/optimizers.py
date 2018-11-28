@@ -21,6 +21,8 @@ from __future__ import print_function
 import six
 
 from tensorflow.contrib import framework as contrib_framework
+from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clip_ops
@@ -431,11 +433,12 @@ def _multiply_gradients(grads_and_vars, gradient_multipliers):
     if (grad is not None and
         (var in gradient_multipliers or var.name in gradient_multipliers)):
       key = var if var in gradient_multipliers else var.name
-      multiplier = gradient_multipliers[key]
+      multiplier = constant_op.constant(
+          gradient_multipliers[key], dtype=dtypes.float32)
       if isinstance(grad, ops.IndexedSlices):
         grad_values = grad.values * multiplier
         grad = ops.IndexedSlices(grad_values, grad.indices, grad.dense_shape)
       else:
-        grad *= math_ops.cast(multiplier, grad.dtype)
+        grad *= multiplier
     multiplied_grads_and_vars.append((grad, var))
   return multiplied_grads_and_vars

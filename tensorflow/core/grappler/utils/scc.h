@@ -24,16 +24,15 @@ limitations under the License.
 namespace tensorflow {
 namespace grappler {
 
-// Computes modified strongly connected components:
+// Compute modified strongly connected components:
 // All nodes that are not part of a loop are assigned the special -1 id
 // All nodes that are part of at least one loop are assigned a positive
 // component id: if 2 nodes v and w are reachable from one another (i.e. if they
 // belong to the same scc), they'll be assigned the same id, otherwise they'll
-// be assigned distinct ids. *num_components is set to the number of distinct
-// ids.
+// be assigned distinct ids. Returns the number of distinct ids.
 void StronglyConnectedComponents(
     const GraphDef& graph, std::unordered_map<const NodeDef*, int>* components,
-    int* num_components);
+    int* num_ids);
 
 // Returns the number of individual loops present in the graph, and populate the
 // 'loops' argument with the collection of loops (denoted by their loop ids) a

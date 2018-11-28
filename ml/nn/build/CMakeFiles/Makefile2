@@ -54,10 +54,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/gwy/Documents/webml/googleSouce1/ml/nn
+CMAKE_SOURCE_DIR = /home/gwy/Documents/webml/webml-wasm/ml/nn
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/gwy/Documents/webml/googleSouce1/ml/nn/build
+CMAKE_BINARY_DIR = /home/gwy/Documents/webml/webml-wasm/ml/nn/build
 
 #=============================================================================
 # Target rules for target CMakeFiles/nn_ops_test.dir
@@ -66,7 +66,7 @@ CMAKE_BINARY_DIR = /home/gwy/Documents/webml/googleSouce1/ml/nn/build
 CMakeFiles/nn_ops_test.dir/all: CMakeFiles/nn_ops.dir/all
 	$(MAKE) -f CMakeFiles/nn_ops_test.dir/build.make CMakeFiles/nn_ops_test.dir/depend
 	$(MAKE) -f CMakeFiles/nn_ops_test.dir/build.make CMakeFiles/nn_ops_test.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=14,15 "Built target nn_ops_test"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=14,15 "Built target nn_ops_test"
 .PHONY : CMakeFiles/nn_ops_test.dir/all
 
 # Include target in all.
@@ -76,9 +76,9 @@ all: CMakeFiles/nn_ops_test.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/nn_ops_test.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles 15
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles 15
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/nn_ops_test.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles 0
 .PHONY : CMakeFiles/nn_ops_test.dir/rule
 
 # Convenience name for target.
@@ -103,7 +103,7 @@ clean: CMakeFiles/nn_ops_test.dir/clean
 CMakeFiles/nn_ops.dir/all:
 	$(MAKE) -f CMakeFiles/nn_ops.dir/build.make CMakeFiles/nn_ops.dir/depend
 	$(MAKE) -f CMakeFiles/nn_ops.dir/build.make CMakeFiles/nn_ops.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13 "Built target nn_ops"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13 "Built target nn_ops"
 .PHONY : CMakeFiles/nn_ops.dir/all
 
 # Include target in all.
@@ -113,9 +113,9 @@ all: CMakeFiles/nn_ops.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/nn_ops.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles 13
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/nn_ops.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles 0
 .PHONY : CMakeFiles/nn_ops.dir/rule
 
 # Convenience name for target.

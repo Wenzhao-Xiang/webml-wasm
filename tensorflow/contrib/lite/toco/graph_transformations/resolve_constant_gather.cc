@@ -61,44 +61,37 @@ inline void Gather(const Array& input_array, int input_rank,
 // Resolves a constant Gather operation.
 // This simply performs the gather and produces the output array with the
 // appropriate values.
-::tensorflow::Status ResolveConstantGather::Run(Model* model,
-                                                std::size_t op_index,
-                                                bool* modified) {
-  *modified = false;
+bool ResolveConstantGather::Run(Model* model, std::size_t op_index) {
   auto it = model->operators.begin() + op_index;
   const auto* base_op = it->get();
   if (base_op->type != OperatorType::kGather) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const auto* op = static_cast<const GatherOperator*>(base_op);
 
-  CHECK_GE(op->inputs.size(), 2);
+  CHECK_EQ(op->inputs.size(), 2);
   CHECK_EQ(op->outputs.size(), 1);
   auto& output_array = model->GetArray(op->outputs[0]);
   if (output_array.data_type == ArrayDataType::kNone) {
     // Yield until the output type has been set by PropagateArrayDataTypes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (!output_array.has_shape()) {
     // Yield until the output shape has been set by PropagateFixedShapes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
-  if (!op->axis) {
-    // Yield until axis has been set by ResolveGatherAttributes.
-    return ::tensorflow::Status::OK();
-  }
-  if (op->axis.value() != 0) {
-    // Only handling axis=0 for now.
+  // Only handling axis=0 for now.
+  if (op->axis != 0) {
     AddMessageF("%s has axis %d; only axis=0 is supported", LogName(*op),
-                op->axis.value());
-    return ::tensorflow::Status::OK();
+                op->axis);
+    return false;
   }
 
   // We require constant inputs.
   if (!IsConstantParameterArray(*model, op->inputs[0]) ||
       !IsConstantParameterArray(*model, op->inputs[1])) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const Array& input_array = model->GetArray(op->inputs[0]);
   const Array& coords_array = model->GetArray(op->inputs[1]);
@@ -133,10 +126,6 @@ inline void Gather(const Array& input_array, int input_rank,
       Gather<ArrayDataType::kInt64>(input_array, op->input_rank, coords_array,
                                     &output_array);
       break;
-    case ArrayDataType::kComplex64:
-      Gather<ArrayDataType::kComplex64>(input_array, op->input_rank,
-                                        coords_array, &output_array);
-      break;
     default:
       LOG(FATAL) << "Unsupported data type given to Gather op with output \""
                  << op->outputs[0] << "\"";
@@ -149,8 +138,7 @@ inline void Gather(const Array& input_array, int input_rank,
 
   // Erase the operator.
   model->operators.erase(it);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

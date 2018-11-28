@@ -52,9 +52,11 @@ namespace gpu {
 // The GPU backend does not implement a lowering for the batchnorm HLOs -- it
 // expects them to be lowered to cudnn calls via this pass or to HLO soup via
 // BatchNormRewriter.
-class CudnnBatchNormRewriter : public HloModulePass {
+class CudnnBatchNormRewriter : public HloPassInterface {
  public:
-  absl::string_view name() const override { return "cudnn_batchnorm_rewriter"; }
+  tensorflow::StringPiece name() const override {
+    return "cudnn_batchnorm_rewriter";
+  }
   StatusOr<bool> Run(HloModule* module) override;
 };
 

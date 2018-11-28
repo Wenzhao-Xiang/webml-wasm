@@ -20,8 +20,6 @@ limitations under the License.
 #include <memory>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 #include "tensorflow/compiler/xla/service/hlo_module_group_metadata.h"
@@ -29,6 +27,8 @@ limitations under the License.
 #include "tensorflow/compiler/xla/status.h"
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
+#include "tensorflow/core/lib/gtl/flatmap.h"
 
 namespace xla {
 
@@ -56,7 +56,7 @@ class HloModuleGroupUtil {
 
   // Returns the root instructions of the computations.
   std::vector<HloInstruction*> RootInstructions(
-      absl::Span<HloComputation* const> computations);
+      tensorflow::gtl::ArraySlice<HloComputation*> computations);
 
   // Visit state of each instruction during DFS traversal.
   enum VisitState {
@@ -87,20 +87,21 @@ class HloModuleGroupUtil {
   // * visit_state: map from each instruction to its visit state.
   // * visit_function: function called when each instruction group.
   // * root: the root instruction of the traversal.
-  using VisitStates = absl::flat_hash_map<HloInstruction*, VisitState>;
+  using VisitStates = tensorflow::gtl::FlatMap<HloInstruction*, VisitState>;
   Status VisitTopologicalOrder(VisitStates* visit_state,
                                const VisitFunction& visit_function,
                                HloInstruction* root);
 
   // Verifies that the computations are well-formed (e.g., no cycles).
-  Status VerifyComputations(absl::Span<HloComputation* const> computations);
+  Status VerifyComputations(
+      tensorflow::gtl::ArraySlice<HloComputation*> computations);
 
   // Below Reachability utils resemble those in HloComputation, except that
   // they can handle instructions across multiple computations.
   //
   // Creates the reachability map for the instructions in the computations.
   StatusOr<std::unique_ptr<HloReachabilityMap>> ComputeReachability(
-      absl::Span<HloComputation* const> computations);
+      tensorflow::gtl::ArraySlice<HloComputation*> computations);
 
   // Updates the reachability of the given instruction, taking the global
   // predeccessorss and successors into account.

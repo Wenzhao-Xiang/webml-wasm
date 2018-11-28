@@ -34,19 +34,18 @@ import java.io.InputStream;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.DecimalFormat;
-import org.tensorflow.ovic.OvicBenchmarker;
-import org.tensorflow.ovic.OvicClassifierBenchmarker;
-import org.tensorflow.ovic.OvicDetectorBenchmarker;
+import org.tensorflow.ovic.OvicSingleImageResult;
 
 /** Class that benchmark image classifier models. */
 public class OvicBenchmarkerActivity extends Activity {
   /** Tag for the {@link Log}. */
   private static final String TAG = "OvicBenchmarkerActivity";
 
-  /** Name of the task-dependent data files stored in Assets. */
-  private static String labelPath = null;
-  private static String testImagePath = null;
-  private static String modelPath = null;
+  /** Name of the label file stored in Assets. */
+  private static final String LABEL_PATH = "labels.txt";
+
+  private static final String TEST_IMAGE_PATH = "test_image_224.jpg";
+  private static final String MODEL_PATH = "float_model.lite";
   /**
    * Each bottom press will launch a benchmarking experiment. The experiment stops when either the
    * total native latency reaches WALL_TIME or the number of iterations reaches MAX_ITERATIONS,
@@ -65,6 +64,8 @@ public class OvicBenchmarkerActivity extends Activity {
   private MappedByteBuffer model = null;
   private InputStream labelInputStream = null;
   private OvicBenchmarker benchmarker;
+  /** Inference result of each iteration. */
+  OvicSingleImageResult iterResult = null;
 
   private TextView textView = null;
   // private Button startButton = null;
@@ -80,31 +81,21 @@ public class OvicBenchmarkerActivity extends Activity {
   }
 
   private Bitmap loadTestBitmap() throws IOException {
-    InputStream imageStream = getAssets().open(testImagePath);
+    InputStream imageStream = getAssets().open(TEST_IMAGE_PATH);
     return BitmapFactory.decodeStream(imageStream);
   }
 
-  public void initializeTest(boolean benchmarkClassification) throws IOException {
+  public void initializeTest() throws IOException {
     Log.i(TAG, "Initializing benchmarker.");
-    if (benchmarkClassification) {
-      benchmarker = new OvicClassifierBenchmarker(WALL_TIME);
-      labelPath = "labels.txt";
-      testImagePath = "test_image_224.jpg";
-      modelPath = "quantized_model.lite";
-    } else {  // Benchmarking detection.
-      benchmarker = new OvicDetectorBenchmarker(WALL_TIME);
-      labelPath = "coco_labels.txt";
-      testImagePath = "test_image_224.jpg";
-      modelPath = "detect.lite";
-    }
+    benchmarker = new OvicBenchmarker(WALL_TIME);
     AssetManager am = getAssets();
-    AssetFileDescriptor fileDescriptor = am.openFd(modelPath);
+    AssetFileDescriptor fileDescriptor = am.openFd(MODEL_PATH);
     FileInputStream modelInputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
     FileChannel fileChannel = modelInputStream.getChannel();
     long startOffset = fileDescriptor.getStartOffset();
     long declaredLength = fileDescriptor.getDeclaredLength();
     model = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
-    labelInputStream = am.open(labelPath);
+    labelInputStream = am.open(LABEL_PATH);
   }
 
   public Boolean doTestIteration() throws IOException, InterruptedException {
@@ -124,44 +115,24 @@ public class OvicBenchmarkerActivity extends Activity {
     Log.i(TAG, "Going to do test iter.");
     // Start testing.
     Bitmap testImageBitmap = loadTestBitmap();
-    try {
-      if (!benchmarker.processBitmap(testImageBitmap)) {
-        throw new RuntimeException("Failed to run test.");
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      throw e;
-    } finally {
-      testImageBitmap.recycle();
-    }
-    String iterResultString = benchmarker.getLastResultString();
-    if (iterResultString == null) {
+    iterResult = benchmarker.doTestIteration(testImageBitmap);
+    testImageBitmap.recycle();
+    if (iterResult == null) {
       throw new RuntimeException("Inference failed to produce a result.");
     }
-    Log.i(TAG, iterResultString);
+    Log.i(TAG, iterResult.toString());
     return true;
   }
 
-  public void detectPressed(View view) throws IOException {
-    benchmarkSession(false);
-  }
-  public void classifyPressed(View view) throws IOException {
-    benchmarkSession(true);
-  }
-
-  private void benchmarkSession(boolean benchmarkClassification) throws IOException {
+  public void startPressed(View view) throws IOException {
+    Log.i(TAG, "Start pressed");
     try {
-      initializeTest(benchmarkClassification);
+      initializeTest();
     } catch (IOException e) {
       Log.e(TAG, "Can't initialize benchmarker.", e);
       throw e;
     }
     String displayText = "";
-    if (benchmarkClassification) {
-      displayText = "Classification benchmark: ";
-    } else {
-      displayText = "Detection benchmark: ";
-    }
     try {
       setProcessorAffinity(BIG_CORE_MASK);
     } catch (IOException e) {
@@ -171,6 +142,7 @@ public class OvicBenchmarkerActivity extends Activity {
     Log.i(TAG, "Successfully initialized benchmarker.");
     int testIter = 0;
     Boolean iterSuccess = false;
+    double totalLatency = 0.0f;
     while (testIter < MAX_ITERATIONS) {
       try {
         iterSuccess = doTestIteration();
@@ -179,22 +151,23 @@ public class OvicBenchmarkerActivity extends Activity {
         throw e;
       } catch (InterruptedException e) {
         Log.e(TAG, "Interrupted at iteration " + testIter);
-        displayText += e.getMessage() + "\n";
       }
       if (!iterSuccess) {
         break;
       }
       testIter++;
+      totalLatency += (double) iterResult.latency;
     }
+    ;
     Log.i(TAG, "Benchmarking finished");
 
     if (textView != null) {
       if (testIter > 0) {
         textView.setText(
             displayText
-                + modelPath
+                + MODEL_PATH
                 + ": Average latency="
-                + df2.format(benchmarker.getTotalRunTime() / testIter)
+                + df2.format(totalLatency / testIter)
                 + "ms after "
                 + testIter
                 + " runs.");

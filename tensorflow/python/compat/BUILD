@@ -9,7 +9,6 @@ py_library(
     srcs = ["compat.py"],
     srcs_version = "PY2AND3",
     visibility = ["//tensorflow:internal"],
-    deps = ["//tensorflow/python:util"],
 )
 
 tf_py_test(

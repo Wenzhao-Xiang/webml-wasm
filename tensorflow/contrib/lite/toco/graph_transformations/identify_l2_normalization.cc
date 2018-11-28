@@ -39,10 +39,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
 }
 }  // namespace
 
-::tensorflow::Status IdentifyL2Normalization::Run(Model* model,
-                                                  std::size_t op_index,
-                                                  bool* modified) {
-  *modified = false;
+bool IdentifyL2Normalization::Run(Model* model, std::size_t op_index) {
   const auto div_it = model->operators.begin() + op_index;
   const auto* div_or_mul_op = div_it->get();
   OperatorType expected_op_type_producing_div_or_mul_input;
@@ -51,7 +48,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
   } else if (div_or_mul_op->type == OperatorType::kMul) {
     expected_op_type_producing_div_or_mul_input = OperatorType::kRsqrt;
   } else {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   CHECK_EQ(div_or_mul_op->inputs.size(), 2);
   Operator* op_producing_div_or_mul_input[2] = {
@@ -61,14 +58,14 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
   if (!op_producing_div_or_mul_input[1] ||
       op_producing_div_or_mul_input[1]->type !=
           expected_op_type_producing_div_or_mul_input) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   Operator* sqrt_or_rsqrt_op = op_producing_div_or_mul_input[1];
   CHECK_EQ(sqrt_or_rsqrt_op->inputs.size(), 1);
   Operator* op_producing_sqrt_or_rsqrt_input =
       GetOpWithOutput(*model, sqrt_or_rsqrt_op->inputs[0]);
   if (!op_producing_sqrt_or_rsqrt_input) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // There may be an Add or a Maximum here, adding or clamping to a "small"
@@ -108,7 +105,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
           " because the operator producing the input to the square root, %s,"
           ", does not match the expected pattern",
           LogName(*op_producing_sqrt_or_rsqrt_input));
-      return ::tensorflow::Status::OK();
+      return false;
     }
   }
 
@@ -119,7 +116,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
         "Giving up trying to identify L2Normalization subgraph: "
         "expected Sum op, got %s",
         LogName(*sum_op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   Operator* square_op = GetOpWithOutput(*model, sum_op->inputs[0]);
@@ -128,7 +125,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
         "Giving up trying to identify L2Normalization subgraph: "
         "expected Square op, got %s",
         LogName(*square_op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK_EQ(square_op->inputs.size(), 1);
@@ -138,7 +135,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
         "Giving up trying to identify L2Normalization subgraph: %s does not "
         "take the same input as the Mul/Div node",
         LogName(*square_op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Create and emplace the new L2Normalization
@@ -165,8 +162,7 @@ std::vector<std::unique_ptr<Operator>>::iterator FindOperator(
   model->operators.erase(FindOperator(model, sqrt_or_rsqrt_op));
   model->EraseArray(div_or_mul_op->inputs[1]);
   model->operators.erase(FindOperator(model, div_or_mul_op));
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

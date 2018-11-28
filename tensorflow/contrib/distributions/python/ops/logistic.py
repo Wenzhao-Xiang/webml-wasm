@@ -61,8 +61,7 @@ class Logistic(distribution.Distribution):
   Examples of initialization of one or a batch of distributions.
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   # Define a single scalar Logistic distribution.
   dist = tfd.Logistic(loc=0., scale=3.)

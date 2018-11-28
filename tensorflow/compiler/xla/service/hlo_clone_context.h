@@ -18,8 +18,8 @@ limitations under the License.
 
 #include <string>
 
-#include "absl/container/flat_hash_map.h"
 #include "tensorflow/compiler/xla/map_util.h"
+#include "tensorflow/core/lib/gtl/flatmap.h"
 
 namespace xla {
 
@@ -73,12 +73,12 @@ class HloCloneContext {
     return FindOrDie(computations_, old_computation);
   }
 
-  const absl::flat_hash_map<const HloInstruction*, HloInstruction*>&
+  const tensorflow::gtl::FlatMap<const HloInstruction*, HloInstruction*>&
   cloned_instructions() const {
     return instructions_;
   }
 
-  const absl::flat_hash_map<const HloComputation*, HloComputation*>&
+  const tensorflow::gtl::FlatMap<const HloComputation*, HloComputation*>&
   cloned_computations() const {
     return computations_;
   }
@@ -86,8 +86,10 @@ class HloCloneContext {
  private:
   HloModule* module_;
   string suffix_;
-  absl::flat_hash_map<const HloInstruction*, HloInstruction*> instructions_;
-  absl::flat_hash_map<const HloComputation*, HloComputation*> computations_;
+  tensorflow::gtl::FlatMap<const HloInstruction*, HloInstruction*>
+      instructions_;
+  tensorflow::gtl::FlatMap<const HloComputation*, HloComputation*>
+      computations_;
 };
 
 }  // namespace xla

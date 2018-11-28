@@ -65,14 +65,13 @@ class Autoregressive(distribution_lib.Distribution):
   ```
 
   where the ellipses (`...`) represent `n-2` composed calls to `fn`, `fn`
-  constructs a `tfp.distributions.Distribution`-like instance, and `x0` is a
+  constructs a `tf.distributions.Distribution`-like instance, and `x0` is a
   fixed initializing `Tensor`.
 
   #### Examples
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   def normal_fn(self, event_size):
     n = event_size * (event_size + 1) / 2
@@ -128,7 +127,7 @@ class Autoregressive(distribution_lib.Distribution):
 
     Args:
       distribution_fn: Python `callable` which constructs a
-        `tfp.distributions.Distribution`-like instance from a `Tensor` (e.g.,
+        `tf.distributions.Distribution`-like instance from a `Tensor` (e.g.,
         `sample0`). The function must respect the "autoregressive property",
         i.e., there exists a permutation of event such that each coordinate is a
         diffeomorphic function of on preceding coordinates.

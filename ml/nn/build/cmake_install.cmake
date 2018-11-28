@@ -1,4 +1,4 @@
-# Install script for directory: /home/gwy/Documents/webml/googleSouce1/ml/nn
+# Install script for directory: /home/gwy/Documents/webml/webml-wasm/ml/nn
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -35,5 +35,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/gwy/Documents/webml/googleSouce1/ml/nn/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/gwy/Documents/webml/webml-wasm/ml/nn/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

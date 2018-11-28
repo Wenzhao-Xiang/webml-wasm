@@ -33,7 +33,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeDenseSplit(self):
     """Tests split handler op."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # The data looks like the following after dividing by number of steps (2).
       # Gradients    | Partition | Dense Quantile |
       # (1.2, 0.2)   | 0         | 0              |
@@ -59,8 +59,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
               min_node_weight=0,
               class_id=-1,
               feature_column_group_id=0,
-              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS,
-              weak_learner_type=learner_pb2.LearnerConfig.NORMAL_DECISION_TREE))
+              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS))
       partitions, gains, splits = sess.run([partitions, gains, splits])
     self.assertAllEqual([0, 1], partitions)
 
@@ -111,7 +110,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeMulticlassDenseSplit(self):
     """Tests split handler op."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       partition_ids = array_ops.constant([0, 0, 1], dtype=dtypes.int32)
       bucket_ids = array_ops.constant(
           [[0, 0], [1, 0], [1, 0]], dtype=dtypes.int64)
@@ -133,8 +132,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
               min_node_weight=0,
               class_id=-1,
               feature_column_group_id=0,
-              multiclass_strategy=learner_pb2.LearnerConfig.FULL_HESSIAN,
-              weak_learner_type=learner_pb2.LearnerConfig.NORMAL_DECISION_TREE))
+              multiclass_strategy=learner_pb2.LearnerConfig.FULL_HESSIAN))
       partitions, gains, splits = sess.run([partitions, gains, splits])
     self.assertAllEqual([0, 1], partitions)
 
@@ -153,7 +151,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeDenseSplitEmptyInputs(self):
     """Tests empty inputs op."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       partition_ids = array_ops.constant([], dtype=dtypes.int32)
       bucket_ids = array_ops.constant([[]], dtype=dtypes.int64)
       gradients = array_ops.constant([])
@@ -173,8 +171,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
               min_node_weight=0,
               class_id=-1,
               feature_column_group_id=0,
-              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS,
-              weak_learner_type=learner_pb2.LearnerConfig.NORMAL_DECISION_TREE))
+              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS))
       partitions, gains, splits = sess.run([partitions, gains, splits])
     # .assertEmpty doesn't exist on ubuntu-contrib
     self.assertEqual(0, len(partitions))
@@ -183,7 +180,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeSparseSplit(self):
     """Tests split handler op."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # The data looks like the following after dividing by number of steps (2).
       # Gradients    | Partition | bucket ID       |
       # (0.9, 0.39)  | 0         | -1              |
@@ -274,7 +271,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeSparseSplitAllEmptyDimensions(self):
     """Tests split handler op when all dimensions have only bias bucket id."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # The data looks like the following after dividing by number of steps (2).
       # Gradients    | Partition | Dimension | bucket ID       |
       # (0.9, 0.39)  | 0         |    0      |  -1             |
@@ -307,7 +304,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeSparseMultidimensionalSplit(self):
     """Tests split handler op."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # Num of steps is 2.
       # The feature column is three dimensional.
       # First dimension has bias bucket only, the second has bias bucket and
@@ -408,7 +405,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
     """Tests default direction is stable when no sparsity."""
     random.seed(1123)
     for _ in range(50):
-      with self.cached_session() as sess:
+      with self.test_session() as sess:
         grad = random.random()
         hessian = random.random()
         # The data looks like the following (divide by the num of steps 2).
@@ -465,7 +462,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeMulticlassSparseSplit(self):
     """Tests split handler op."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       partition_ids = array_ops.constant([0, 0, 0, 1, 1], dtype=dtypes.int32)
     bucket_ids = array_ops.constant(
         [[-1, 0], [0, 0], [1, 0], [-1, 0], [1, 0]], dtype=dtypes.int64)
@@ -514,7 +511,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeCategoricalEqualitySplit(self):
     """Tests split handler op for categorical equality split."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # The data looks like the following after dividing by number of steps (2).
       # Gradients    | Partition | Feature ID     |
       # (0.9, 0.39)  | 0         | -1             |
@@ -541,8 +538,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
               feature_column_group_id=0,
               bias_feature_id=-1,
               class_id=-1,
-              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS,
-              weak_learner_type=learner_pb2.LearnerConfig.NORMAL_DECISION_TREE))
+              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS))
       partitions, gains, splits = sess.run([partitions, gains, splits])
     self.assertAllEqual([0, 1], partitions)
 
@@ -609,7 +605,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
 
   def testMakeMulticlassCategoricalEqualitySplit(self):
     """Tests split handler op for categorical equality split in multiclass."""
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       gradients = array_ops.constant([[1.8, 3.5], [2.4, 1.0], [0.4, 4.0],
                                       [9.0, 3.1], [3.0, 0.8]])
 
@@ -638,8 +634,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
               feature_column_group_id=0,
               bias_feature_id=-1,
               class_id=-1,
-              multiclass_strategy=learner_pb2.LearnerConfig.FULL_HESSIAN,
-              weak_learner_type=learner_pb2.LearnerConfig.NORMAL_DECISION_TREE))
+              multiclass_strategy=learner_pb2.LearnerConfig.FULL_HESSIAN))
       partitions, gains, splits = sess.run([partitions, gains, splits])
     self.assertAllEqual([0, 1], partitions)
 
@@ -657,7 +652,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
     self.assertEqual(1, split_node.feature_id)
 
   def testMakeCategoricalEqualitySplitEmptyInput(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       gradients = []
       hessians = []
       partition_ids = []
@@ -676,8 +671,7 @@ class SplitHandlerOpsTest(test_util.TensorFlowTestCase):
               feature_column_group_id=0,
               bias_feature_id=-1,
               class_id=-1,
-              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS,
-              weak_learner_type=learner_pb2.LearnerConfig.NORMAL_DECISION_TREE))
+              multiclass_strategy=learner_pb2.LearnerConfig.TREE_PER_CLASS))
       partitions, gains, splits = (sess.run([partitions, gains, splits]))
     self.assertEqual(0, len(partitions))
     self.assertEqual(0, len(gains))

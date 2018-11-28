@@ -18,10 +18,9 @@ limitations under the License.
 
 #include <memory>
 
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/client/client.h"
 #include "tensorflow/compiler/xla/client/executable_build_options.h"
-#include "tensorflow/compiler/xla/client/xla_computation.h"
+#include "tensorflow/compiler/xla/client/xla_client/xla_computation.h"
 #include "tensorflow/compiler/xla/executable_run_options.h"
 #include "tensorflow/compiler/xla/service/compiler.h"
 #include "tensorflow/compiler/xla/service/device_memory_allocator.h"
@@ -31,6 +30,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/service/shaped_buffer.h"
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/stream_executor_no_cuda.h"
 
 namespace xla {
@@ -40,7 +40,7 @@ class LocalExecutable {
   // Run the compiled computation with the given arguments and options and
   // return the result.
   StatusOr<ScopedShapedBuffer> Run(
-      const absl::Span<const ShapedBuffer* const> arguments,
+      const tensorflow::gtl::ArraySlice<const ShapedBuffer*> arguments,
       ExecutableRunOptions run_options);
 
   // Return the options used to build the executable.
@@ -63,7 +63,7 @@ class LocalExecutable {
   // The given ExecutableRunOptions override any values from legacy_flags
   // (TF_XLA_FLAGS environment variable).
   Status ValidateExecutionOptions(
-      const absl::Span<const ShapedBuffer* const> arguments,
+      const tensorflow::gtl::ArraySlice<const ShapedBuffer*> arguments,
       const ExecutableRunOptions& run_options, const Backend& backend);
 
   // Records the computation in a SessionModule proto with the arguments used to
@@ -73,18 +73,20 @@ class LocalExecutable {
   // (TF_XLA_FLAGS environment variable).
   StatusOr<ScopedShapedBuffer> ExecuteAndDump(
       const ServiceExecutableRunOptions* run_options,
-      const absl::Span<const ShapedBuffer* const> arguments);
+      const tensorflow::gtl::ArraySlice<const ShapedBuffer*> arguments);
 
   // Records the arguments used to invoke the computation in a SessionModule
   // proto.
-  Status RecordArguments(const absl::Span<const ShapedBuffer* const> arguments,
-                         HloSnapshot* hlo_snapshot);
+  Status RecordArguments(
+      const tensorflow::gtl::ArraySlice<const ShapedBuffer*> arguments,
+      HloSnapshot* hlo_snapshot);
 
   // Records the result of the computation in a SessionModule proto.
   Status RecordResult(const ShapedBuffer* result, HloSnapshot* hlo_snapshot);
 
   // Returns a literal containing the contents of the given ShapedBuffer.
-  StatusOr<Literal> LiteralFromShapedBuffer(const ShapedBuffer& shaped_buffer);
+  StatusOr<std::unique_ptr<Literal>> LiteralFromShapedBuffer(
+      const ShapedBuffer& shaped_buffer);
 
   // The ordinal of the device which this executable was compiled for. The
   // executable can run on all equivalent devices (as determined by
@@ -118,7 +120,7 @@ class LocalClient : public Client {
   // (TF_XLA_FLAGS environment variable).
   StatusOr<std::unique_ptr<LocalExecutable>> Compile(
       const XlaComputation& computation,
-      const absl::Span<const Shape* const> argument_layouts,
+      const tensorflow::gtl::ArraySlice<const Shape*> argument_layouts,
       const ExecutableBuildOptions& options);
 
   // Copy the literal data to the device with the given ordinal and return as a
@@ -131,7 +133,8 @@ class LocalClient : public Client {
 
   // Copy the data from the device contained in the given ShapedBuffer and
   // return as a Literal.
-  StatusOr<Literal> ShapedBufferToLiteral(const ShapedBuffer& shaped_buffer);
+  StatusOr<std::unique_ptr<Literal>> ShapedBufferToLiteral(
+      const ShapedBuffer& shaped_buffer);
 
   // Converts a GlobalDataHandle into a pointer to a ShapedBuffer that's valid
   // as long as the handle is valid.
@@ -149,8 +152,8 @@ class LocalClient : public Client {
   // TODO(b/69670845): Remove the 'Local' from the name when LocalClient does
   // not inherit from Client and there is no possibility of confusion with
   // Client::TransferFromOutfeed.
-  StatusOr<Literal> TransferFromOutfeedLocal(const Shape& shape,
-                                             int device_ordinal);
+  StatusOr<std::unique_ptr<Literal>> TransferFromOutfeedLocal(
+      const Shape& shape, int device_ordinal);
 
   // Returns the device ordinal that corresponds to the given replica number.
   //

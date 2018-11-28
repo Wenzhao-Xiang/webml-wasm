@@ -56,4 +56,4 @@ OpSharding Tuple(const ShapeTree<OpSharding>& shardings);
 }  // namespace sharding_builder
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_CLIENT_SHARDING_BUILDER_H_
+#endif

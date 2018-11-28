@@ -17,14 +17,14 @@ limitations under the License.
 
 #include <string>
 
-#include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/client/lib/constants.h"
-#include "tensorflow/compiler/xla/client/xla_builder.h"
-#include "tensorflow/compiler/xla/client/xla_computation.h"
+#include "tensorflow/compiler/xla/client/xla_client/xla_builder.h"
+#include "tensorflow/compiler/xla/client/xla_client/xla_computation.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/status_macros.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/strings/strcat.h"
 
 namespace xla {
 namespace {
@@ -39,7 +39,7 @@ XlaComputation CreateScalarComputation(const string& name, PrimitiveType type,
     b = builder->CreateSubBuilder(name);
   } else {
     b = builder->CreateSubBuilder(
-        absl::StrCat(name, "_", PrimitiveType_Name(type)));
+        tensorflow::strings::StrCat(name, "_", PrimitiveType_Name(type)));
   }
 
   const Shape scalar = ShapeUtil::MakeShape(type, {});
@@ -94,18 +94,16 @@ XlaComputation CreateScalarMinComputation(PrimitiveType type,
       });
 }
 
-XlaComputation CreateScalarAndComputation(PrimitiveType type,
-                                          XlaBuilder* builder) {
+XlaComputation CreateScalarAndComputation(XlaBuilder* builder) {
   return CreateScalarComputation(
-      "and", type, builder,
+      "and", PRED, builder,
       [](XlaBuilder* b, const XlaOp& lhs, const XlaOp& rhs) {
         return And(lhs, rhs);
       });
 }
 
-XlaComputation CreateScalarOrComputation(PrimitiveType type,
-                                         XlaBuilder* builder) {
-  return CreateScalarComputation("or", type, builder,
+XlaComputation CreateScalarOrComputation(XlaBuilder* builder) {
+  return CreateScalarComputation("or", PRED, builder,
                                  [](XlaBuilder* b, const XlaOp& lhs,
                                     const XlaOp& rhs) { return Or(lhs, rhs); });
 }
@@ -114,7 +112,7 @@ XlaOp Any(XlaOp predicates) {
   XlaBuilder* builder = predicates.builder();
   return builder->ReportErrorOrReturn([&]() -> StatusOr<XlaOp> {
     auto f = ConstantR0<bool>(builder, false);
-    XlaComputation logical_or = CreateScalarOrComputation(PRED, builder);
+    XlaComputation logical_or = CreateScalarOrComputation(builder);
     TF_ASSIGN_OR_RETURN(const Shape& predicates_shape,
                         builder->GetShape(predicates));
     std::vector<int64> all_dimensions(ShapeUtil::Rank(predicates_shape));

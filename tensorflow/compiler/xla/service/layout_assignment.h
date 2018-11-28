@@ -25,8 +25,6 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
 #include "tensorflow/compiler/xla/service/computation_layout.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
@@ -40,6 +38,8 @@ limitations under the License.
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/lib/gtl/flatmap.h"
+#include "tensorflow/core/lib/gtl/flatset.h"
 #include "tensorflow/core/platform/types.h"
 
 namespace xla {
@@ -228,8 +228,8 @@ class LayoutConstraints {
   // Array-shaped buffers which have not yet been constrained.
   std::set<LogicalBuffer::Id> unconstrained_buffer_ids_;
 
-  mutable absl::flat_hash_map<const HloInstruction*,
-                              std::unique_ptr<PointsToSet::BufferSet>>
+  mutable tensorflow::gtl::FlatMap<const HloInstruction*,
+                                   std::unique_ptr<PointsToSet::BufferSet>>
       buffer_sets_cache_;
 
   HloComputation* computation_;
@@ -281,15 +281,10 @@ class ChannelLayoutConstraints {
 
 // HLO pass which assigns layouts to all instructions in the HLO module while
 // satisfying all necessary invariants and minimizing cost.
-class LayoutAssignment : public HloModulePass {
+class LayoutAssignment : public HloPassInterface {
  public:
   // entry_computation_layout is modified to populate a layout for the result in
   // the case that no particular layout is requested.
-  //
-  // instruction_can_change_layout_func is a function object that determines
-  // whether an instruction can change layouts. An instruction not being able to
-  // change layout means that it requires operands with the same rank as the
-  // output to have the same layout as the output.
   //
   // channel_constraints is both an input and output. Any sends or recvs that
   // are present in channel_constraints will be laid out as constrained. Any
@@ -300,20 +295,13 @@ class LayoutAssignment : public HloModulePass {
   // within any module passed to `Run`.
   explicit LayoutAssignment(
       ComputationLayout* entry_computation_layout,
-      std::function<bool(const HloInstruction*)>
-          instruction_can_change_layout_func = InstructionCanChangeLayout,
       ChannelLayoutConstraints* channel_constraints = nullptr);
   ~LayoutAssignment() override {}
-  absl::string_view name() const override { return "layout-assignment"; }
+  tensorflow::StringPiece name() const override { return "layout-assignment"; }
 
   // Assign layouts to the given module. Returns whether the module was changed
   // (any layouts were changed).
   StatusOr<bool> Run(HloModule* module) override;
-
-  // Determines whether an instruction can change layouts. An instruction not
-  // being able to change layout means that it requires operands with the same
-  // rank as the output to have the same layout as the output.
-  static bool InstructionCanChangeLayout(const HloInstruction* instruction);
 
  protected:
   // These methods, invoked by PropagateConstraints, propagate a layout
@@ -332,6 +320,19 @@ class LayoutAssignment : public HloModulePass {
   virtual Status PropagateResultConstraint(
       const ResultLayoutConstraint& layout_constraint,
       LayoutConstraints* constraints);
+
+  // By default LayoutAssignment ensures that inputs and outputs of CustomCalls
+  // have the "major-first" layout (i.e.  {n, n-1, ..., 0}).
+  //
+  // If this function returns true, LayoutAssignment does not set a layout for
+  // the given CustomCall.  It's up to the backend to set one in
+  // AddBackendConstraints, if necessary.
+  //
+  // Precondition: instruction->opcode() == HloOpcode::kCustomCall.
+  virtual bool CustomCallRequiresMajorFirstLayout(
+      const HloInstruction* /*instruction*/) {
+    return true;
+  }
 
   // Called after layouts of an instruction have been finalized to allow
   // subclasses to check for platform specific assumptions.
@@ -487,9 +488,6 @@ class LayoutAssignment : public HloModulePass {
     }
   }
 
-  // Adds constraints related to host Send/Recv instructions.
-  Status BuildHostChannelConstraints(HloComputation* computation);
-
   // Map containing the layouts of all computations assigned so
   // far. Computations are handled in a topological sort where computations are
   // handled before their caller instructions so the layouts of caller
@@ -498,7 +496,7 @@ class LayoutAssignment : public HloModulePass {
 
   // Every copy added to the module by the layout assignment pass is registered
   // here.
-  absl::flat_hash_set<HloInstruction*> added_copies_;
+  tensorflow::gtl::FlatSet<HloInstruction*> added_copies_;
 
   // The pointer to the channel layout constraints passed in with the
   // constructor. If not nullptr, this is an input/output argument.
@@ -509,16 +507,10 @@ class LayoutAssignment : public HloModulePass {
   // computations/instructions.
   ChannelLayoutConstraints channel_constraints_;
 
-  // Layout constraints for send/recv instructions which communicate with the
-  // host.
-  ChannelLayoutConstraints host_channel_constraints_;
-
   // The set of HLO instructions which lacked any layout constraint, thus
   // receiving propagated default layouts.
-  absl::flat_hash_set<const HloInstruction*> unconstrained_layout_instructions_;
-
-  std::function<bool(const HloInstruction*)>
-      instruction_can_change_layout_func_;
+  tensorflow::gtl::FlatSet<const HloInstruction*>
+      unconstrained_layout_instructions_;
 };
 
 }  // namespace xla

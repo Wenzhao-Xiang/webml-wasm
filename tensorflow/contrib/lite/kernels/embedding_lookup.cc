@@ -29,6 +29,7 @@ limitations under the License.
 //   When indices are out of bound, the ops will not succeed.
 //
 
+#include <unistd.h>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -37,8 +38,8 @@ limitations under the License.
 #include <iostream>
 #include <limits>
 
-#include "tensorflow/contrib/lite/c/builtin_op_data.h"
-#include "tensorflow/contrib/lite/c/c_api_internal.h"
+#include "tensorflow/contrib/lite/builtin_op_data.h"
+#include "tensorflow/contrib/lite/context.h"
 #include "tensorflow/contrib/lite/kernels/kernel_util.h"
 #include "tensorflow/contrib/lite/kernels/op_macros.h"
 
@@ -78,10 +79,7 @@ TfLiteStatus EvalFloat(TfLiteContext* context, TfLiteNode* node,
   for (int i = 0; i < SizeOfDimension(lookup, 0); i++) {
     int idx = lookup->data.i32[i];
     if (idx >= row_size || idx < 0) {
-      context->ReportError(context,
-                           "Embedding Lookup: index out of bounds. "
-                           "Got %d, and bounds are [0, %d]",
-                           idx, row_size - 1);
+      context->ReportError(context, "Embedding Lookup: index out of bounds.");
       return kTfLiteError;
     } else {
       memcpy(output->data.raw + i * row_bytes,
@@ -107,10 +105,7 @@ TfLiteStatus EvalHybrid(TfLiteContext* context, TfLiteNode* node,
   for (int i = 0; i < SizeOfDimension(lookup, 0); i++) {
     int idx = lookup->data.i32[i];
     if (idx >= row_size || idx < 0) {
-      context->ReportError(context,
-                           "Embedding Lookup: index out of bounds. "
-                           "Got %d, and bounds are [0, %d]",
-                           idx, row_size - 1);
+      context->ReportError(context, "Embedding Lookup: index out of bounds.");
       return kTfLiteError;
     } else {
       // Dequantize embedding values.

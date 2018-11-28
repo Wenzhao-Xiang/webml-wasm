@@ -15,7 +15,6 @@ limitations under the License.
 
 #include "tensorflow/compiler/xla/service/hlo_graph_dumper.h"
 
-#include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/literal_util.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
@@ -24,11 +23,12 @@ limitations under the License.
 #include "tensorflow/compiler/xla/test.h"
 #include "tensorflow/compiler/xla/tests/test_utils.h"
 #include "tensorflow/compiler/xla/xla.pb.h"
+#include "tensorflow/core/lib/strings/strcat.h"
 
 namespace xla {
 namespace {
 
-using absl::StrCat;
+using ::tensorflow::strings::StrCat;
 using ::testing::HasSubstr;
 
 string TestName() {

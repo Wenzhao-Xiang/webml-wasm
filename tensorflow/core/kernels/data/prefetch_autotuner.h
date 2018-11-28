@@ -19,7 +19,6 @@ limitations under the License.
 #include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
-namespace data {
 
 // PrefetchAutotuner dynamically adjusts the buffer size of a prefetch iterator.
 //
@@ -67,7 +66,6 @@ class PrefetchAutotuner {
   Mode mode_ = Mode::kDisabled;
 };
 
-}  // namespace data
 }  // namespace tensorflow
 
 #endif  // TENSORFLOW_CORE_KERNELS_DATA_PREFETCH_AUTOTUNER_H_

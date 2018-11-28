@@ -15,7 +15,6 @@ limitations under the License.
 
 #include "tensorflow/compiler/xla/client/client_library.h"
 
-#include "absl/memory/memory.h"
 #include "tensorflow/compiler/xla/service/backend.h"
 #include "tensorflow/compiler/xla/service/platform_util.h"
 #include "tensorflow/compiler/xla/status_macros.h"
@@ -95,10 +94,10 @@ ClientLibrary::~ClientLibrary() = default;
   service_options.set_intra_op_parallelism_threads(
       options.intra_op_parallelism_threads());
 
-  auto instance = absl::make_unique<LocalInstance>();
+  auto instance = MakeUnique<LocalInstance>();
   TF_ASSIGN_OR_RETURN(instance->service,
                       LocalService::NewService(service_options));
-  instance->client = absl::make_unique<LocalClient>(instance->service.get());
+  instance->client = MakeUnique<LocalClient>(instance->service.get());
   LocalClient* cl = instance->client.get();
 
   client_library.local_instances_.insert(
@@ -135,11 +134,10 @@ ClientLibrary::GetOrCreateCompileOnlyClient(se::Platform* platform) {
     return it->second->client.get();
   }
 
-  auto instance = absl::make_unique<CompileOnlyInstance>();
+  auto instance = MakeUnique<CompileOnlyInstance>();
   TF_ASSIGN_OR_RETURN(instance->service,
                       CompileOnlyService::NewService(platform));
-  instance->client =
-      absl::make_unique<CompileOnlyClient>(instance->service.get());
+  instance->client = MakeUnique<CompileOnlyClient>(instance->service.get());
   CompileOnlyClient* cl = instance->client.get();
 
   client_library.compile_only_instances_.insert(

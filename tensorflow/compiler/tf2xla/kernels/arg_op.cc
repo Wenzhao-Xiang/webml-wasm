@@ -65,6 +65,6 @@ class XlaArgOp : public XlaOpKernel {
   TF_DISALLOW_COPY_AND_ASSIGN(XlaArgOp);
 };
 
-REGISTER_XLA_OP(Name("_Arg").AllowResourceTypes().CompilationOnly(), XlaArgOp);
+REGISTER_XLA_OP(Name("_Arg").AllowResourceTypes(), XlaArgOp);
 
 }  // namespace tensorflow

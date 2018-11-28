@@ -17,7 +17,6 @@ limitations under the License.
 #define TENSORFLOW_COMPILER_XLA_SERVICE_GPU_XFEED_QUEUE_H_
 
 #include <deque>
-#include <functional>
 #include <vector>
 
 #include "tensorflow/core/platform/mutex.h"

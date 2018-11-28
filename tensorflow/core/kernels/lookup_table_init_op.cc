@@ -74,11 +74,13 @@ class InitializeTableOp : public OpKernel {
                     "Keys and values must have the same size ",
                     keys.NumElements(), " vs ", values.NumElements()));
 
+    lookup::KeyValueTensorIterator iter(&keys, &values);
+
     int memory_used_before = 0;
     if (ctx->track_allocations()) {
       memory_used_before = table->MemoryUsed();
     }
-    OP_REQUIRES_OK(ctx, table->ImportValues(ctx, keys, values));
+    OP_REQUIRES_OK(ctx, table->Initialize(iter));
     if (ctx->track_allocations()) {
       ctx->record_persistent_memory_allocation(table->MemoryUsed() -
                                                memory_used_before);

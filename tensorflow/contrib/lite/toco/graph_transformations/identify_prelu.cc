@@ -43,15 +43,13 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status IdentifyPRelu::Run(Model* model, std::size_t op_index,
-                                        bool* modified) {
-  *modified = false;
+bool IdentifyPRelu::Run(Model* model, std::size_t op_index) {
   const auto add_op_it = model->operators.begin() + op_index;
   const auto* add_op = add_op_it->get();
   if (add_op == nullptr || add_op->type != OperatorType::kAdd ||
       add_op->inputs.size() != 2 ||
       add_op->fused_activation_function != FusedActivationFunctionType::kNone) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto* relu_input_op = GetOpWithOutput(*model, add_op->inputs[0]);
@@ -59,7 +57,7 @@ namespace toco {
       relu_input_op->inputs.size() != 1 ||
       relu_input_op->fused_activation_function !=
           FusedActivationFunctionType::kNone) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // TODO(ycling): Both Add and Mul are commutative. Support the case where
@@ -68,7 +66,7 @@ namespace toco {
   if (mul_op == nullptr || mul_op->type != OperatorType::kMul ||
       mul_op->inputs.size() != 2 ||
       mul_op->fused_activation_function != FusedActivationFunctionType::kNone) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto neg_alpha_tensor_name = mul_op->inputs[0];
@@ -77,7 +75,7 @@ namespace toco {
 
   if (relu_neg_input_op == nullptr ||
       relu_neg_input_op->inputs.size() != 1) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const Operator* final_input_op;
@@ -94,13 +92,13 @@ namespace toco {
         relu_neg_input_op->type != OperatorType::kRelu ||
         relu_neg_input_op->fused_activation_function !=
             FusedActivationFunctionType::kNone) {
-      return ::tensorflow::Status::OK();
+      return false;
     }
     final_input_op = neg_input_op;
   }
 
   if (relu_input_op->inputs[0] != final_input_op->inputs[0]) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto input_tensor_name = relu_input_op->inputs[0];
@@ -130,8 +128,7 @@ namespace toco {
   // intermediate tensors aren't used by other ops, those will be removed by
   // other graph transformation rules.
   model->operators.erase(FindOp(*model, add_op));
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

@@ -43,29 +43,10 @@ public final class InterpreterTest {
   private static final File MOBILENET_MODEL_FILE =
       new File("tensorflow/contrib/lite/java/src/testdata/mobilenet.tflite.bin");
 
-  private static final File FLEX_MODEL_FILE =
-      new File("tensorflow/contrib/lite/testdata/multi_add_flex.bin");
-
   @Test
   public void testInterpreter() throws Exception {
     Interpreter interpreter = new Interpreter(MODEL_FILE);
     assertThat(interpreter).isNotNull();
-    assertThat(interpreter.getInputTensorCount()).isEqualTo(1);
-    assertThat(interpreter.getInputTensor(0).dataType()).isEqualTo(DataType.FLOAT32);
-    assertThat(interpreter.getOutputTensorCount()).isEqualTo(1);
-    assertThat(interpreter.getOutputTensor(0).dataType()).isEqualTo(DataType.FLOAT32);
-    interpreter.close();
-  }
-
-  @Test
-  public void testInterpreterWithOptions() throws Exception {
-    Interpreter interpreter =
-        new Interpreter(MODEL_FILE, new Interpreter.Options().setNumThreads(2).setUseNNAPI(true));
-    assertThat(interpreter).isNotNull();
-    assertThat(interpreter.getInputTensorCount()).isEqualTo(1);
-    assertThat(interpreter.getInputTensor(0).dataType()).isEqualTo(DataType.FLOAT32);
-    assertThat(interpreter.getOutputTensorCount()).isEqualTo(1);
-    assertThat(interpreter.getOutputTensor(0).dataType()).isEqualTo(DataType.FLOAT32);
     interpreter.close();
   }
 
@@ -74,7 +55,7 @@ public final class InterpreterTest {
     Path path = MODEL_FILE.toPath();
     FileChannel fileChannel =
         (FileChannel) Files.newByteChannel(path, EnumSet.of(StandardOpenOption.READ));
-    ByteBuffer mappedByteBuffer =
+    MappedByteBuffer mappedByteBuffer =
         fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
     Interpreter interpreter = new Interpreter(mappedByteBuffer);
     float[] oneD = {1.23f, 6.54f, 7.81f};
@@ -121,7 +102,7 @@ public final class InterpreterTest {
     byteBuffer.order(ByteOrder.nativeOrder());
     fileChannel.read(byteBuffer);
     try {
-      new Interpreter(byteBuffer);
+      Interpreter interpreter = new Interpreter(byteBuffer);
       fail();
     } catch (IllegalArgumentException e) {
       assertThat(e)
@@ -202,19 +183,6 @@ public final class InterpreterTest {
   }
 
   @Test
-  public void testResizeInput() {
-    try (Interpreter interpreter = new Interpreter(MODEL_FILE)) {
-      int[] inputDims = {1};
-      interpreter.resizeInput(0, inputDims);
-      assertThat(interpreter.getInputTensor(0).shape()).isEqualTo(inputDims);
-      ByteBuffer input = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
-      ByteBuffer output = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
-      interpreter.run(input, output);
-      assertThat(interpreter.getOutputTensor(0).shape()).isEqualTo(inputDims);
-    }
-  }
-
-  @Test
   public void testMobilenetRun() {
     // Create a gray image.
     float[][][][] img = new float[1][224][224][3];
@@ -231,8 +199,6 @@ public final class InterpreterTest {
 
     Interpreter interpreter = new Interpreter(MOBILENET_MODEL_FILE);
     interpreter.run(img, labels);
-    assertThat(interpreter.getInputTensor(0).shape()).isEqualTo(new int[] {1, 224, 224, 3});
-    assertThat(interpreter.getOutputTensor(0).shape()).isEqualTo(new int[] {1, 1001});
     interpreter.close();
 
     assertThat(labels[0])
@@ -319,16 +285,40 @@ public final class InterpreterTest {
   }
 
   @Test
+  public void testTurnOffNNAPI() throws Exception {
+    Path path = MODEL_FILE.toPath();
+    FileChannel fileChannel =
+        (FileChannel) Files.newByteChannel(path, EnumSet.of(StandardOpenOption.READ));
+    MappedByteBuffer mappedByteBuffer =
+        fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+    Interpreter interpreter = new Interpreter(mappedByteBuffer);
+    interpreter.setUseNNAPI(true);
+    float[] oneD = {1.23f, 6.54f, 7.81f};
+    float[][] twoD = {oneD, oneD, oneD, oneD, oneD, oneD, oneD, oneD};
+    float[][][] threeD = {twoD, twoD, twoD, twoD, twoD, twoD, twoD, twoD};
+    float[][][][] fourD = {threeD, threeD};
+    float[][][][] parsedOutputs = new float[2][8][8][3];
+    interpreter.run(fourD, parsedOutputs);
+    float[] outputOneD = parsedOutputs[0][0][0];
+    float[] expected = {3.69f, 19.62f, 23.43f};
+    assertThat(outputOneD).usingTolerance(0.1f).containsExactly(expected).inOrder();
+    interpreter.setUseNNAPI(false);
+    interpreter.run(fourD, parsedOutputs);
+    outputOneD = parsedOutputs[0][0][0];
+    assertThat(outputOneD).usingTolerance(0.1f).containsExactly(expected).inOrder();
+    interpreter.close();
+    fileChannel.close();
+  }
+
+  @Test
   public void testTurnOnNNAPI() throws Exception {
     Path path = MODEL_FILE.toPath();
     FileChannel fileChannel =
         (FileChannel) Files.newByteChannel(path, EnumSet.of(StandardOpenOption.READ));
     MappedByteBuffer mappedByteBuffer =
         fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-    Interpreter interpreter =
-        new Interpreter(
-            mappedByteBuffer,
-            new Interpreter.Options().setUseNNAPI(true).setAllowFp16PrecisionForFp32(true));
+    Interpreter interpreter = new Interpreter(mappedByteBuffer);
+    interpreter.setUseNNAPI(true);
     float[] oneD = {1.23f, 6.54f, 7.81f};
     float[][] twoD = {oneD, oneD, oneD, oneD, oneD, oneD, oneD, oneD};
     float[][][] threeD = {twoD, twoD, twoD, twoD, twoD, twoD, twoD, twoD};
@@ -348,83 +338,4 @@ public final class InterpreterTest {
     interpreter.close();
     interpreter.close();
   }
-
-  /** Smoke test validating that flex model loading fails when the flex delegate is not linked. */
-  @Test
-  public void testFlexModel() throws Exception {
-    try {
-      new Interpreter(FLEX_MODEL_FILE);
-      fail();
-    } catch (IllegalStateException e) {
-      // Expected failure.
-    }
-  }
-
-  @Test
-  public void testDelegate() throws Exception {
-    System.loadLibrary("tensorflowlite_test_jni");
-    Delegate delegate =
-        new Delegate() {
-          @Override
-          public long getNativeHandle() {
-            return getNativeHandleForDelegate();
-          }
-        };
-    Interpreter interpreter =
-        new Interpreter(MODEL_FILE, new Interpreter.Options().addDelegate(delegate));
-
-    // The native delegate stubs out the graph with a single op that produces the scalar value 7.
-    float[] oneD = {1.23f, 6.54f, 7.81f};
-    float[][] twoD = {oneD, oneD, oneD, oneD, oneD, oneD, oneD, oneD};
-    float[][][] threeD = {twoD, twoD, twoD, twoD, twoD, twoD, twoD, twoD};
-    float[][][][] fourD = {threeD, threeD};
-    float[] output = new float[1];
-    interpreter.run(fourD, output);
-    float[] expected = {7.0f};
-    assertThat(output).usingTolerance(0.1f).containsExactly(expected).inOrder();
-
-    interpreter.close();
-  }
-
-  @Test
-  public void testInvalidDelegate() throws Exception {
-    System.loadLibrary("tensorflowlite_test_jni");
-    Delegate delegate =
-        new Delegate() {
-          @Override
-          public long getNativeHandle() {
-            return getNativeHandleForInvalidDelegate();
-          }
-        };
-    try {
-      Interpreter interpreter =
-          new Interpreter(MODEL_FILE, new Interpreter.Options().addDelegate(delegate));
-      fail();
-    } catch (IllegalArgumentException e) {
-      assertThat(e).hasMessageThat().contains("Internal error: Failed to apply delegate");
-    }
-  }
-
-  @Test
-  public void testNullDelegate() throws Exception {
-    System.loadLibrary("tensorflowlite_test_jni");
-    Delegate delegate =
-        new Delegate() {
-          @Override
-          public long getNativeHandle() {
-            return 0;
-          }
-        };
-    try {
-      Interpreter interpreter =
-          new Interpreter(MODEL_FILE, new Interpreter.Options().addDelegate(delegate));
-      fail();
-    } catch (IllegalArgumentException e) {
-      assertThat(e).hasMessageThat().contains("Internal error: Invalid handle to delegate");
-    }
-  }
-
-  private static native long getNativeHandleForDelegate();
-
-  private static native long getNativeHandleForInvalidDelegate();
 }

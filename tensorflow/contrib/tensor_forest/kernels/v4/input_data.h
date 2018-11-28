@@ -25,7 +25,6 @@
 #include "tensorflow/core/lib/random/philox_random.h"
 #include "tensorflow/core/lib/random/random.h"
 #include "tensorflow/core/lib/random/simple_philox.h"
-#include "tensorflow/core/platform/mutex.h"
 
 namespace tensorflow {
 namespace tensorforest {
@@ -121,8 +120,6 @@ class TensorDataSet {
   int32 split_sampling_random_seed_;
   std::unique_ptr<random::PhiloxRandom> single_rand_;
   std::unique_ptr<random::SimplePhilox> rng_;
-  // Mutex for using random number generator.
-  mutable mutex mu_;
 };
 }  // namespace tensorforest
 }  // namespace tensorflow

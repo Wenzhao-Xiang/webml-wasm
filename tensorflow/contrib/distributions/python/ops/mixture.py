@@ -50,9 +50,7 @@ class Mixture(distribution.Distribution):
 
   ```python
   # Create a mixture of two Gaussians:
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
-
+  tfd = tf.contrib.distributions
   mix = 0.3
   bimix_gauss = tfd.Mixture(
     cat=tfd.Categorical(probs=[mix, 1.-mix]),

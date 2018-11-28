@@ -20,7 +20,6 @@ limitations under the License.
 #include <string>
 #include <vector>
 
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/service/buffer_assignment.h"
 #include "tensorflow/compiler/xla/service/gpu/buffer_allocations.h"
 #include "tensorflow/compiler/xla/service/gpu/hlo_execution_profiler.h"
@@ -28,6 +27,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/service/gpu/thunk.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 #include "tensorflow/compiler/xla/types.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/stream_executor_no_cuda.h"
 #include "tensorflow/core/platform/thread_annotations.h"
@@ -47,7 +47,7 @@ class KernelThunk : public Thunk {
   // Constructs a thunk for the given kernel.
   //
   // `hlo_instruction` is as in Thunk. Other arguments are as the class members.
-  KernelThunk(absl::Span<const BufferAllocation* const> args,
+  KernelThunk(tensorflow::gtl::ArraySlice<const BufferAllocation*> args,
               const string& kernel_name, const HloInstruction* hlo_instruction,
               int unroll_factor);
   KernelThunk(const KernelThunk&) = delete;

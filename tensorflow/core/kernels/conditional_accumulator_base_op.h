@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_KERNELS_CONDITIONAL_ACCUMULATOR_BASE_OP_H_
-#define TENSORFLOW_CORE_KERNELS_CONDITIONAL_ACCUMULATOR_BASE_OP_H_
+#ifndef TENSORFLOW_KERNELS_CONDITIONAL_ACCUMULATOR_BASE_OP_H_
+#define TENSORFLOW_KERNELS_CONDITIONAL_ACCUMULATOR_BASE_OP_H_
 
 #define EIGEN_USE_THREADS
 
@@ -51,8 +51,6 @@ class ConditionalAccumulatorBaseOp : public OpKernel {
                                                 &accumulator_handle_, nullptr));
     OP_REQUIRES_OK(context, context->GetAttr("shape", &shape_));
     OP_REQUIRES_OK(context, context->GetAttr("dtype", &dtype_));
-    OP_REQUIRES_OK(context,
-                   context->GetAttr("reduction_type", &reduction_type_));
   }
 
   void Compute(OpKernelContext* ctx) override {
@@ -83,7 +81,6 @@ class ConditionalAccumulatorBaseOp : public OpKernel {
   DataType dtype_;
   PartialTensorShape shape_;
   ContainerInfo cinfo_;
-  string reduction_type_;
 
  private:
   Status SetAccumulatorHandle(OpKernelContext* ctx)
@@ -237,4 +234,4 @@ class ConditionalAccumulatorBaseTakeGradientOp
 
 }  // namespace tensorflow
 
-#endif  // TENSORFLOW_CORE_KERNELS_CONDITIONAL_ACCUMULATOR_BASE_OP_H_
+#endif  // TENSORFLOW_KERNELS_CONDITIONAL_ACCUMULATOR_BASE_OP_H_

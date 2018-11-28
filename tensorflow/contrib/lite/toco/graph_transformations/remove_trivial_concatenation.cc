@@ -25,20 +25,16 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status RemoveTrivialConcatenation::Run(Model* model,
-                                                     std::size_t op_index,
-                                                     bool* modified) {
-  *modified = false;
+bool RemoveTrivialConcatenation::Run(Model* model, std::size_t op_index) {
   const auto concat_it = model->operators.begin() + op_index;
   auto* concat_op = concat_it->get();
   if (concat_op->type != OperatorType::kConcatenation) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (concat_op->inputs.size() != 1) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
-  *modified = RemoveTrivialPassthroughOp(this, model, op_index);
-  return ::tensorflow::Status::OK();
+  return RemoveTrivialPassthroughOp(this, model, op_index);
 }
 
 }  // namespace toco

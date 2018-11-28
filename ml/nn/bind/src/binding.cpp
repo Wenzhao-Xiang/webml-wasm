@@ -161,10 +161,10 @@ namespace binding_utils {
   }
 
   bool softmaxFloat32Wrapper(const intptr_t inputData, const Shape& inputShape,
-                             const float beta, int32_t axis,
+                             const float beta,
                              intptr_t outputData, const Shape& outputShape) {
     return softmaxFloat32((const float*)inputData, inputShape,
-                          beta, axis,
+                          beta,
                           (float*)outputData, outputShape);
   }
 

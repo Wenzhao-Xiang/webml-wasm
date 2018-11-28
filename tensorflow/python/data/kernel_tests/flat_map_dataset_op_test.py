@@ -22,7 +22,6 @@ import random
 import numpy as np
 
 from tensorflow.python.client import session
-from tensorflow.python.data.kernel_tests import test_base
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import sparse_tensor
@@ -31,7 +30,7 @@ from tensorflow.python.platform import test
 from tensorflow.python.training import server_lib
 
 
-class FlatMapDatasetTest(test_base.DatasetTestBase):
+class FlatMapDatasetTest(test.TestCase):
 
   # pylint: disable=g-long-lambda
   def testFlatMapDataset(self):
@@ -44,7 +43,7 @@ class FlatMapDatasetTest(test_base.DatasetTestBase):
     init_op = iterator.initializer
     get_next = iterator.get_next()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       for i in repeats:
         for _ in range(i):
@@ -63,7 +62,7 @@ class FlatMapDatasetTest(test_base.DatasetTestBase):
     init_op = iterator.initializer
     get_next = iterator.get_next()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       for row in repeats:
         for i in row:
@@ -114,7 +113,7 @@ class FlatMapDatasetTest(test_base.DatasetTestBase):
     init_op = iterator.initializer
     get_next = iterator.get_next()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       for i in range(10):
         for _ in range(i ** 2):
@@ -138,7 +137,7 @@ class FlatMapDatasetTest(test_base.DatasetTestBase):
     init_op = iterator.initializer
     get_next = iterator.get_next()
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sess.run(init_op)
       for i in range(10):
         for j in range(2):

@@ -12,9 +12,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#include "tensorflow/core/framework/dataset.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/kernels/data/dataset.h"
 #include "tensorflow/core/lib/io/buffered_inputstream.h"
 #include "tensorflow/core/lib/io/inputbuffer.h"
 #include "tensorflow/core/lib/io/random_inputstream.h"
@@ -23,10 +23,10 @@ limitations under the License.
 #include "tensorflow/core/lib/io/zlib_inputstream.h"
 
 namespace tensorflow {
-namespace data {
+
 namespace {
 
-// See documentation in ../../ops/dataset_ops.cc for a high-level
+// See documentation in ../ops/dataset_ops.cc for a high-level
 // description of the following ops.
 
 class TextLineDatasetOp : public DatasetOpKernel {
@@ -78,12 +78,12 @@ class TextLineDatasetOp : public DatasetOpKernel {
   }
 
  private:
-  class Dataset : public DatasetBase {
+  class Dataset : public GraphDatasetBase {
    public:
     Dataset(OpKernelContext* ctx, std::vector<string> filenames,
             const string& compression_type,
             const io::ZlibCompressionOptions& options)
-        : DatasetBase(DatasetContext(ctx)),
+        : GraphDatasetBase(ctx),
           filenames_(std::move(filenames)),
           compression_type_(compression_type),
           use_compression_(!compression_type.empty()),
@@ -109,8 +109,7 @@ class TextLineDatasetOp : public DatasetOpKernel {
     string DebugString() const override { return "TextLineDatasetOp::Dataset"; }
 
    protected:
-    Status AsGraphDefInternal(SerializationContext* ctx,
-                              DatasetGraphDefBuilder* b,
+    Status AsGraphDefInternal(DatasetGraphDefBuilder* b,
                               Node** output) const override {
       Node* filenames = nullptr;
       Node* compression_type = nullptr;
@@ -142,9 +141,9 @@ class TextLineDatasetOp : public DatasetOpKernel {
 
             if (s.ok()) {
               // Produce the line as output.
-              out_tensors->emplace_back(ctx->allocator({}), DT_STRING,
-                                        TensorShape({}));
-              out_tensors->back().scalar<string>()() = std::move(line_contents);
+              Tensor line_tensor(ctx->allocator({}), DT_STRING, {});
+              line_tensor.scalar<string>()() = line_contents;
+              out_tensors->emplace_back(std::move(line_tensor));
               *end_of_sequence = false;
               return Status::OK();
             } else if (!errors::IsOutOfRange(s)) {
@@ -168,11 +167,6 @@ class TextLineDatasetOp : public DatasetOpKernel {
       }
 
      protected:
-      std::shared_ptr<model::Node> CreateNode(
-          IteratorContext* ctx, model::Node::Args args) const override {
-        return model::MakeSourceNode(std::move(args));
-      }
-
       Status SaveInternal(IteratorStateWriter* writer) override {
         mutex_lock l(mu_);
         TF_RETURN_IF_ERROR(writer->WriteScalar(full_name("current_file_index"),
@@ -317,12 +311,12 @@ class FixedLengthRecordDatasetOp : public DatasetOpKernel {
   }
 
  private:
-  class Dataset : public DatasetBase {
+  class Dataset : public GraphDatasetBase {
    public:
     explicit Dataset(OpKernelContext* ctx, std::vector<string> filenames,
                      int64 header_bytes, int64 record_bytes, int64 footer_bytes,
                      int64 buffer_size)
-        : DatasetBase(DatasetContext(ctx)),
+        : GraphDatasetBase(ctx),
           filenames_(std::move(filenames)),
           header_bytes_(header_bytes),
           record_bytes_(record_bytes),
@@ -351,8 +345,7 @@ class FixedLengthRecordDatasetOp : public DatasetOpKernel {
     }
 
    protected:
-    Status AsGraphDefInternal(SerializationContext* ctx,
-                              DatasetGraphDefBuilder* b,
+    Status AsGraphDefInternal(DatasetGraphDefBuilder* b,
                               Node** output) const override {
       Node* filenames = nullptr;
       Node* header_bytes = nullptr;
@@ -391,9 +384,9 @@ class FixedLengthRecordDatasetOp : public DatasetOpKernel {
               TF_RETURN_IF_ERROR(
                   input_buffer_->ReadNBytes(dataset()->record_bytes_, &record));
               // Produce the record as output.
-              out_tensors->emplace_back(ctx->allocator({}), DT_STRING,
-                                        TensorShape({}));
-              out_tensors->back().scalar<string>()() = record;
+              Tensor record_tensor(ctx->allocator({}), DT_STRING, {});
+              record_tensor.scalar<string>()() = record;
+              out_tensors->emplace_back(std::move(record_tensor));
               *end_of_sequence = false;
               return Status::OK();
             }
@@ -440,11 +433,6 @@ class FixedLengthRecordDatasetOp : public DatasetOpKernel {
       }
 
      protected:
-      std::shared_ptr<model::Node> CreateNode(
-          IteratorContext* ctx, model::Node::Args args) const override {
-        return model::MakeSourceNode(std::move(args));
-      }
-
       Status SaveInternal(IteratorStateWriter* writer) override {
         mutex_lock l(mu_);
         TF_RETURN_IF_ERROR(writer->WriteScalar(full_name("current_file_index"),
@@ -541,11 +529,11 @@ class TFRecordDatasetOp : public DatasetOpKernel {
   }
 
  private:
-  class Dataset : public DatasetBase {
+  class Dataset : public GraphDatasetBase {
    public:
     explicit Dataset(OpKernelContext* ctx, std::vector<string> filenames,
                      const string& compression_type, int64 buffer_size)
-        : DatasetBase(DatasetContext(ctx)),
+        : GraphDatasetBase(ctx),
           filenames_(std::move(filenames)),
           compression_type_(compression_type),
           options_(io::RecordReaderOptions::CreateRecordReaderOptions(
@@ -575,8 +563,7 @@ class TFRecordDatasetOp : public DatasetOpKernel {
     string DebugString() const override { return "TFRecordDatasetOp::Dataset"; }
 
    protected:
-    Status AsGraphDefInternal(SerializationContext* ctx,
-                              DatasetGraphDefBuilder* b,
+    Status AsGraphDefInternal(DatasetGraphDefBuilder* b,
                               Node** output) const override {
       Node* filenames = nullptr;
       TF_RETURN_IF_ERROR(b->AddVector(filenames_, &filenames));
@@ -602,16 +589,13 @@ class TFRecordDatasetOp : public DatasetOpKernel {
         do {
           // We are currently processing a file, so try to read the next record.
           if (reader_) {
-            out_tensors->emplace_back(ctx->allocator({}), DT_STRING,
-                                      TensorShape({}));
-            Status s =
-                reader_->ReadRecord(&out_tensors->back().scalar<string>()());
+            Tensor result_tensor(ctx->allocator({}), DT_STRING, {});
+            Status s = reader_->ReadRecord(&result_tensor.scalar<string>()());
             if (s.ok()) {
+              out_tensors->emplace_back(std::move(result_tensor));
               *end_of_sequence = false;
               return Status::OK();
-            }
-            out_tensors->pop_back();
-            if (!errors::IsOutOfRange(s)) {
+            } else if (!errors::IsOutOfRange(s)) {
               return s;
             }
 
@@ -632,11 +616,6 @@ class TFRecordDatasetOp : public DatasetOpKernel {
       }
 
      protected:
-      std::shared_ptr<model::Node> CreateNode(
-          IteratorContext* ctx, model::Node::Args args) const override {
-        return model::MakeSourceNode(std::move(args));
-      }
-
       Status SaveInternal(IteratorStateWriter* writer) override {
         mutex_lock l(mu_);
         TF_RETURN_IF_ERROR(writer->WriteScalar(full_name("current_file_index"),
@@ -709,5 +688,5 @@ REGISTER_KERNEL_BUILDER(Name("TFRecordDataset").Device(DEVICE_CPU),
                         TFRecordDatasetOp);
 
 }  // namespace
-}  // namespace data
+
 }  // namespace tensorflow

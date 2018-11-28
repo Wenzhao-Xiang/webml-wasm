@@ -1,10 +1,6 @@
 licenses(["notice"])  # Apache 2.0
 
 load("//tensorflow:tensorflow.bzl", "tf_cc_test")
-load(
-    "//tensorflow/core:platform/default/build_config.bzl",
-    "tf_protos_grappler",
-)
 
 cc_library(
     name = "scc",
@@ -101,8 +97,6 @@ cc_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/core/grappler:graph_view",
-        "//tensorflow/core/grappler:mutable_graph_view",
-        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
 
@@ -172,8 +166,6 @@ cc_library(
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler:op_types",
         "//tensorflow/core/grappler:utils",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -216,30 +208,5 @@ tf_cc_test(
         "//tensorflow/core:test",
         "//tensorflow/core:test_main",
         "//tensorflow/core:testlib",
-    ],
-)
-
-cc_library(
-    name = "symbolic_shapes",
-    srcs = ["symbolic_shapes.cc"],
-    hdrs = ["symbolic_shapes.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//tensorflow/core:framework",
-        "//tensorflow/core:lib",
-        "//tensorflow/core:protos_all_cc",
-    ] + tf_protos_grappler(),
-)
-
-tf_cc_test(
-    name = "symbolic_shapes_test",
-    srcs = ["symbolic_shapes_test.cc"],
-    deps = [
-        ":symbolic_shapes",
-        "//tensorflow/core:framework",
-        "//tensorflow/core:lib",
-        "//tensorflow/core:protos_all_cc",
-        "//tensorflow/core:test",
-        "//tensorflow/core:test_main",
     ],
 )

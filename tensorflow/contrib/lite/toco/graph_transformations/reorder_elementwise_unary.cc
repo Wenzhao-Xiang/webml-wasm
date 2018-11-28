@@ -63,32 +63,29 @@ bool IsMoveOperator(OperatorType optype) {
 
 // Swap elementwise operators such that all value operators occur before all
 // element move operators, e.g. negation then transpose.
-::tensorflow::Status ReorderElementwiseUnary::Run(Model* model,
-                                                  std::size_t op_index,
-                                                  bool* modified) {
-  *modified = false;
+bool ReorderElementwiseUnary::Run(Model* model, std::size_t op_index) {
   const auto element_op_it = model->operators.begin() + op_index;
   std::unique_ptr<Operator>& element_op = *element_op_it;
   if (!IsElementwiseOperator(element_op->type)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const string intermediate_name = element_op->inputs[0];
   auto it = FindOpWithOutput(*model, intermediate_name);
   if (it == model->operators.end()) {
     AddMessageF("No preceding operator");
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   std::unique_ptr<Operator>& move_op = *it;
   if (!IsMoveOperator(move_op->type)) {
     AddMessageF("Preceding operator is not a move operator");
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (CountOpsWithInput(*model, intermediate_name) != 1) {
     AddMessageF("Input %s used elsewhere", intermediate_name);
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Check that the intermediate is discardable.
@@ -97,7 +94,7 @@ bool IsMoveOperator(OperatorType optype) {
         "Cannot swap elementwise as it would invalidate %s which is "
         "an output array.",
         intermediate_name);
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // op->inputs may change so we need to keep a value by copy.
@@ -150,8 +147,7 @@ bool IsMoveOperator(OperatorType optype) {
   // Swap the order of the operators.
   element_op.swap(move_op);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

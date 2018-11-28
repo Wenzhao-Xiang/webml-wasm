@@ -14,8 +14,6 @@
 # ==============================================================================
 """Bijector Ops.
 
-Use [tfp.bijectors](/probability/api_docs/python/tfp/bijectors) instead.
-
 @@AbsoluteValue
 @@Affine
 @@AffineLinearOperator

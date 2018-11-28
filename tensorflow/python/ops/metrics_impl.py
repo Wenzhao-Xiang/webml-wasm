@@ -18,7 +18,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.compat import compat
 from tensorflow.python.eager import context
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -35,7 +34,7 @@ from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import distribution_strategy_context
+from tensorflow.python.training import distribute as distribute_lib
 from tensorflow.python.util.deprecation import deprecated
 from tensorflow.python.util.tf_export import tf_export
 
@@ -44,24 +43,24 @@ def metric_variable(shape, dtype, validate_shape=True, name=None):
   """Create variable in `GraphKeys.(LOCAL|METRIC_VARIABLES)` collections.
 
   If running in a `DistributionStrategy` context, the variable will be
-  "replica local". This means:
+  "tower local". This means:
 
   *   The returned object will be a container with separate variables
-      per replica of the model.
+      per replica/tower of the model.
 
   *   When writing to the variable, e.g. using `assign_add` in a metric
       update, the update will be applied to the variable local to the
-      replica.
+      replica/tower.
 
   *   To get a metric's result value, we need to sum the variable values
-      across the replicas before computing the final answer. Furthermore,
-      the final answer should be computed once instead of in every
-      replica. Both of these are accomplished by running the computation
-      of the final result value inside
-      `distribution_strategy_context.get_replica_context().merge_call(fn)`.
+      across the replicas/towers before computing the final answer.
+      Furthermore, the final answer should be computed once instead of
+      in every replica/tower. Both of these are accomplished by
+      running the computation of the final result value inside
+      `tf.contrib.distribute.get_tower_context().merge_call(fn)`.
       Inside the `merge_call()`, ops are only added to the graph once
-      and access to a replica-local variable in a computation returns
-      the sum across all replicas.
+      and access to a tower-local variable in a computation returns
+      the sum across all replicas/towers.
 
   Args:
     shape: Shape of the created variable.
@@ -72,7 +71,7 @@ def metric_variable(shape, dtype, validate_shape=True, name=None):
 
   Returns:
     A (non-trainable) variable initialized to zero, or if inside a
-    `DistributionStrategy` scope a replica-local variable container.
+    `DistributionStrategy` scope a tower-local variable container.
   """
   # Note that synchronization "ON_READ" implies trainable=False.
   return variable_scope.variable(
@@ -224,8 +223,6 @@ def _safe_div(numerator, denominator, name):
   Returns:
     0 if `denominator` <= 0, else `numerator` / `denominator`
   """
-  if compat.forward_compatible(2018, 11, 1):
-    return math_ops.div_no_nan(numerator, denominator)
   t = math_ops.truediv(numerator, denominator)
   zero = array_ops.zeros_like(t, dtype=denominator.dtype)
   condition = math_ops.greater(denominator, zero)
@@ -246,7 +243,12 @@ def _safe_scalar_div(numerator, denominator, name):
   """
   numerator.get_shape().with_rank_at_most(1)
   denominator.get_shape().with_rank_at_most(1)
-  return _safe_div(numerator, denominator, name=name)
+  return control_flow_ops.cond(
+      math_ops.equal(
+          array_ops.constant(0.0, dtype=dtypes.float64), denominator),
+      lambda: array_ops.constant(0.0, dtype=dtypes.float64),
+      lambda: math_ops.div(numerator, denominator),
+      name=name)
 
 
 def _streaming_confusion_matrix(labels, predictions, num_classes, weights=None):
@@ -296,41 +298,6 @@ def _streaming_confusion_matrix(labels, predictions, num_classes, weights=None):
       labels, predictions, num_classes, weights=weights, dtype=dtypes.float64)
   update_op = state_ops.assign_add(total_cm, current_cm)
   return total_cm, update_op
-
-
-def _aggregate_across_replicas(metrics_collections, metric_value_fn, *args):
-  """Aggregate metric value across replicas."""
-  def fn(distribution, *a):
-    """Call `metric_value_fn` in the correct control flow context."""
-    if hasattr(distribution, '_outer_control_flow_context'):
-      # If there was an outer context captured before this method was called,
-      # then we enter that context to create the metric value op. If the
-      # caputred context is `None`, ops.control_dependencies(None) gives the
-      # desired behavior. Else we use `Enter` and `Exit` to enter and exit the
-      # captured context.
-      # This special handling is needed because sometimes the metric is created
-      # inside a while_loop (and perhaps a TPU rewrite context). But we don't
-      # want the value op to be evaluated every step or on the TPU. So we
-      # create it outside so that it can be evaluated at the end on the host,
-      # once the update ops have been evaluted.
-
-      # pylint: disable=protected-access
-      if distribution._outer_control_flow_context is None:
-        with ops.control_dependencies(None):
-          metric_value = metric_value_fn(distribution, *a)
-      else:
-        distribution._outer_control_flow_context.Enter()
-        metric_value = metric_value_fn(distribution, *a)
-        distribution._outer_control_flow_context.Exit()
-        # pylint: enable=protected-access
-    else:
-      metric_value = metric_value_fn(distribution, *a)
-    if metrics_collections:
-      ops.add_to_collections(metrics_collections, metric_value)
-    return metric_value
-
-  return distribution_strategy_context.get_replica_context().merge_call(
-      fn, *args)
 
 
 @tf_export('metrics.mean')
@@ -400,14 +367,15 @@ def mean(values,
     with ops.control_dependencies([values]):
       update_count_op = state_ops.assign_add(count, num_values)
 
-    def compute_mean(_, t, c):
-      return _safe_div(t, math_ops.maximum(c, 0), name='value')
+    def aggregate_across_towers(_, t, c):
+      mean_t = _safe_div(t, c, 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, mean_t)
+      return mean_t
 
-    mean_t = _aggregate_across_replicas(
-        metrics_collections, compute_mean, total, count)
-    update_op = _safe_div(update_total_op,
-                          math_ops.maximum(update_count_op, 0),
-                          name='update_op')
+    mean_t = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, total, count)
+    update_op = _safe_div(update_total_op, update_count_op, 'update_op')
 
     if updates_collections:
       ops.add_to_collections(updates_collections, update_op)
@@ -643,8 +611,14 @@ def _confusion_matrix_at_thresholds(labels,
 
 
 def _aggregate_variable(v, collections):
-  f = lambda distribution, value: distribution.read_var(value)
-  return _aggregate_across_replicas(collections, f, v)
+
+  def f(distribution, value):
+    value = distribution.read_var(value)
+    if collections:
+      ops.add_to_collections(collections, value)
+    return value
+
+  return distribute_lib.get_tower_context().merge_call(f, v)
 
 
 @tf_export('metrics.auc')
@@ -779,21 +753,16 @@ def auc(labels,
       """
       dtp = tp[:num_thresholds - 1] - tp[1:]
       p = tp + fp
-      prec_slope = _safe_div(
-          dtp,
-          math_ops.maximum(p[:num_thresholds - 1] - p[1:], 0),
-          name='prec_slope')
+      prec_slope = _safe_div(dtp, p[:num_thresholds - 1] - p[1:], 'prec_slope')
       intercept = tp[1:] - math_ops.multiply(prec_slope, p[1:])
       safe_p_ratio = array_ops.where(
           math_ops.logical_and(p[:num_thresholds - 1] > 0, p[1:] > 0),
-          _safe_div(p[:num_thresholds - 1],
-                    math_ops.maximum(p[1:], 0),
-                    name='recall_relative_ratio'),
+          _safe_div(p[:num_thresholds - 1], p[1:], 'recall_relative_ratio'),
           array_ops.ones_like(p[1:]))
       return math_ops.reduce_sum(
           _safe_div(
               prec_slope * (dtp + intercept * math_ops.log(safe_p_ratio)),
-              math_ops.maximum(tp[1:] + fn[1:], 0),
+              tp[1:] + fn[1:],
               name='pr_auc_increment'),
           name='interpolate_pr_auc')
 
@@ -837,12 +806,15 @@ def auc(labels,
         raise ValueError('Invalid summation_method: %s' % summation_method)
 
     # sum up the areas of all the trapeziums
-    def compute_auc_value(_, values):
-      return compute_auc(values['tp'], values['fn'], values['tn'], values['fp'],
-                         'value')
+    def aggregate_auc(_, values):
+      auc_value = compute_auc(values['tp'], values['fn'], values['tn'],
+                              values['fp'], 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, auc_value)
+      return auc_value
 
-    auc_value = _aggregate_across_replicas(
-        metrics_collections, compute_auc_value, values)
+    auc_value = distribute_lib.get_tower_context().merge_call(
+        aggregate_auc, values)
     update_op = compute_auc(update_ops['tp'], update_ops['fn'],
                             update_ops['tn'], update_ops['fp'], 'update_op')
 
@@ -1073,19 +1045,18 @@ def mean_per_class_accuracy(labels,
     update_total_op = state_ops.scatter_add(total, labels, ones)
     update_count_op = state_ops.scatter_add(count, labels, is_correct)
 
-    def compute_mean_accuracy(_, count, total):
-      per_class_accuracy = _safe_div(
-          count, math_ops.maximum(total, 0), name=None)
+    def aggregate_mean_accuracy(_, count, total):
+      per_class_accuracy = _safe_div(count, total, None)
       mean_accuracy_v = math_ops.reduce_mean(
           per_class_accuracy, name='mean_accuracy')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, mean_accuracy_v)
       return mean_accuracy_v
 
-    mean_accuracy_v = _aggregate_across_replicas(
-        metrics_collections, compute_mean_accuracy, count, total)
+    mean_accuracy_v = distribute_lib.get_tower_context().merge_call(
+        aggregate_mean_accuracy, count, total)
 
-    update_op = _safe_div(update_count_op,
-                          math_ops.maximum(update_total_op, 0),
-                          name='update_op')
+    update_op = _safe_div(update_count_op, update_total_op, name='update_op')
     if updates_collections:
       ops.add_to_collections(updates_collections, update_op)
 
@@ -1156,7 +1127,7 @@ def mean_iou(labels,
     total_cm, update_op = _streaming_confusion_matrix(labels, predictions,
                                                       num_classes, weights)
 
-    def compute_mean_iou(_, total_cm):
+    def compute_mean_iou(total_cm, name):
       """Compute the mean intersection-over-union via the confusion matrix."""
       sum_over_row = math_ops.to_float(math_ops.reduce_sum(total_cm, 0))
       sum_over_col = math_ops.to_float(math_ops.reduce_sum(total_cm, 1))
@@ -1180,12 +1151,17 @@ def mean_iou(labels,
       # If the number of valid entries is 0 (no classes) we return 0.
       result = array_ops.where(
           math_ops.greater(num_valid_entries, 0),
-          math_ops.reduce_sum(iou, name='mean_iou') / num_valid_entries, 0)
+          math_ops.reduce_sum(iou, name=name) / num_valid_entries, 0)
       return result
 
-    # TODO(priyag): Use outside_compilation if in TPU context.
-    mean_iou_v = _aggregate_across_replicas(
-        metrics_collections, compute_mean_iou, total_cm)
+    def mean_iou_across_towers(_, v):
+      mean_iou_v = compute_mean_iou(v, 'mean_iou')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, mean_iou_v)
+      return mean_iou_v
+
+    mean_iou_v = distribute_lib.get_tower_context().merge_call(
+        mean_iou_across_towers, total_cm)
 
     if updates_collections:
       ops.add_to_collections(updates_collections, update_op)
@@ -1394,15 +1370,16 @@ def mean_tensor(values,
     with ops.control_dependencies([values]):
       update_count_op = state_ops.assign_add(count, num_values)
 
-    compute_mean = lambda _, t, c: _safe_div(
-        t, math_ops.maximum(c, 0), name='value')
+    def aggregate_across_towers(_, t, c):
+      mean_t = _safe_div(t, c, 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, mean_t)
+      return mean_t
 
-    mean_t = _aggregate_across_replicas(
-        metrics_collections, compute_mean, total, count)
+    mean_t = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, total, count)
 
-    update_op = _safe_div(update_total_op,
-                          math_ops.maximum(update_count_op, 0),
-                          name='update_op')
+    update_op = _safe_div(update_total_op, update_count_op, 'update_op')
     if updates_collections:
       ops.add_to_collections(updates_collections, update_op)
 
@@ -2025,11 +2002,14 @@ def precision(labels,
       return array_ops.where(
           math_ops.greater(tp + fp, 0), math_ops.div(tp, tp + fp), 0, name)
 
-    def once_across_replicas(_, true_p, false_p):
-      return compute_precision(true_p, false_p, 'value')
+    def once_across_towers(_, true_p, false_p):
+      p = compute_precision(true_p, false_p, 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, p)
+      return p
 
-    p = _aggregate_across_replicas(metrics_collections, once_across_replicas,
-                                   true_p, false_p)
+    p = distribute_lib.get_tower_context().merge_call(
+        once_across_towers, true_p, false_p)
 
     update_op = compute_precision(true_positives_update_op,
                                   false_positives_update_op, 'update_op')
@@ -2106,11 +2086,14 @@ def precision_at_thresholds(labels,
     def compute_precision(tp, fp, name):
       return math_ops.div(tp, epsilon + tp + fp, name='precision_' + name)
 
-    def precision_across_replicas(_, values):
-      return compute_precision(values['tp'], values['fp'], 'value')
+    def precision_across_towers(_, values):
+      prec = compute_precision(values['tp'], values['fp'], 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, prec)
+      return prec
 
-    prec = _aggregate_across_replicas(
-        metrics_collections, precision_across_replicas, values)
+    prec = distribute_lib.get_tower_context().merge_call(
+        precision_across_towers, values)
 
     update_op = compute_precision(update_ops['tp'], update_ops['fp'],
                                   'update_op')
@@ -2199,11 +2182,14 @@ def recall(labels,
           math_ops.greater(true_p + false_n, 0),
           math_ops.div(true_p, true_p + false_n), 0, name)
 
-    def once_across_replicas(_, true_p, false_n):
-      return compute_recall(true_p, false_n, 'value')
+    def once_across_towers(_, true_p, false_n):
+      rec = compute_recall(true_p, false_n, 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, rec)
+      return rec
 
-    rec = _aggregate_across_replicas(
-        metrics_collections, once_across_replicas, true_p, false_n)
+    rec = distribute_lib.get_tower_context().merge_call(
+        once_across_towers, true_p, false_n)
 
     update_op = compute_recall(true_positives_update_op,
                                false_negatives_update_op, 'update_op')
@@ -2635,11 +2621,14 @@ def recall_at_top_k(labels,
         class_id=class_id,
         weights=weights)
 
-    def compute_recall(_, tp, fn):
-      return math_ops.div(tp, math_ops.add(tp, fn), name=scope)
+    def aggregate_across_towers(_, tp, fn):
+      metric = math_ops.div(tp, math_ops.add(tp, fn), name=scope)
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, metric)
+      return metric
 
-    metric = _aggregate_across_replicas(
-        metrics_collections, compute_recall, tp, fn)
+    metric = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, tp, fn)
 
     update = math_ops.div(
         tp_update, math_ops.add(tp_update, fn_update), name='update')
@@ -2713,11 +2702,14 @@ def recall_at_thresholds(labels,
     def compute_recall(tp, fn, name):
       return math_ops.div(tp, epsilon + tp + fn, name='recall_' + name)
 
-    def recall_across_replicas(_, values):
-      return compute_recall(values['tp'], values['fn'], 'value')
+    def recall_across_towers(_, values):
+      rec = compute_recall(values['tp'], values['fn'], 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, rec)
+      return rec
 
-    rec = _aggregate_across_replicas(
-        metrics_collections, recall_across_replicas, values)
+    rec = distribute_lib.get_tower_context().merge_call(
+        recall_across_towers, values)
 
     update_op = compute_recall(update_ops['tp'], update_ops['fn'], 'update_op')
     if updates_collections:
@@ -2785,10 +2777,14 @@ def root_mean_squared_error(labels,
   mse, update_mse_op = mean_squared_error(labels, predictions, weights, None,
                                           None, name or
                                           'root_mean_squared_error')
+  def once_across_towers(_, mse):
+    rmse = math_ops.sqrt(mse)
+    if metrics_collections:
+      ops.add_to_collections(metrics_collections, rmse)
+    return rmse
 
-  once_across_replicas = lambda _, mse: math_ops.sqrt(mse)
-  rmse = _aggregate_across_replicas(
-      metrics_collections, once_across_replicas, mse)
+  rmse = distribute_lib.get_tower_context().merge_call(
+      once_across_towers, mse)
 
   update_rmse_op = math_ops.sqrt(update_mse_op)
   if updates_collections:
@@ -2883,12 +2879,15 @@ def sensitivity_at_specificity(labels,
       return math_ops.div(tp[tf_index], tp[tf_index] + fn[tf_index] + kepsilon,
                           name)
 
-    def sensitivity_across_replicas(_, values):
-      return compute_sensitivity_at_specificity(
+    def aggregate_across_towers(_, values):
+      sensitivity = compute_sensitivity_at_specificity(
           values['tp'], values['tn'], values['fp'], values['fn'], 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, sensitivity)
+      return sensitivity
 
-    sensitivity = _aggregate_across_replicas(
-        metrics_collections, sensitivity_across_replicas, values)
+    sensitivity = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, values)
 
     update_op = compute_sensitivity_at_specificity(
         update_ops['tp'], update_ops['tn'], update_ops['fp'], update_ops['fn'],
@@ -3157,11 +3156,14 @@ def _streaming_sparse_average_precision_at_top_k(labels,
       total_update = state_ops.assign_add(total_var, batch_total, name='update')
 
     # Divide total by max to get mean, for both vars and the update ops.
-    def precision_across_replicas(_, total_var, max_var):
-      return _safe_scalar_div(total_var, max_var, name='mean')
+    def aggregate_across_towers(_, total_var, max_var):
+      mean_average_precision = _safe_scalar_div(total_var, max_var, name='mean')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, mean_average_precision)
+      return mean_average_precision
 
-    mean_average_precision = _aggregate_across_replicas(
-        metrics_collections, precision_across_replicas, total_var, max_var)
+    mean_average_precision = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, total_var, max_var)
 
     update = _safe_scalar_div(total_update, max_update, name=scope)
     if updates_collections:
@@ -3440,11 +3442,14 @@ def precision_at_top_k(labels,
         class_id=class_id,
         weights=weights)
 
-    def precision_across_replicas(_, tp, fp):
-      return math_ops.div(tp, math_ops.add(tp, fp), name=scope)
+    def aggregate_across_towers(_, tp, fp):
+      metric = math_ops.div(tp, math_ops.add(tp, fp), name=scope)
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, metric)
+      return metric
 
-    metric = _aggregate_across_replicas(
-        metrics_collections, precision_across_replicas, tp, fp)
+    metric = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, tp, fp)
 
     update = math_ops.div(
         tp_update, math_ops.add(tp_update, fp_update), name='update')
@@ -3675,12 +3680,15 @@ def specificity_at_sensitivity(labels,
       return math_ops.div(tn[tf_index], tn[tf_index] + fp[tf_index] + kepsilon,
                           name)
 
-    def specificity_across_replicas(_, values):
-      return compute_specificity_at_sensitivity(
+    def aggregate_across_towers(_, values):
+      specificity = compute_specificity_at_sensitivity(
           values['tp'], values['tn'], values['fp'], values['fn'], 'value')
+      if metrics_collections:
+        ops.add_to_collections(metrics_collections, specificity)
+      return specificity
 
-    specificity = _aggregate_across_replicas(
-        metrics_collections, specificity_across_replicas, values)
+    specificity = distribute_lib.get_tower_context().merge_call(
+        aggregate_across_towers, values)
 
     update_op = compute_specificity_at_sensitivity(
         update_ops['tp'], update_ops['tn'], update_ops['fp'], update_ops['fn'],

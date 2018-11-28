@@ -22,14 +22,11 @@ limitations under the License.
 namespace toco {
 
 // Resolves a constant reshape operation by copying the buffer.
-::tensorflow::Status ResolveConstantReshape::Run(Model* model,
-                                                 std::size_t op_index,
-                                                 bool* modified) {
-  *modified = false;
+bool ResolveConstantReshape::Run(Model* model, std::size_t op_index) {
   auto it = model->operators.begin() + op_index;
   const auto* base_op = it->get();
   if (base_op->type != OperatorType::kReshape) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const auto* op = static_cast<const TensorFlowReshapeOperator*>(base_op);
 
@@ -39,17 +36,17 @@ namespace toco {
   // We require constant inputs.
   if (!IsConstantParameterArray(*model, op->inputs[0]) ||
       !IsConstantParameterArray(*model, op->inputs[1])) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   auto& output_array = model->GetArray(op->outputs[0]);
   if (output_array.data_type == ArrayDataType::kNone) {
     // Yield until the output type has been set by PropagateArrayDataTypes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (!output_array.has_shape()) {
     // Yield until the output shape has been set by PropagateFixedShapes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const Array& input_array = model->GetArray(op->inputs[0]);
@@ -57,7 +54,7 @@ namespace toco {
     AddMessageF("Constant reshape is non-trivial (%s -> %s)",
                 ShapeToString(input_array.shape()),
                 ShapeToString(output_array.shape()));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK(!output_array.buffer);
@@ -95,18 +92,21 @@ namespace toco {
     case ArrayDataType::kString:
       CopyArrayBuffer<ArrayDataType::kString>(input_array, &output_array);
       break;
-    case ArrayDataType::kComplex64:
-      CopyArrayBuffer<ArrayDataType::kComplex64>(input_array, &output_array);
-      break;
     default:
       LOG(FATAL) << "Unsupported data type: "
                  << ArrayDataTypeName(input_array.data_type);
-      return ::tensorflow::Status::OK();
+      return false;
   }
 
   AddMessageF("Resolving constant reshape of %s", LogName(*op));
 
-  CopyMinMaxAndQuantizationRelatedFields(input_array, &output_array);
+  if (input_array.minmax) {
+    output_array.GetOrCreateMinMax() = input_array.GetMinMax();
+  }
+  if (input_array.quantization_params) {
+    output_array.GetOrCreateQuantizationParams() =
+        input_array.GetQuantizationParams();
+  }
 
   // Erase input arrays if no longer used.
   for (const auto& input : op->inputs) {
@@ -118,8 +118,7 @@ namespace toco {
 
   // Erase the operator.
   model->operators.erase(it);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

@@ -25,7 +25,6 @@ limitations under the License.
 #include <unordered_map>
 #include <vector>
 
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/service/call_graph.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 #include "tensorflow/compiler/xla/service/hlo_module.h"
@@ -35,6 +34,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/macros.h"
 
 namespace xla {
@@ -138,8 +138,7 @@ class HloDataflowAnalysis {
   // Returns true if 'user' cannot possibly use the buffer at 'index' in
   // 'operand'. Returns false otherwise.
   //
-  // 'operand' does not have to be an operand of 'user'. This can be the case
-  // with indirect uses.
+  // REQUIRES: 'operand' is an operand of 'user'.
   bool DoesNotUseOperandBuffer(const HloInstruction* operand,
                                const ShapeIndex& index,
                                const HloInstruction* user) const;
@@ -182,6 +181,7 @@ class HloDataflowAnalysis {
   // Updates the value set for a particular instruction type. Returns whether
   // the instruction value set changed.
   bool UpdateBitcastValueSet(HloInstruction* bitcast);
+  bool UpdateSliceValueSet(HloInstruction* slice);
   bool UpdateCallValueSet(HloInstruction* call);
   bool UpdateConditionalValueSet(HloInstruction* conditional);
   bool UpdateCopyValueSet(HloInstruction* copy);
@@ -201,7 +201,7 @@ class HloDataflowAnalysis {
   // the given instruction. If skip_top_level is true, then the top level of the
   // value set of 'instruction' is not modified.
   bool Phi(HloInstruction* instruction,
-           absl::Span<const InstructionValueSet* const> inputs);
+           tensorflow::gtl::ArraySlice<const InstructionValueSet*> inputs);
 
   // Updates the positions of the HloValues in the output of the given
   // instruction. This should be called after the instruction value set of

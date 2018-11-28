@@ -38,10 +38,10 @@ bool CudaSupportsHalfMatMulAndConv() {
 }
 
 bool IsMklEnabled() {
-#if defined(INTEL_MKL) && defined(ENABLE_MKL)
+#ifdef INTEL_MKL
   return true;
 #else
   return false;
-#endif  // INTEL_MKL && ENABLE_MKL
+#endif
 }
 }  // end namespace tensorflow

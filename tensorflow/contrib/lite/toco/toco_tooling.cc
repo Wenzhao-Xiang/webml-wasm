@@ -55,7 +55,7 @@ void MakeGeneralGraphTransformationsSet(
   transformations->Add(new ConvertExpandDimsToReshape);
   transformations->Add(new ConvertSqueezeToReshape);
   transformations->Add(new ConvertTrivialAddNToAdd);
-  transformations->Add(new ConvertTrivialPackToReshape);
+  transformations->Add(new ConvertTrivialStackToReshape);
   transformations->Add(new ConvertTrivialTileToConcat);
   transformations->Add(new ConvertTrivialTransposeToReshape);
   transformations->Add(new ConvertReorderAxes);
@@ -86,14 +86,12 @@ void MakeGeneralGraphTransformationsSet(
   transformations->Add(new ResolveConstantBinaryOperator);
   transformations->Add(new ResolveConstantFill);
   transformations->Add(new ResolveConstantGather);
-  transformations->Add(new ResolveConstantPack);
   transformations->Add(new ResolveConstantRandomUniform);
   transformations->Add(new ResolveConstantRange);
   transformations->Add(new ResolveConstantReshape);
-  transformations->Add(new ResolveConstantSelect);
   transformations->Add(new ResolveConstantSlice);
+  transformations->Add(new ResolveConstantStack);
   transformations->Add(new ResolveConstantStridedSlice);
-  transformations->Add(new ResolveConstantTile);
   transformations->Add(new ResolveConstantTranspose);
   transformations->Add(new ResolveConstantUnaryOperator);
   transformations->Add(new ResolveTensorFlowMerge);
@@ -101,6 +99,7 @@ void MakeGeneralGraphTransformationsSet(
   transformations->Add(new ResolveTensorFlowSwitch);
   transformations->Add(new ResolveTensorFlowConcat);
   transformations->Add(new ResolveMultiplyByZero);
+  transformations->Add(new IdentifyDilatedConv);
   transformations->Add(new IdentifyL2Normalization);
   transformations->Add(new IdentifyL2Pool);
   transformations->Add(new IdentifyRelu1);
@@ -114,11 +113,10 @@ void MakeGeneralGraphTransformationsSet(
   transformations->Add(new ResolvePadV2Attributes);
   transformations->Add(new ResolveStridedSliceAttributes);
   transformations->Add(new ResolveSliceAttributes);
-  transformations->Add(new ResolveReduceAttributes);
+  transformations->Add(new ResolveMeanAttributes);
   transformations->Add(new ResolveConstantShapeOrRank);
   transformations->Add(new MakeInitialDequantizeOperator);
   transformations->Add(new UnpartitionEmbeddingLookup);
-  transformations->Add(new ResolveGatherAttributes);
 }
 
 bool SupportsQuantization(FileFormat format) {
@@ -196,10 +194,6 @@ std::unique_ptr<Model> Import(const TocoFlags& toco_flags,
           toco_flags.has_drop_control_dependency()
               ? toco_flags.drop_control_dependency()
               : (toco_flags.output_format() != TENSORFLOW_GRAPHDEF);
-
-      tf_import_flags.import_all_ops_as_unsupported =
-          toco_flags.force_flex_ops();
-
       model = ImportTensorFlowGraphDef(model_flags, tf_import_flags,
                                        input_file_contents);
       break;
@@ -281,17 +275,15 @@ void Transform(const TocoFlags& toco_flags, Model* model) {
     }
   }
   transformations.Add(new ResolveConstantConcatenation);
-  // TODO(b/116063589): TF GraphDef doesn't support dilations on its depthwise
-  // conv, so we need to make sure we don't convert to dilated depthwise conv
-  // when outputing to TF GraphDef.
-  auto* identify_dilated_conv = new IdentifyDilatedConv;
-  if (output_format == TENSORFLOW_GRAPHDEF) {
-    identify_dilated_conv->set_identify_depthwise_conv(false);
-  }
-  transformations.Add(identify_dilated_conv);
   RunGraphTransformations(model, "general graph transformations",
                           transformations);
 
+  if (toco_flags.quantize_weights()) {
+    // Run the quantize weights transformation after batchnorms have been
+    // folded into the weights.
+    RunGraphTransformations(model, "quantize weights transformation",
+                            {new QuantizeWeights});
+  }
   if (quantize_output) {
     if (toco_flags.propagate_fake_quant_num_bits()) {
       RunGraphTransformations(model,
@@ -316,9 +308,8 @@ void Transform(const TocoFlags& toco_flags, Model* model) {
     // HardcodeMinMax to move changes through the graph as we make changes.
     auto propagate_default_min_max =
         absl::make_unique<PropagateDefaultMinMax>();
-    bool has_default_ranges_flag = (toco_flags.has_default_ranges_min() &&
-                                    toco_flags.has_default_ranges_max());
-    if (has_default_ranges_flag) {
+    if (toco_flags.has_default_ranges_min() &&
+        toco_flags.has_default_ranges_max()) {
       propagate_default_min_max->DefineTypeRange(
           ArrayDataType::kUint8, toco_flags.default_ranges_min(),
           toco_flags.default_ranges_max());
@@ -343,8 +334,6 @@ void Transform(const TocoFlags& toco_flags, Model* model) {
         new EnsureUint8WeightsSafeForFastInt8Kernels;
     ensure_safe_for_int8_kernels->set_allow_nudging_weights(
         toco_flags.allow_nudging_weights_to_use_fast_gemm_kernel());
-    ensure_safe_for_int8_kernels->set_has_default_ranges_flag(
-        has_default_ranges_flag);
     RunGraphTransformations(model, "quantization graph transformations",
                             {
                                 new RemoveTrivialQuantizedActivationFunc,
@@ -374,7 +363,9 @@ void Transform(const TocoFlags& toco_flags, Model* model) {
   }
 
   // Deduplicate large constant arrays.
-  DedupeConstantArrays(model, toco_flags.dedupe_array_min_size_bytes());
+  if (toco_flags.has_dedupe_array_min_size_bytes()) {
+    DedupeConstantArrays(model, toco_flags.dedupe_array_min_size_bytes());
+  }
 
   LogDump(kLogLevelModelChanged, "AFTER TRANSFORMATIONS", *model);
 
@@ -400,33 +391,21 @@ void Transform(const TocoFlags& toco_flags, Model* model) {
   model->ops_count = ops_count;
 }
 
-tensorflow::Status Export(const TocoFlags& toco_flags, const Model& model,
-                          bool allow_custom_ops, string* output_file_contents) {
+void Export(const TocoFlags& toco_flags, const Model& model,
+            bool allow_custom_ops, string* output_file_contents) {
   switch (toco_flags.output_format()) {
     case TENSORFLOW_GRAPHDEF:
       ExportTensorFlowGraphDef(model, output_file_contents);
       break;
-    case TFLITE: {
-      toco::tflite::ExportParams params;
-
-      params.allow_flex_ops =
-          toco_flags.force_flex_ops() || toco_flags.allow_flex_ops();
-      params.allow_custom_ops = allow_custom_ops;
-      params.quantize_weights = toco_flags.post_training_quantize();
-
-      auto status = toco::tflite::Export(model, output_file_contents, params);
-      if (!status.ok()) {
-        LOG(ERROR) << status.error_message();
-      }
-      return status;
-    } break;
+    case TFLITE:
+      toco::tflite::Export(model, allow_custom_ops, output_file_contents);
+      break;
     case GRAPHVIZ_DOT:
       DumpGraphviz(model, output_file_contents);
       break;
     default:
       LOG(FATAL) << "Unhandled output_format";
   }
-  return tensorflow::Status();
 }
 
 }  // namespace toco

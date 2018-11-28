@@ -102,19 +102,18 @@ std::vector<int32> ReshapeToTranspose(const Model& model,
 // to be merged if the reshape does not affect memory ordering and does not
 // affects the number of dimensions. This only occurs when only unary dimensions
 // are shifting position.
-::tensorflow::Status MergeReshapeIntoPrecedingTranspose::Run(
-    Model* model, std::size_t op_index, bool* modified) {
-  *modified = false;
+bool MergeReshapeIntoPrecedingTranspose::Run(Model* model,
+                                             std::size_t op_index) {
   auto it = model->operators.begin() + op_index;
   auto* reshape_op = ConvertOperator<TensorFlowReshapeOperator*>(
       it->get(), OperatorType::kReshape);
 
   if (reshape_op == nullptr) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!OperatorReady(*model, reshape_op) || reshape_op->shape.empty()) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const string intermediate_name = reshape_op->inputs[0];
@@ -122,13 +121,13 @@ std::vector<int32> ReshapeToTranspose(const Model& model,
 
   // Guarantee the input is only consume by the reshape.
   if (CountOpsWithInput(*model, intermediate_name) != 1) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Check for the parent operator.
   const auto& transpose_it = FindOpWithOutput(*model, intermediate_name);
   if (transpose_it == model->operators.end()) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Find the parent operator and guarantee it is a transpose.
@@ -136,16 +135,16 @@ std::vector<int32> ReshapeToTranspose(const Model& model,
       transpose_it->get(), OperatorType::kTranspose);
 
   if (transpose_op == nullptr) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!OperatorReady(*model, transpose_op) || transpose_op->perm.empty()) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!ReshapeIsEquivalentToTranspose(*model, reshape_op,
                                       false /*allow_extra_unary_dimensions*/)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Check that the intermediate is not an output array.
@@ -154,7 +153,7 @@ std::vector<int32> ReshapeToTranspose(const Model& model,
         "Cannot fuse %s and %s as it would invalidate the transpose "
         "output array.",
         LogName(*transpose_op), LogName(*reshape_op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   AddMessageF("Merging operations %s and %s", LogName(*transpose_op),
@@ -173,7 +172,7 @@ std::vector<int32> ReshapeToTranspose(const Model& model,
 
   // Remove the reshape as passthrough operation.
   if (!RemoveTrivialPassthroughOp(this, model, op_index)) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Update transpose_op's constant buffer to contain the new permutation.
@@ -185,8 +184,7 @@ std::vector<int32> ReshapeToTranspose(const Model& model,
   // transpose_ops's shape will likely has changed.
   model->GetArray(transpose_op->outputs[0]).clear_shape();
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

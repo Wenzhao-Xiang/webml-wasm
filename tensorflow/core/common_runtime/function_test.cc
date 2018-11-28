@@ -18,14 +18,10 @@ limitations under the License.
 #include <atomic>
 #include <utility>
 
-#include "absl/strings/numbers.h"
-#include "absl/strings/str_split.h"
 #include "tensorflow/cc/ops/array_ops_internal.h"
 #include "tensorflow/cc/ops/function_ops.h"
 #include "tensorflow/cc/ops/functional_ops.h"
-#include "tensorflow/cc/ops/sendrecv_ops.h"
 #include "tensorflow/cc/ops/standard_ops.h"
-#include "tensorflow/core/common_runtime/constant_folding.h"
 #include "tensorflow/core/common_runtime/device.h"
 #include "tensorflow/core/common_runtime/device_factory.h"
 #include "tensorflow/core/common_runtime/executor.h"
@@ -588,28 +584,7 @@ TEST_F(FunctionLibraryRuntimeTest, ExecutorFactory) {
              "Internal: This is a dummy.");
   }
 
-  // Test that a non-default executor factory can be invoked via an attr.
-  {
-    FunctionLibraryRuntime::InstantiateOptions options;
-    HasError(InstantiateAndRun(flr0_, "XTimesTwo",
-                               {{"T", DT_FLOAT}, {"_executor", "DUMMY"}},
-                               options, {x}, {&y}),
-             "Internal: This is a dummy.");
-  }
-
-  // Test that a non-default executor factory specified via an
-  // `InstantiateOptions` supersedes the attr when both are present.
-  {
-    FunctionLibraryRuntime::InstantiateOptions options;
-    options.executor_type = "DUMMY";
-    HasError(
-        InstantiateAndRun(flr0_, "XTimesTwo",
-                          {{"T", DT_FLOAT}, {"_executor", "UNKNOWN_EXECUTOR"}},
-                          options, {x}, {&y}),
-        "Internal: This is a dummy.");
-  }
-
-  // Test that non-existent executor types trigger an error.
+  // Test that non-existent exector types trigger an error.
   {
     FunctionLibraryRuntime::InstantiateOptions options;
     options.executor_type = "UNKNOWN_EXECUTOR";
@@ -617,15 +592,6 @@ TEST_F(FunctionLibraryRuntimeTest, ExecutorFactory) {
                                {x}, {&y}),
              "Not found: No executor factory registered for the given executor "
              "type: UNKNOWN_EXECUTOR");
-  }
-  {
-    FunctionLibraryRuntime::InstantiateOptions options;
-    HasError(
-        InstantiateAndRun(flr0_, "XTimesTwo",
-                          {{"T", DT_FLOAT}, {"_executor", "UNKNOWN_EXECUTOR"}},
-                          options, {x}, {&y}),
-        "Not found: No executor factory registered for the given executor "
-        "type: UNKNOWN_EXECUTOR");
   }
 }
 
@@ -836,9 +802,9 @@ TEST_F(FunctionLibraryRuntimeTest, PruneBody) {
       // Name
       "SquareAndAddOneWithStatefulNodes",
       // Args
-      {"x: int32", "y: float32"},
+      {"x: int32"},
       // Return values
-      {"z: int32"},
+      {"y: int32"},
       // Attrs
       {},
       // Nodes
@@ -856,13 +822,12 @@ TEST_F(FunctionLibraryRuntimeTest, PruneBody) {
         "RandomUniform",
         {"shape"},
         {{"T", T}, {"dtype", DT_FLOAT}}},
-       // z = Add<T>(a, o)
-       {{"z"}, "Add", {"a", "o"}, {{"T", T}}}});
+       // y = Add<T>(a, o)
+       {{"y"}, "Add", {"a", "o"}, {{"T", T}}}});
   Init({stateful_func});
 
   auto x = test::AsTensor<int32>({1, 2, 3, 4});
-  auto y = test::AsTensor<float>({1.0, 2.0, 3.0, 4.0});
-  Tensor z;
+  Tensor y;
 
   FunctionLibraryRuntime::Handle handle;
   TF_CHECK_OK(
@@ -872,56 +837,23 @@ TEST_F(FunctionLibraryRuntimeTest, PruneBody) {
   StepStatsCollector stats_collector(&stats);
   FunctionLibraryRuntime::Options opts;
   opts.stats_collector = &stats_collector;
-  TF_CHECK_OK(Run(flr0_, handle, opts, {x, y}, {&z}));
+  TF_CHECK_OK(Run(flr0_, handle, opts, {x}, {&y}));
   TF_CHECK_OK(flr0_->ReleaseHandle(handle));
 
   TF_CHECK_OK(InstantiateAndRun(flr0_, "SquareAndAddOneWithStatefulNodes", {},
-                                {x, y}, {&z}));
-  test::ExpectTensorEqual<int>(z, test::AsTensor<int32>({2, 5, 10, 17}));
+                                {x}, {&y}));
+  test::ExpectTensorEqual<int>(y, test::AsTensor<int32>({2, 5, 10, 17}));
 
   stats_collector.FinalizeAndSwap(&stats);
 
-  // Note that we do not expect the nodes named "y", "x1", "x2", or "x3" to
-  // execute.
+  // Note that we do not expect the nodes named "x1", "x2", or "x3" to execute.
   std::set<string> expected_node_names(
-      {"_SOURCE", "shape", "x", "o", "a", "keep_me", "z", "z_RetVal"});
+      {"_SOURCE", "shape", "x", "o", "a", "keep_me", "y", "y_RetVal"});
   std::set<string> executed_node_names;
   for (const auto& node_stats : stats.dev_stats()[0].node_stats()) {
     executed_node_names.insert(node_stats.node_name());
   }
   EXPECT_EQ(expected_node_names, executed_node_names);
-}
-
-// Constant folding generates names using a global counter.
-// This function invokes constant folding and parses the counter
-// from the generated node name.
-int GetConstantFoldingCounter() {
-  Graph g(OpRegistry::Global());
-  Scope s = Scope::NewRootScope();
-  auto a = ops::Const<float>(s, {1.0}, {});
-  auto b = ops::Const<float>(s, {2.0}, {});
-
-  auto add = ops::Add(s.WithOpName("add"), a, b);
-  auto send =
-      ops::_Send(s.WithOpName("s1"), add, "add", "sender", 0, "receiver");
-
-  TF_CHECK_OK(s.ToGraph(&g));
-  bool was_mutated;
-  ConstantFoldingOptions opt{};
-  TF_CHECK_OK(
-      ConstantFold(opt, nullptr, Env::Default(), nullptr, &g, &was_mutated));
-  GraphDef def;
-  g.ToGraphDef(&def);
-  for (const NodeDef& node : def.node()) {
-    if (absl::StartsWith(node.name(), "add/")) {
-      std::vector<std::string> v = absl::StrSplit(node.name(), "__cf__");
-      CHECK_GT(v.size(), 1);
-      int counter;
-      CHECK(absl::SimpleAtoi(v[v.size() - 1], &counter));
-      return counter;
-    }
-  }
-  LOG(FATAL) << "Should have found a node that replcaed add";
 }
 
 TEST_F(FunctionLibraryRuntimeTest, OptimizeGraph) {
@@ -930,13 +862,12 @@ TEST_F(FunctionLibraryRuntimeTest, OptimizeGraph) {
   std::unique_ptr<Graph> g = GetFuncBody(flr0_, "XTimes16", {{"T", DT_FLOAT}});
   ASSERT_TRUE(g != nullptr);
   ExpandInlineFunctions(flr0_, g.get());
-  int cf_counter = GetConstantFoldingCounter();
   OptimizeGraph(flr0_, &g);
   {
     Scope s = Scope::NewRootScope();
     auto x = ops::_Arg(s.WithOpName("x"), DT_FLOAT, 0);
     auto x4_x2_scale = ops::Const<float>(
-        s.WithOpName("x4/x2/scale/_12__cf__" + std::to_string(cf_counter + 1))
+        s.WithOpName("x4/x2/scale/_12__cf__10")
             .WithDevice("/job:localhost/replica:0/task:0/device:CPU:0"),
         2.0f);
     auto x4_x2_y = ops::Mul(s.WithOpName("x4/x2/y"), x, x4_x2_scale);
@@ -1088,9 +1019,8 @@ TEST_F(FunctionLibraryRuntimeTest, Error_BadControlFlow) {
   DCHECK_EQ(x.dtype(), DT_INT32);
   Tensor y;
   HasError(InstantiateAndRun(flr0_, "InvalidControlFlow", {}, {x}, {&y}),
-           "{{node add}} has inputs from different frames. The input"
-           " {{node enter}} is in frame 'while'. The input {{node i}} is in"
-           " frame ''.");
+           "The node 'add' has inputs from different frames. The input 'enter' "
+           "is in frame 'while'. The input 'i' is in frame ''.");
 }
 
 TEST_F(FunctionLibraryRuntimeTest, Gradient_XTimesTwo) {
@@ -1136,20 +1066,20 @@ TEST_F(FunctionLibraryRuntimeTest, Gradient_XTimesTwo) {
     TF_EXPECT_GRAPH_EQ(expected, actual);
   }
 
-  int cf_counter = GetConstantFoldingCounter();
   OptimizeGraph(flr0_, &g);
+
   {
     Scope s = Scope::NewRootScope();
     auto x = ops::_Arg(s.WithOpName("x"), DT_FLOAT, 0);
     auto func0 = ops::_Arg(s.WithOpName("Func/_0"), DT_FLOAT, 1);
     auto scale = ops::Const(
-        s.WithOpName("scale/_6__cf__" + std::to_string(cf_counter + 2))
+        s.WithOpName("scale/_6__cf__15")
             .WithDevice("/job:localhost/replica:0/task:0/device:CPU:0"),
         2.0f);
     auto func1_gx = ops::Mul(s.WithOpName("Func/_1/gx"), func0, scale);
     auto func1_sx = ops::Shape(s.WithOpName("Func/_1/sx"), x);
     auto const0 = ops::Const(
-        s.WithOpName("Func/_1/sy/_5__cf__" + std::to_string(cf_counter + 1))
+        s.WithOpName("Func/_1/sy/_5__cf__14")
             .WithDevice("/job:localhost/replica:0/task:0/device:CPU:0"),
         0, {0});
     auto func1_rx = ops::internal::BroadcastGradientArgs(
@@ -1381,9 +1311,7 @@ TEST_F(FunctionLibraryRuntimeTest, Gradient_AddSum) {
 
     GraphDef actual;
     g->ToGraphDef(&actual);
-    // The optimizer is non-deterministic, so we only check that the number of
-    // nodes is not greater than expected.
-    EXPECT_LE(actual.node_size(), expected.node_size());
+    TF_EXPECT_GRAPH_EQ(expected, actual);
   }
 }
 

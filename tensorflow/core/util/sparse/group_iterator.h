@@ -79,7 +79,6 @@ class GroupIterable {
 
   GroupIterable(Tensor ix, Tensor vals, int dims, const VarDimArray& group_dims)
       : ix_(ix),
-        ix_matrix_(ix_.matrix<int64>()),
         vals_(vals),
         dims_(dims),
         group_dims_(group_dims.begin(), group_dims.end()) {}
@@ -128,8 +127,7 @@ class GroupIterable {
 
  private:
   friend class Group;
-  const Tensor ix_;
-  const TTypes<int64>::ConstMatrix ix_matrix_;
+  Tensor ix_;
   Tensor vals_;
   const int dims_;
   const gtl::InlinedVector<int64, 8> group_dims_;

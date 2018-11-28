@@ -23,7 +23,7 @@ TEST(CoreUtilTest, ParseShardingFromDevice) {
   Graph graph(OpRegistry::Global());
 
   auto core_from_sharding =
-      [](absl::optional<xla::OpSharding> sharding) -> int64 {
+      [](tensorflow::gtl::optional<xla::OpSharding> sharding) -> int64 {
     if (sharding.has_value() &&
         sharding.value().type() ==
             xla::OpSharding::Type::OpSharding_Type_MAXIMAL) {

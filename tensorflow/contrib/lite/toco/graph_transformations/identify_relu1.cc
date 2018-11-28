@@ -56,15 +56,13 @@ int GetSingleScalarInputIndexOfBinaryOp(Model* model, const Operator* op,
 }
 }  // namespace
 
-::tensorflow::Status IdentifyRelu1::Run(Model* model, std::size_t op_index,
-                                        bool* modified) {
-  *modified = false;
+bool IdentifyRelu1::Run(Model* model, std::size_t op_index) {
   // Follow sequences of min+max and max+min. First get the leading op.
   const auto op_it = model->operators.begin() + op_index;
   const auto* op_0 = op_it->get();
   if (op_0->type != OperatorType::kMinimum &&
       op_0->type != OperatorType::kMaximum) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Get the paired op and ensure it's the counter to the first.
@@ -73,17 +71,17 @@ int GetSingleScalarInputIndexOfBinaryOp(Model* model, const Operator* op,
       (op_1->type != OperatorType::kMinimum &&
        op_1->type != OperatorType::kMaximum) ||
       op_0->type == op_1->type) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto* min_op = op_0->type == OperatorType::kMinimum ? op_0 : op_1;
   const auto* max_op = op_0->type == OperatorType::kMaximum ? op_0 : op_1;
 
   if (min_op->inputs.size() != 2 || max_op->inputs.size() != 2) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (min_op->outputs.size() != 1 || max_op->outputs.size() != 1) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Get the original input to the min+max pair.
@@ -92,7 +90,7 @@ int GetSingleScalarInputIndexOfBinaryOp(Model* model, const Operator* op,
   int max_scalar_input_index =
       GetSingleScalarInputIndexOfBinaryOp(model, max_op, -1.0f);
   if (min_scalar_input_index == -1 || max_scalar_input_index == -1) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   int op_0_scalar_input_index =
       op_0 == min_op ? min_scalar_input_index : max_scalar_input_index;
@@ -113,8 +111,7 @@ int GetSingleScalarInputIndexOfBinaryOp(Model* model, const Operator* op,
   model->operators.erase(FindOperator(model, op_0));
   model->operators.erase(FindOperator(model, op_1));
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

@@ -114,7 +114,9 @@ class MergeV2CheckpointsOpTest : public OpsTestBase {
     // Exercises "delete_old_dirs".
     for (int i = 0; i < 2; ++i) {
       int directory_found =
-          Env::Default()->IsDirectory(string(io::Dirname(prefixes[i]))).code();
+          Env::Default()
+              ->IsDirectory(std::string(io::Dirname(prefixes[i])))
+              .code();
       if (delete_old_dirs) {
         EXPECT_EQ(error::NOT_FOUND, directory_found);
       } else {

@@ -26,7 +26,6 @@ cc_library(
             "//tensorflow/compiler/xla:types",
             "//tensorflow/core:framework_internal",
             "//tensorflow/core:lib",
-            "@com_google_absl//absl/strings",
         ],
 )
 
@@ -40,7 +39,6 @@ tf_cc_test(
             "//tensorflow/core:framework_internal",
             "//tensorflow/core:lib",
             "//tensorflow/core:test",
-            "@com_google_absl//absl/strings:str_format",
         ],
 )
 
@@ -58,7 +56,6 @@ cc_library(
             "//tensorflow/compiler/xla/service:hlo",
             "//tensorflow/core:framework_internal",
             "//tensorflow/core:lib",
-            "@com_google_absl//absl/strings",
         ],
 )
 
@@ -76,7 +73,5 @@ tf_cc_test(
             "//tensorflow/core:framework_internal",
             "//tensorflow/core:lib",
             "//tensorflow/core:test",
-            "@com_google_absl//absl/strings",
-            "@com_google_absl//absl/strings:str_format",
         ],
 )

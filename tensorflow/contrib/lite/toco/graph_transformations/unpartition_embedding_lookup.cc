@@ -22,10 +22,7 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status UnpartitionEmbeddingLookup::Run(Model* model,
-                                                     std::size_t op_index,
-                                                     bool* modified) {
-  *modified = false;
+bool UnpartitionEmbeddingLookup::Run(Model* model, std::size_t op_index) {
   // Collapses a partitioned tf.nn.embedding_lookup back into a single Gather.
   // https://www.tensorflow.org/api_docs/python/tf/nn/embedding_lookup
   // This transform attempts to identify the len(params) > 1 case and collapse
@@ -50,7 +47,7 @@ namespace toco {
   // First look for the final DynamicStitch.
   auto op_it = model->operators.begin() + op_index;
   if (op_it->get()->type != OperatorType::kDynamicStitch) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto* stitch_op = static_cast<DynamicStitchOperator*>(op_it->get());
 
@@ -75,7 +72,7 @@ namespace toco {
           "Skipping because indices input %s into "
           "%s is unexpected",
           LogName(*op), LogName(*stitch_op));
-      return ::tensorflow::Status::OK();
+      return false;
     }
     if (!indices_partition_op) {
       indices_partition_op = static_cast<DynamicPartitionOperator*>(op);
@@ -86,7 +83,7 @@ namespace toco {
             "Skipping because indices input %s into "
             "%s is from a different source op than others",
             LogName(*op), LogName(*stitch_op));
-        return ::tensorflow::Status::OK();
+        return false;
       }
     }
   }
@@ -95,12 +92,12 @@ namespace toco {
   // The data for the indices must be a constant range of the array shape.
   if (!IsConstantParameterArray(*model, indices_partition_op->inputs[0])) {
     AddMessageF("Skipping because indices partition data is non-constant");
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto& indices_data_array = model->GetArray(indices_partition_op->inputs[0]);
   if (indices_data_array.data_type == ArrayDataType::kNone) {
     // Yield until data types are propagated.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   CHECK(indices_data_array.data_type == ArrayDataType::kInt32)
       << "Indices partition inputs must be int32";
@@ -120,7 +117,7 @@ namespace toco {
           "Skipping because data input %s into %s "
           "is unexpected",
           LogName(*op), LogName(*stitch_op));
-      return ::tensorflow::Status::OK();
+      return false;
     }
     gather_ops.push_back(static_cast<GatherOperator*>(op));
   }
@@ -135,7 +132,7 @@ namespace toco {
           "Skipping because data input %s into "
           "%s is unexpected",
           LogName(*op), LogName(*gather_op));
-      return ::tensorflow::Status::OK();
+      return false;
     }
     if (!data_partition_op) {
       data_partition_op = static_cast<DynamicPartitionOperator*>(op);
@@ -146,7 +143,7 @@ namespace toco {
             "Skipping because data input %s into "
             "%s is from a different source op than others",
             LogName(*op), LogName(*gather_op));
-        return ::tensorflow::Status::OK();
+        return false;
       }
     }
   }
@@ -190,7 +187,6 @@ namespace toco {
       AvailableArrayName(*model, gather_ops[0]->inputs[0] + "_permuted/perm"));
   gather_params_permute_op->outputs.push_back(
       AvailableArrayName(*model, gather_ops[0]->inputs[0] + "_permuted"));
-  gather_params_permute_op->axis = {0};
   op_it = model->operators.emplace(op_it, gather_params_permute_op) + 1;
   model->GetOrCreateArray(gather_params_permute_op->outputs[0]);
   const auto& partition_array = model->GetArray(gather_ops[0]->inputs[0]);
@@ -216,7 +212,6 @@ namespace toco {
                               mod_op->inputs[0]};
   merged_gather_op->outputs = {stitch_op->outputs[0]};
   merged_gather_op->input_rank = partition_array.shape().dimensions_count();
-  merged_gather_op->axis = {0};
   model->operators.emplace(op_it, merged_gather_op);
 
   AddMessageF(
@@ -239,8 +234,7 @@ namespace toco {
   DeleteOpAndArraysIfUnused(model, indices_partition_op);
   DeleteOpAndArraysIfUnused(model, data_partition_op);
   DeleteOpAndArraysIfUnused(model, stitch_op);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

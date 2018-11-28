@@ -86,14 +86,11 @@ bool Slice(SliceOperator const& op, Array const& input_array,
 
 }  // namespace
 
-::tensorflow::Status ResolveConstantSlice::Run(Model* model,
-                                               std::size_t op_index,
-                                               bool* modified) {
-  *modified = false;
+bool ResolveConstantSlice::Run(Model* model, std::size_t op_index) {
   const auto it = model->operators.begin() + op_index;
   const auto* base_op = it->get();
   if (base_op->type != OperatorType::kSlice) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const SliceOperator* op = static_cast<const SliceOperator*>(base_op);
@@ -102,54 +99,49 @@ bool Slice(SliceOperator const& op, Array const& input_array,
   auto& output_array = model->GetArray(op->outputs[0]);
   if (output_array.data_type == ArrayDataType::kNone) {
     // Yield until the output type has been set by PropagateArrayDataTypes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!output_array.has_shape()) {
     // Yield until the output shape has been set by PropagateFixedShapes.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (op->begin.empty() || op->size.empty()) {
     // Attributes have not resolved yet.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto& input_array = model->GetArray(op->inputs[0]);
   if (!input_array.has_shape()) {
     // Yield until the value shape has been resolved.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (!IsConstantParameterArray(*model, op->inputs[0])) {
     // Yield until the value is constant.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK(!output_array.buffer);
   switch (output_array.data_type) {
     case ArrayDataType::kFloat:
       if (!Slice<ArrayDataType::kFloat>(*op, input_array, &output_array)) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
       break;
     case ArrayDataType::kUint8:
       if (!Slice<ArrayDataType::kUint8>(*op, input_array, &output_array)) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
       break;
     case ArrayDataType::kInt32:
       if (!Slice<ArrayDataType::kInt32>(*op, input_array, &output_array)) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
       break;
     case ArrayDataType::kInt64:
       if (!Slice<ArrayDataType::kInt64>(*op, input_array, &output_array)) {
-        return ::tensorflow::Status::OK();
-      }
-      break;
-    case ArrayDataType::kComplex64:
-      if (!Slice<ArrayDataType::kComplex64>(*op, input_array, &output_array)) {
-        return ::tensorflow::Status::OK();
+        return false;
       }
       break;
     default:
@@ -167,8 +159,7 @@ bool Slice(SliceOperator const& op, Array const& input_array,
   // Erase the operator
   model->operators.erase(it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

@@ -50,11 +50,11 @@ namespace xla {
 // conditions as well.
 //
 // TODO(b/79121449):  We should also sink broadcasts of constants.
-class WhileLoopConstantSinking : public HloModulePass {
+class WhileLoopConstantSinking : public HloPassInterface {
  public:
   ~WhileLoopConstantSinking() override = default;
 
-  absl::string_view name() const override {
+  tensorflow::StringPiece name() const override {
     return "while-loop-invariant-code-motion";
   }
 

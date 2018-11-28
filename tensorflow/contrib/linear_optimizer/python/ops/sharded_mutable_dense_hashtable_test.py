@@ -30,10 +30,9 @@ class ShardedMutableDenseHashTableTest(TensorFlowTestCase):
 
   def testShardedMutableHashTable(self):
     for num_shards in [1, 3, 10]:
-      with self.cached_session():
+      with self.test_session():
         default_val = -1
         empty_key = 0
-        deleted_key = -1
         keys = constant_op.constant([11, 12, 13], dtypes.int64)
         values = constant_op.constant([0, 1, 2], dtypes.int64)
         table = ShardedMutableDenseHashTable(
@@ -41,7 +40,6 @@ class ShardedMutableDenseHashTableTest(TensorFlowTestCase):
             dtypes.int64,
             default_val,
             empty_key,
-            deleted_key,
             num_shards=num_shards)
         self.assertAllEqual(0, table.size().eval())
 
@@ -55,10 +53,9 @@ class ShardedMutableDenseHashTableTest(TensorFlowTestCase):
 
   def testShardedMutableHashTableVectors(self):
     for num_shards in [1, 3, 10]:
-      with self.cached_session():
+      with self.test_session():
         default_val = [-0.1, 0.2]
         empty_key = [0, 1]
-        deleted_key = [1, 0]
         keys = constant_op.constant([[11, 12], [13, 14], [15, 16]],
                                     dtypes.int64)
         values = constant_op.constant([[0.5, 0.6], [1.5, 1.6], [2.5, 2.6]],
@@ -68,7 +65,6 @@ class ShardedMutableDenseHashTableTest(TensorFlowTestCase):
             dtypes.float32,
             default_val,
             empty_key,
-            deleted_key,
             num_shards=num_shards)
         self.assertAllEqual(0, table.size().eval())
 
@@ -83,9 +79,8 @@ class ShardedMutableDenseHashTableTest(TensorFlowTestCase):
                             output.eval())
 
   def testExportSharded(self):
-    with self.cached_session():
+    with self.test_session():
       empty_key = -2
-      deleted_key = -3
       default_val = -1
       num_shards = 2
       keys = constant_op.constant([10, 11, 12], dtypes.int64)
@@ -95,7 +90,6 @@ class ShardedMutableDenseHashTableTest(TensorFlowTestCase):
           dtypes.int64,
           default_val,
           empty_key,
-          deleted_key,
           num_shards=num_shards)
       self.assertAllEqual(0, table.size().eval())
 

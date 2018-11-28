@@ -52,8 +52,6 @@ class XlaIfOp : public XlaOpKernel {
   DataType cond_type_;
   DataTypeVector input_types_;
   DataTypeVector output_types_;
-  bool has_token_input_output_;
-  std::vector<string> token_input_nodes_;
 };
 
 }  // namespace tensorflow

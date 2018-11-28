@@ -37,10 +37,8 @@ class LinearOperatorCirculantBaseTest(object):
   """Common class for circulant tests."""
 
   @contextlib.contextmanager
-  def _constrain_devices_and_set_default(self, sess, use_gpu, force_gpu):
-    """We overwrite the FFT operation mapping for testing."""
-    with test.TestCase._constrain_devices_and_set_default(
-        self, sess, use_gpu, force_gpu) as sess:
+  def test_session(self, *args, **kwargs):
+    with test.TestCase.test_session(self, *args, **kwargs) as sess:
       with spectral_ops_test_util.fft_kernel_label_map():
         yield sess
 
@@ -112,7 +110,8 @@ class LinearOperatorCirculantTestSelfAdjointOperator(
     lin_op_spectrum = spectrum
 
     if use_placeholder:
-      lin_op_spectrum = array_ops.placeholder_with_default(spectrum, shape=None)
+      lin_op_spectrum = array_ops.placeholder_with_default(
+          spectrum, shape=None)
 
     operator = linalg.LinearOperatorCirculant(
         lin_op_spectrum, is_self_adjoint=True, input_output_dtype=dtype)
@@ -122,7 +121,7 @@ class LinearOperatorCirculantTestSelfAdjointOperator(
     return operator, mat
 
   def test_simple_hermitian_spectrum_gives_operator_with_zero_imag_part(self):
-    with self.cached_session():
+    with self.test_session():
       spectrum = math_ops.cast([1., 1j, -1j], dtypes.complex64)
       operator = linalg.LinearOperatorCirculant(
           spectrum, input_output_dtype=dtypes.complex64)
@@ -172,7 +171,8 @@ class LinearOperatorCirculantTestHermitianSpectrum(
     lin_op_spectrum = spectrum
 
     if use_placeholder:
-      lin_op_spectrum = array_ops.placeholder_with_default(spectrum, shape=None)
+      lin_op_spectrum = array_ops.placeholder_with_default(
+          spectrum, shape=None)
 
     operator = linalg.LinearOperatorCirculant(
         lin_op_spectrum, input_output_dtype=dtype)
@@ -182,7 +182,7 @@ class LinearOperatorCirculantTestHermitianSpectrum(
     return operator, mat
 
   def test_simple_hermitian_spectrum_gives_operator_with_zero_imag_part(self):
-    with self.cached_session():
+    with self.test_session():
       spectrum = math_ops.cast([1., 1j, -1j], dtypes.complex64)
       operator = linalg.LinearOperatorCirculant(
           spectrum, input_output_dtype=dtypes.complex64)
@@ -217,7 +217,8 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
     lin_op_spectrum = spectrum
 
     if use_placeholder:
-      lin_op_spectrum = array_ops.placeholder_with_default(spectrum, shape=None)
+      lin_op_spectrum = array_ops.placeholder_with_default(
+          spectrum, shape=None)
 
     operator = linalg.LinearOperatorCirculant(
         lin_op_spectrum, input_output_dtype=dtype)
@@ -227,7 +228,7 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
     return operator, mat
 
   def test_simple_hermitian_spectrum_gives_operator_with_zero_imag_part(self):
-    with self.cached_session():
+    with self.test_session():
       spectrum = math_ops.cast([1., 1j, -1j], dtypes.complex64)
       operator = linalg.LinearOperatorCirculant(
           spectrum, input_output_dtype=dtypes.complex64)
@@ -237,7 +238,7 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
       np.testing.assert_allclose(0, imag_matrix.eval(), rtol=0, atol=eps * 3)
 
   def test_simple_positive_real_spectrum_gives_self_adjoint_pos_def_oper(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       spectrum = math_ops.cast([6., 4, 2], dtypes.complex64)
       operator = linalg.LinearOperatorCirculant(
           spectrum, input_output_dtype=dtypes.complex64)
@@ -249,7 +250,7 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
       operator.assert_self_adjoint().run()  # Should not fail
 
   def test_defining_operator_using_real_convolution_kernel(self):
-    with self.cached_session():
+    with self.test_session():
       convolution_kernel = [1., 2., 1.]
       spectrum = math_ops.fft(
           math_ops.cast(convolution_kernel, dtypes.complex64))
@@ -265,7 +266,7 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
       np.testing.assert_allclose(0, np.imag(matrix), atol=1e-6)
 
   def test_hermitian_spectrum_gives_operator_with_zero_imag_part(self):
-    with self.cached_session():
+    with self.test_session():
       # Make spectrum the FFT of a real convolution kernel h.  This ensures that
       # spectrum is Hermitian.
       h = linear_operator_test_util.random_normal(shape=(3, 4))
@@ -280,7 +281,7 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
 
   def test_convolution_kernel_same_as_first_row_of_to_dense(self):
     spectrum = [[3., 2., 1.], [2., 1.5, 1.]]
-    with self.cached_session():
+    with self.test_session():
       operator = linalg.LinearOperatorCirculant(spectrum)
       h = operator.convolution_kernel()
       c = operator.to_dense()
@@ -292,27 +293,27 @@ class LinearOperatorCirculantTestNonHermitianSpectrum(
   def test_assert_non_singular_fails_for_singular_operator(self):
     spectrum = math_ops.cast([0, 4, 2j + 2], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant(spectrum)
-    with self.cached_session():
+    with self.test_session():
       with self.assertRaisesOpError("Singular operator"):
         operator.assert_non_singular().run()
 
   def test_assert_non_singular_does_not_fail_for_non_singular_operator(self):
     spectrum = math_ops.cast([-3j, 4, 2j + 2], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant(spectrum)
-    with self.cached_session():
+    with self.test_session():
       operator.assert_non_singular().run()  # Should not fail
 
   def test_assert_positive_definite_fails_for_non_positive_definite(self):
     spectrum = math_ops.cast([6., 4, 2j], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant(spectrum)
-    with self.cached_session():
+    with self.test_session():
       with self.assertRaisesOpError("Not positive definite"):
         operator.assert_positive_definite().run()
 
   def test_assert_positive_definite_does_not_fail_when_pos_def(self):
     spectrum = math_ops.cast([6., 4, 2j + 2], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant(spectrum)
-    with self.cached_session():
+    with self.test_session():
       operator.assert_positive_definite().run()  # Should not fail
 
   def test_real_spectrum_and_not_self_adjoint_hint_raises(self):
@@ -330,10 +331,8 @@ class LinearOperatorCirculant2DBaseTest(object):
   """Common class for 2D circulant tests."""
 
   @contextlib.contextmanager
-  def _constrain_devices_and_set_default(self, sess, use_gpu, force_gpu):
-    """We overwrite the FFT operation mapping for testing."""
-    with test.TestCase._constrain_devices_and_set_default(
-        self, sess, use_gpu, force_gpu) as sess:
+  def test_session(self, *args, **kwargs):
+    with test.TestCase.test_session(self, *args, **kwargs) as sess:
       with spectral_ops_test_util.fft_kernel_label_map():
         yield sess
 
@@ -447,7 +446,8 @@ class LinearOperatorCirculant2DTestHermitianSpectrum(
     lin_op_spectrum = spectrum
 
     if use_placeholder:
-      lin_op_spectrum = array_ops.placeholder_with_default(spectrum, shape=None)
+      lin_op_spectrum = array_ops.placeholder_with_default(
+          spectrum, shape=None)
 
     operator = linalg.LinearOperatorCirculant2D(
         lin_op_spectrum, input_output_dtype=dtype)
@@ -482,7 +482,8 @@ class LinearOperatorCirculant2DTestNonHermitianSpectrum(
     lin_op_spectrum = spectrum
 
     if use_placeholder:
-      lin_op_spectrum = array_ops.placeholder_with_default(spectrum, shape=None)
+      lin_op_spectrum = array_ops.placeholder_with_default(
+          spectrum, shape=None)
 
     operator = linalg.LinearOperatorCirculant2D(
         lin_op_spectrum, input_output_dtype=dtype)
@@ -492,7 +493,7 @@ class LinearOperatorCirculant2DTestNonHermitianSpectrum(
     return operator, mat
 
   def test_real_hermitian_spectrum_gives_real_symmetric_operator(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # This is a real and hermitian spectrum.
       spectrum = [[1., 2., 2.], [3., 4., 4.], [3., 4., 4.]]
       operator = linalg.LinearOperatorCirculant(spectrum)
@@ -509,7 +510,7 @@ class LinearOperatorCirculant2DTestNonHermitianSpectrum(
       self.assertAllClose(matrix, matrix_transpose, atol=0)
 
   def test_real_spectrum_gives_self_adjoint_operator(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # This is a real and hermitian spectrum.
       spectrum = linear_operator_test_util.random_normal(
           shape=(3, 3), dtype=dtypes.float32)
@@ -525,27 +526,27 @@ class LinearOperatorCirculant2DTestNonHermitianSpectrum(
   def test_assert_non_singular_fails_for_singular_operator(self):
     spectrum = math_ops.cast([[0, 4], [2j + 2, 3.]], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant2D(spectrum)
-    with self.cached_session():
+    with self.test_session():
       with self.assertRaisesOpError("Singular operator"):
         operator.assert_non_singular().run()
 
   def test_assert_non_singular_does_not_fail_for_non_singular_operator(self):
     spectrum = math_ops.cast([[-3j, 4], [2j + 2, 3.]], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant2D(spectrum)
-    with self.cached_session():
+    with self.test_session():
       operator.assert_non_singular().run()  # Should not fail
 
   def test_assert_positive_definite_fails_for_non_positive_definite(self):
     spectrum = math_ops.cast([[6., 4], [2j, 3.]], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant2D(spectrum)
-    with self.cached_session():
+    with self.test_session():
       with self.assertRaisesOpError("Not positive definite"):
         operator.assert_positive_definite().run()
 
   def test_assert_positive_definite_does_not_fail_when_pos_def(self):
     spectrum = math_ops.cast([[6., 4], [2j + 2, 3.]], dtypes.complex64)
     operator = linalg.LinearOperatorCirculant2D(spectrum)
-    with self.cached_session():
+    with self.test_session():
       operator.assert_positive_definite().run()  # Should not fail
 
   def test_real_spectrum_and_not_self_adjoint_hint_raises(self):
@@ -573,15 +574,13 @@ class LinearOperatorCirculant3DTest(test.TestCase):
   """Simple test of the 3D case.  See also the 1D and 2D tests."""
 
   @contextlib.contextmanager
-  def _constrain_devices_and_set_default(self, sess, use_gpu, force_gpu):
-    """We overwrite the FFT operation mapping for testing."""
-    with test.TestCase._constrain_devices_and_set_default(
-        self, sess, use_gpu, force_gpu) as sess:
+  def test_session(self, *args, **kwargs):
+    with test.TestCase.test_session(self, *args, **kwargs) as sess:
       with spectral_ops_test_util.fft_kernel_label_map():
         yield sess
 
   def test_real_spectrum_gives_self_adjoint_operator(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # This is a real and hermitian spectrum.
       spectrum = linear_operator_test_util.random_normal(
           shape=(2, 2, 3, 5), dtype=dtypes.float32)
@@ -598,7 +597,7 @@ class LinearOperatorCirculant3DTest(test.TestCase):
       self.assertAllClose(matrix, matrix_h)
 
   def test_defining_operator_using_real_convolution_kernel(self):
-    with self.cached_session():
+    with self.test_session():
       convolution_kernel = linear_operator_test_util.random_normal(
           shape=(2, 2, 3, 5), dtype=dtypes.float32)
       # Convolution kernel is real ==> spectrum is Hermitian.
@@ -616,7 +615,7 @@ class LinearOperatorCirculant3DTest(test.TestCase):
       np.testing.assert_allclose(0, np.imag(matrix), atol=1e-6)
 
   def test_defining_spd_operator_by_taking_real_part(self):
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       # S is real and positive.
       s = linear_operator_test_util.random_uniform(
           shape=(10, 2, 3, 4), dtype=dtypes.float32, minval=1., maxval=2.)

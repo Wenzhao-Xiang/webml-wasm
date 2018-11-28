@@ -27,7 +27,6 @@ limitations under the License.
 #include "tensorflow/contrib/lite/kernels/internal/quantization_util.h"
 #include "tensorflow/contrib/lite/kernels/internal/reference/reference_ops.h"
 #include "tensorflow/contrib/lite/kernels/internal/test_util.h"
-#include "tensorflow/contrib/lite/string.h"
 
 namespace tflite {
 namespace {
@@ -43,15 +42,11 @@ void RunLogSoftmaxFloatReference(const uint8* input_data,
 
   // Reference data generated via Dequant of input into float, and then applying
   // float LogSoftmax.
-  DequantizationParams dq_params;
-  dq_params.zero_point = input_offset;
-  dq_params.scale = input_scale;
-  reference_ops::Dequantize(dq_params, shape_common, input_data, shape_common,
-                            reference_dequant_data.data());
-  SoftmaxParams sm_params;
-  optimized_ops::LogSoftmax(sm_params, shape_common,
-                            reference_dequant_data.data(), shape_common,
-                            reference_output_float_data.data());
+  reference_ops::Dequantize(
+      input_data, ToRuntimeDims(shape_common), input_offset, input_scale,
+      reference_dequant_data.data(), ToRuntimeDims(shape_common));
+  optimized_ops::LogSoftmax(reference_dequant_data.data(), shape_common,
+                            reference_output_float_data.data(), shape_common);
   // Work with quantized scaling for LogSoftmax, under which 255 represents 0,
   // and -16 gets nudged up to 0.
   for (int i = 0; i < ref_buffer_size; i++) {
@@ -133,16 +128,14 @@ void RunOneLogSoftmaxTest(const uint8* input_data,
   const int diff_min = -tflite::CalculateInputRadius(kScaledDiffIntegerBits,
                                                      input_beta_left_shift);
 
-  SoftmaxParams params;
-  params.input_multiplier = input_beta_multiplier;
-  params.input_left_shift = input_beta_left_shift;
-  params.reverse_scaling_divisor = reverse_scaling_divisor;
-  params.reverse_scaling_right_shift = reverse_scaling_right_shift;
-  params.diff_min = diff_min;
-  optimized_ops::LogSoftmax(params, shape_common, input_data, shape_common,
-                            optimized_logsoftmax_output.data());
-  reference_ops::LogSoftmax(params, shape_common, input_data, shape_common,
-                            reference_quant_logsoftmax_output.data());
+  optimized_ops::LogSoftmax(input_data, shape_common, input_beta_multiplier,
+                            input_beta_left_shift, reverse_scaling_divisor,
+                            reverse_scaling_right_shift, diff_min,
+                            optimized_logsoftmax_output.data(), shape_common);
+  reference_ops::LogSoftmax(
+      input_data, shape_common, input_beta_multiplier, input_beta_left_shift,
+      reverse_scaling_divisor, reverse_scaling_right_shift, diff_min,
+      reference_quant_logsoftmax_output.data(), shape_common);
 
   CheckOutputData(optimized_logsoftmax_output.data(),
                   reference_float_logsoftmax_output.data(), shape_common,

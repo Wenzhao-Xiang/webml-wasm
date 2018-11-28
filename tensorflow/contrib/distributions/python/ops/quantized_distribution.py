@@ -196,9 +196,8 @@ class QuantizedDistribution(distributions.Distribution):
   parameter determining the unnormalized probability of that component.
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
-  tfb = tfp.bijectors
+  tfd = tf.contrib.distributions
+  tfb = tfd.bijectors
 
   net = wavenet(inputs)
   loc, unconstrained_scale, logits = tf.split(net,
@@ -326,21 +325,6 @@ class QuantizedDistribution(distributions.Distribution):
         parameters=parameters,
         graph_parents=graph_parents,
         name=name)
-
-  @property
-  def distribution(self):
-    """Base distribution, p(x)."""
-    return self._dist
-
-  @property
-  def low(self):
-    """Lowest value that quantization returns."""
-    return self._low
-
-  @property
-  def high(self):
-    """Highest value that quantization returns."""
-    return self._high
 
   def _batch_shape_tensor(self):
     return self.distribution.batch_shape_tensor()
@@ -585,3 +569,8 @@ class QuantizedDistribution(distributions.Distribution):
       dependencies = [distribution_util.assert_integer_form(
           value, message="value has non-integer components.")]
       return control_flow_ops.with_dependencies(dependencies, value)
+
+  @property
+  def distribution(self):
+    """Base distribution, p(x)."""
+    return self._dist

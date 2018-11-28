@@ -15,7 +15,6 @@ limitations under the License.
 #ifndef TENSORFLOW_CONTRIB_LITE_KERNELS_TEST_UTIL_H_
 #define TENSORFLOW_CONTRIB_LITE_KERNELS_TEST_UTIL_H_
 
-#include <complex>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -35,11 +34,6 @@ namespace tflite {
 // tolerance.
 std::vector<::testing::Matcher<float>> ArrayFloatNear(
     const std::vector<float>& values, float max_abs_error = 1e-5);
-
-// A gmock matcher that check that elements of a complex vector match to a given
-// tolerance.
-std::vector<::testing::Matcher<std::complex<float>>> ArrayComplex64Near(
-    const std::vector<std::complex<float>>& values, float max_abs_error = 1e-5);
 
 template <typename T>
 inline std::vector<T> Quantize(const std::vector<float>& data, float scale,
@@ -82,7 +76,7 @@ inline std::vector<float> Dequantize(const std::vector<T>& data, float scale,
 // A helper struct to construct test tensors. This is particularly useful for
 // quantized tensor which must have their scale and zero_point defined before
 // the actual data is known. This mimics what happens in practice: quantization
-// parameters are calculated during training.
+// parameters are calculate during training.
 struct TensorData {
   TensorType type;
   std::vector<int> shape;
@@ -188,8 +182,7 @@ class SingleOpModel {
 
   // Build the interpreter for this model. Also, resize and allocate all
   // tensors given the shapes of the inputs.
-  void BuildInterpreter(std::vector<std::vector<int>> input_shapes,
-                        bool allow_fp32_relax_to_fp16 = false);
+  void BuildInterpreter(std::vector<std::vector<int>> input_shapes);
 
   void Invoke();
 
@@ -207,14 +200,7 @@ class SingleOpModel {
   template <typename T>
   void PopulateTensor(int index, const std::initializer_list<T>& data) {
     T* v = interpreter_->typed_tensor<T>(index);
-    if (!v) {
-      auto* t = interpreter_->tensor(index);
-      CHECK(t) << "No tensor with index " << index << ".";
-      CHECK(t->data.raw) << "Empty data for tensor with index " << index << ".";
-      CHECK(v) << "Type mismatch for tensor with index " << index
-               << ". Requested " << typeToTfLiteType<T>() << ", got "
-               << t->type;
-    }
+    CHECK(v) << "No tensor with index '" << index << "'.";
     for (T f : data) {
       *v = f;
       ++v;
@@ -227,14 +213,7 @@ class SingleOpModel {
   template <typename T>
   void PopulateTensor(int index, const std::vector<T>& data) {
     T* v = interpreter_->typed_tensor<T>(index);
-    if (!v) {
-      auto* t = interpreter_->tensor(index);
-      CHECK(t) << "No tensor with index " << index << ".";
-      CHECK(t->data.raw) << "Empty data for tensor with index " << index << ".";
-      CHECK(v) << "Type mismatch for tensor with index " << index
-               << ". Requested " << typeToTfLiteType<T>() << ", got "
-               << t->type;
-    }
+    CHECK(v) << "No tensor with index '" << index << "'.";
     for (T f : data) {
       *v = f;
       ++v;

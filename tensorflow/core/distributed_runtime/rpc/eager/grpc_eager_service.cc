@@ -36,7 +36,6 @@ static const char* grpcEagerService_method_names[] = {
     "/tensorflow.eager.EagerService/KeepAlive",
     "/tensorflow.eager.EagerService/CloseContext",
     "/tensorflow.eager.EagerService/RegisterFunction",
-    "/tensorflow.eager.EagerService/SendTensor",
 };
 
 std::unique_ptr<EagerService::Stub> EagerService::NewStub(
@@ -63,9 +62,7 @@ EagerService::Stub::Stub(
                               ::grpc::internal::RpcMethod::NORMAL_RPC, channel),
       rpcmethod_RegisterFunction_(grpcEagerService_method_names[5],
                                   ::grpc::internal::RpcMethod::NORMAL_RPC,
-                                  channel),
-      rpcmethod_SendTensor_(grpcEagerService_method_names[6],
-                            ::grpc::internal::RpcMethod::NORMAL_RPC, channel) {}
+                                  channel) {}
 
 ::grpc::Status EagerService::Stub::CreateContext(
     ::grpc::ClientContext* context, const CreateContextRequest& request,
@@ -109,15 +106,8 @@ EagerService::Stub::Stub(
       channel_.get(), rpcmethod_RegisterFunction_, context, request, response);
 }
 
-::grpc::Status EagerService::Stub::SendTensor(::grpc::ClientContext* context,
-                                              const SendTensorRequest& request,
-                                              SendTensorResponse* response) {
-  return ::grpc::internal::BlockingUnaryCall(
-      channel_.get(), rpcmethod_SendTensor_, context, request, response);
-}
-
 EagerService::AsyncService::AsyncService() {
-  for (int i = 0; i < 7; ++i) {
+  for (int i = 0; i < 6; ++i) {
     AddMethod(new ::grpc::internal::RpcServiceMethod(
         grpcEagerService_method_names[i],
         ::grpc::internal::RpcMethod::NORMAL_RPC, nullptr));

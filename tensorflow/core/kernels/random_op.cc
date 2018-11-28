@@ -231,13 +231,7 @@ class RandomUniformIntOp : public OpKernel {
                 errors::InvalidArgument("maxval must be 0-D, got shape ",
                                         maxval.shape().DebugString()));
 
-    // Allocate output, and exit early if possible
-    Tensor* output;
-    OP_REQUIRES_OK(ctx, AllocateOutputWithShape(ctx, shape, 0, &output));
-    if (output->NumElements() == 0) return;
-
-    // Verify that minval < maxval.  This check intentionally happens after the
-    // early exit for empty output.  Zero impossible things are fine.
+    // Verify that minval < maxval
     IntType lo = minval.scalar<IntType>()();
     IntType hi = maxval.scalar<IntType>()();
     OP_REQUIRES(
@@ -249,6 +243,8 @@ class RandomUniformIntOp : public OpKernel {
         Distribution;
     Distribution dist(lo, hi);
 
+    Tensor* output;
+    OP_REQUIRES_OK(ctx, AllocateOutputWithShape(ctx, shape, 0, &output));
     auto output_flat = output->flat<IntType>();
     functor::FillPhiloxRandom<Device, Distribution>()(
         ctx, ctx->eigen_device<Device>(),
@@ -489,15 +485,13 @@ class RandomGammaOp : public OpKernel {
       Name("RandomGamma").Device(DEVICE_CPU).TypeConstraint<TYPE>("T"),        \
       RandomGammaOp<TYPE>)
 
-#define REGISTER_INT(IntType)                                                 \
-  template struct functor::FillPhiloxRandom<                                  \
-      CPUDevice, random::UniformDistribution<random::PhiloxRandom, IntType>>; \
-  REGISTER_KERNEL_BUILDER(Name("RandomUniformInt")                            \
-                              .Device(DEVICE_CPU)                             \
-                              .HostMemory("shape")                            \
-                              .HostMemory("minval")                           \
-                              .HostMemory("maxval")                           \
-                              .TypeConstraint<IntType>("Tout"),               \
+#define REGISTER_INT(IntType)                                   \
+  REGISTER_KERNEL_BUILDER(Name("RandomUniformInt")              \
+                              .Device(DEVICE_CPU)               \
+                              .HostMemory("shape")              \
+                              .HostMemory("minval")             \
+                              .HostMemory("maxval")             \
+                              .TypeConstraint<IntType>("Tout"), \
                           RandomUniformIntOp<CPUDevice, IntType>);
 
 TF_CALL_half(REGISTER);
@@ -540,16 +534,14 @@ TF_CALL_int64(REGISTER_INT);
           random::TruncatedNormalDistribution<                                 \
               random::SingleSampleAdapter<random::PhiloxRandom>, TYPE>>);
 
-#define REGISTER_INT(IntType)                                                 \
-  template struct functor::FillPhiloxRandom<                                  \
-      GPUDevice, random::UniformDistribution<random::PhiloxRandom, IntType>>; \
-  REGISTER_KERNEL_BUILDER(Name("RandomUniformInt")                            \
-                              .Device(DEVICE_GPU)                             \
-                              .HostMemory("shape")                            \
-                              .HostMemory("minval")                           \
-                              .HostMemory("maxval")                           \
-                              .TypeConstraint<int32>("T")                     \
-                              .TypeConstraint<IntType>("Tout"),               \
+#define REGISTER_INT(IntType)                                   \
+  REGISTER_KERNEL_BUILDER(Name("RandomUniformInt")              \
+                              .Device(DEVICE_GPU)               \
+                              .HostMemory("shape")              \
+                              .HostMemory("minval")             \
+                              .HostMemory("maxval")             \
+                              .TypeConstraint<int32>("T")       \
+                              .TypeConstraint<IntType>("Tout"), \
                           RandomUniformIntOp<GPUDevice, IntType>);
 
 TF_CALL_half(REGISTER);

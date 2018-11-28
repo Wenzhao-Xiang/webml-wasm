@@ -14,25 +14,25 @@ limitations under the License.
 ==============================================================================*/
 #include <numeric>
 
-#include "tensorflow/core/framework/dataset.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/kernels/data/dataset.h"
 #include "tensorflow/core/util/sparse/sparse_tensor.h"
 
 namespace tensorflow {
-namespace data {
+
 namespace {
 
-// See documentation in ../../ops/dataset_ops.cc for a high-level
+// See documentation in ../ops/dataset_ops.cc for a high-level
 // description of the following op.
 
 template <typename T>
-class Dataset : public DatasetBase {
+class Dataset : public GraphDatasetBase {
  public:
   explicit Dataset(OpKernelContext* ctx,
                    const sparse::SparseTensor& sparse_tensor)
-      : DatasetBase(DatasetContext(ctx)),
+      : GraphDatasetBase(ctx),
         sparse_tensor_(sparse_tensor),
         dtypes_({DT_INT64, sparse_tensor.dtype(), DT_INT64}),
         shapes_({{-1, sparse_tensor.dims() - 1},
@@ -55,8 +55,7 @@ class Dataset : public DatasetBase {
   }
 
  protected:
-  Status AsGraphDefInternal(SerializationContext* ctx,
-                            DatasetGraphDefBuilder* b,
+  Status AsGraphDefInternal(DatasetGraphDefBuilder* b,
                             Node** output) const override {
     Node* indices_node;
     TF_RETURN_IF_ERROR(b->AddTensor(sparse_tensor_.indices(), &indices_node));
@@ -152,11 +151,6 @@ class Dataset : public DatasetBase {
     }
 
    protected:
-    std::shared_ptr<model::Node> CreateNode(
-        IteratorContext* ctx, model::Node::Args args) const override {
-      return model::MakeSourceNode(std::move(args));
-    }
-
     Status SaveInternal(IteratorStateWriter* writer) override {
       mutex_lock l(mu_);
       TF_RETURN_IF_ERROR(writer->WriteScalar(Iterator::full_name("i"), i_));
@@ -258,12 +252,10 @@ class SparseTensorSliceDatasetOp : public DatasetOpKernel {
       previous_batch_index = next_batch_index;
     }
     gtl::InlinedVector<int64, 8> std_order(dense_shape->NumElements(), 0);
-    sparse::SparseTensor tensor;
-    OP_REQUIRES_OK(
-        ctx, sparse::SparseTensor::Create(
-                 *indices, *values, TensorShape(dense_shape->vec<int64>()),
-                 std_order, &tensor));
-    *output = new Dataset<T>(ctx, std::move(tensor));
+    sparse::SparseTensor sparse_tensor(
+        *indices, *values, TensorShape(dense_shape->vec<int64>()), std_order);
+
+    *output = new Dataset<T>(ctx, sparse_tensor);
   }
 
  private:
@@ -279,5 +271,5 @@ TF_CALL_DATASET_TYPES(REGISTER_DATASET_KERNEL);
 #undef REGISTER_DATASET_KERNEL
 
 }  // namespace
-}  // namespace data
+
 }  // namespace tensorflow

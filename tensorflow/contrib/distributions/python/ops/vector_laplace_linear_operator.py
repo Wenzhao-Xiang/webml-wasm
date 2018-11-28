@@ -110,8 +110,7 @@ class VectorLaplaceLinearOperator(
   #### Examples
 
   ```python
-  import tensorflow_probability as tfp
-  tfd = tfp.distributions
+  tfd = tf.contrib.distributions
 
   # Initialize a single 3-variate VectorLaplace with some desired covariance.
   mu = [1., 2, 3]

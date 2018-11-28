@@ -19,8 +19,6 @@ limitations under the License.
 #include <iostream>
 #include <vector>
 
-#include "tensorflow/contrib/lite/string.h"
-
 namespace tflite {
 namespace testing {
 

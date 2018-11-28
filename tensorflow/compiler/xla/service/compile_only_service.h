@@ -50,12 +50,12 @@ class CompileOnlyService : public Service {
   // |CompileOnlyClient::CompileAheadOfTime| for additional details.
   StatusOr<std::vector<std::unique_ptr<AotCompilationResult>>>
   CompileAheadOfTime(
-      const absl::Span<const AotXlaComputationInstance> computations,
+      const tensorflow::gtl::ArraySlice<AotXlaComputationInstance> computations,
       const AotCompilationOptions& options);
 
   StatusOr<std::vector<std::unique_ptr<AotCompilationResult>>>
   CompileAheadOfTime(
-      const absl::Span<const AotXlaComputationInstance> computations,
+      const tensorflow::gtl::ArraySlice<AotXlaComputationInstance> computations,
       const AotCompilationOptions& options,
       std::unique_ptr<AotCompilationMetadata>* metadata);
 

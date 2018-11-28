@@ -121,7 +121,7 @@ bool tanhQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outp
                 const Shape& outputShape);
 bool logisticFloat32(const float* inputData, const Shape& inputShape, float* outputData,
                      const Shape& outputShape);
-bool softmaxFloat32(const float* inputData, const Shape& inputShape, const float beta, int32_t axis,
+bool softmaxFloat32(const float* inputData, const Shape& inputShape, const float beta, 
                     float* outputData, const Shape& outputShape);
 bool reluQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outputData,
                 const Shape& outputShape);

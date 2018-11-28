@@ -37,6 +37,7 @@ using shape_inference::DimensionHandle;
 using shape_inference::InferenceContext;
 using shape_inference::ShapeHandle;
 
+
 REGISTER_OP("CudnnRNNParamsSize")
     .Input("num_layers: int32")
     .Input("num_units: int32")
@@ -51,15 +52,10 @@ REGISTER_OP("CudnnRNNParamsSize")
     .Attr("seed2: int = 0")
     .Output("params_size: S")
     .SetShapeFn([](InferenceContext* c) {
-      ShapeHandle unused;
-      // num_layers, num_units, and input_size should be scalars.
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 0, &unused));
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 0, &unused));
-
       c->set_output(0, c->Vector(1));
       return Status::OK();
     });
+
 
 REGISTER_OP("CudnnRNN")
     .Input("input: T")
@@ -251,6 +247,7 @@ REGISTER_OP("CudnnRNNParamsToCanonical")
       }
       return Status::OK();
     });
+
 
 REGISTER_OP("CudnnRNNCanonicalToParams")
     .Input("num_layers: int32")

@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/kernels/warn_about_ints.h"
 #include "tensorflow/core/lib/core/errors.h"
 
 namespace tensorflow {
@@ -34,7 +35,9 @@ template <typename Device, typename T>
 class SoftplusOp : public UnaryElementWiseOp<T, SoftplusOp<Device, T>> {
  public:
   explicit SoftplusOp(OpKernelConstruction* context)
-      : UnaryElementWiseOp<T, SoftplusOp<Device, T>>(context) {}
+      : UnaryElementWiseOp<T, SoftplusOp<Device, T>>(context) {
+    WarnAboutInts(context);
+  }
 
   void Operate(OpKernelContext* context, const Tensor& input, Tensor* output) {
     functor::Softplus<Device, T> functor;
@@ -48,7 +51,9 @@ class SoftplusGradOp
     : public BinaryElementWiseOp<T, SoftplusGradOp<Device, T>> {
  public:
   explicit SoftplusGradOp(OpKernelConstruction* context)
-      : BinaryElementWiseOp<T, SoftplusGradOp<Device, T>>(context) {}
+      : BinaryElementWiseOp<T, SoftplusGradOp<Device, T>>(context) {
+    WarnAboutInts(context);
+  }
 
   void OperateNoTemplate(OpKernelContext* context, const Tensor& g,
                          const Tensor& a, Tensor* output);
@@ -84,7 +89,7 @@ void SoftplusGradOp<Device, T>::OperateNoTemplate(OpKernelContext* context,
       Name("SoftplusGrad").Device(DEVICE_CPU).TypeConstraint<type>("T"), \
       SoftplusGradOp<CPUDevice, type>);
 
-TF_CALL_FLOAT_TYPES(REGISTER_KERNELS);
+TF_CALL_REAL_NUMBER_TYPES(REGISTER_KERNELS);
 #undef REGISTER_KERNELS
 
 #if GOOGLE_CUDA

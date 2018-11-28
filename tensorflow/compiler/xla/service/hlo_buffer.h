@@ -84,7 +84,7 @@ class HloBuffer {
     return a->id() == b->id();
   }
 
-  HloBuffer(Id id, absl::Span<const HloValue* const> values)
+  HloBuffer(Id id, tensorflow::gtl::ArraySlice<const HloValue*> values)
       : id_(id), values_(values.begin(), values.end()) {}
 
   // Return the unique identifier for this HloBuffer.

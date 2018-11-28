@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/gwy/Documents/webml/googleSouce1/ml/nn
+CMAKE_SOURCE_DIR = /home/gwy/Documents/webml/webml-wasm/ml/nn
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/gwy/Documents/webml/googleSouce1/ml/nn/build
+CMAKE_BINARY_DIR = /home/gwy/Documents/webml/webml-wasm/ml/nn/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/nn_ops.dir/depend.make
@@ -60,16 +60,16 @@ include CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o: ../bind/src/binding.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/bind/src/binding.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/bind/src/binding.cpp
 
 CMakeFiles/nn_ops.dir/bind/src/binding.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/bind/src/binding.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/bind/src/binding.cpp > CMakeFiles/nn_ops.dir/bind/src/binding.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/bind/src/binding.cpp > CMakeFiles/nn_ops.dir/bind/src/binding.cpp.i
 
 CMakeFiles/nn_ops.dir/bind/src/binding.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/bind/src/binding.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/bind/src/binding.cpp -o CMakeFiles/nn_ops.dir/bind/src/binding.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/bind/src/binding.cpp -o CMakeFiles/nn_ops.dir/bind/src/binding.cpp.s
 
 CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o.requires:
 
@@ -85,16 +85,16 @@ CMakeFiles/nn_ops.dir/bind/src/binding.cpp.o.provides.build: CMakeFiles/nn_ops.d
 CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o: ../common/operations/Activation.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Activation.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Activation.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Activation.cpp > CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Activation.cpp > CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Activation.cpp -o CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Activation.cpp -o CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o.requires:
 
@@ -110,16 +110,16 @@ CMakeFiles/nn_ops.dir/common/operations/Activation.cpp.o.provides.build: CMakeFi
 CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o: ../common/operations/Concatenation.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Concatenation.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Concatenation.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Concatenation.cpp > CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Concatenation.cpp > CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Concatenation.cpp -o CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Concatenation.cpp -o CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o.requires:
 
@@ -135,16 +135,16 @@ CMakeFiles/nn_ops.dir/common/operations/Concatenation.cpp.o.provides.build: CMak
 CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o: ../common/operations/Conv2D.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Conv2D.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Conv2D.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Conv2D.cpp > CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Conv2D.cpp > CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Conv2D.cpp -o CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Conv2D.cpp -o CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o.requires:
 
@@ -160,16 +160,16 @@ CMakeFiles/nn_ops.dir/common/operations/Conv2D.cpp.o.provides.build: CMakeFiles/
 CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o: ../common/operations/DepthwiseConv2D.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/DepthwiseConv2D.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/DepthwiseConv2D.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/DepthwiseConv2D.cpp > CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/DepthwiseConv2D.cpp > CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/DepthwiseConv2D.cpp -o CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/DepthwiseConv2D.cpp -o CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o.requires:
 
@@ -185,16 +185,16 @@ CMakeFiles/nn_ops.dir/common/operations/DepthwiseConv2D.cpp.o.provides.build: CM
 CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o: ../common/operations/FullyConnected.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/FullyConnected.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/FullyConnected.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/FullyConnected.cpp > CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/FullyConnected.cpp > CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/FullyConnected.cpp -o CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/FullyConnected.cpp -o CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o.requires:
 
@@ -210,16 +210,16 @@ CMakeFiles/nn_ops.dir/common/operations/FullyConnected.cpp.o.provides.build: CMa
 CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o: ../common/operations/Normalization.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Normalization.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Normalization.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Normalization.cpp > CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Normalization.cpp > CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Normalization.cpp -o CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Normalization.cpp -o CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o.requires:
 
@@ -235,16 +235,16 @@ CMakeFiles/nn_ops.dir/common/operations/Normalization.cpp.o.provides.build: CMak
 CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o: ../common/operations/Pooling.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Pooling.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Pooling.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Pooling.cpp > CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Pooling.cpp > CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Pooling.cpp -o CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Pooling.cpp -o CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o.requires:
 
@@ -260,16 +260,16 @@ CMakeFiles/nn_ops.dir/common/operations/Pooling.cpp.o.provides.build: CMakeFiles
 CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o: ../common/operations/Reshape.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Reshape.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Reshape.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Reshape.cpp > CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Reshape.cpp > CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/Reshape.cpp -o CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/Reshape.cpp -o CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o.requires:
 
@@ -285,16 +285,16 @@ CMakeFiles/nn_ops.dir/common/operations/Reshape.cpp.o.provides.build: CMakeFiles
 CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o: ../common/operations/SimpleMath.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/SimpleMath.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/SimpleMath.cpp
 
 CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/SimpleMath.cpp > CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/SimpleMath.cpp > CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.i
 
 CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/operations/SimpleMath.cpp -o CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/operations/SimpleMath.cpp -o CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.s
 
 CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o.requires:
 
@@ -310,16 +310,16 @@ CMakeFiles/nn_ops.dir/common/operations/SimpleMath.cpp.o.provides.build: CMakeFi
 CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o: ../common/OperationsUtils.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/OperationsUtils.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/OperationsUtils.cpp
 
 CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/OperationsUtils.cpp > CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/OperationsUtils.cpp > CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.i
 
 CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/OperationsUtils.cpp -o CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/OperationsUtils.cpp -o CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.s
 
 CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o.requires:
 
@@ -335,16 +335,16 @@ CMakeFiles/nn_ops.dir/common/OperationsUtils.cpp.o.provides.build: CMakeFiles/nn
 CMakeFiles/nn_ops.dir/common/Utils.cpp.o: CMakeFiles/nn_ops.dir/flags.make
 CMakeFiles/nn_ops.dir/common/Utils.cpp.o: CMakeFiles/nn_ops.dir/includes_CXX.rsp
 CMakeFiles/nn_ops.dir/common/Utils.cpp.o: ../common/Utils.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object CMakeFiles/nn_ops.dir/common/Utils.cpp.o"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/Utils.cpp.o -c /home/gwy/Documents/webml/googleSouce1/ml/nn/common/Utils.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object CMakeFiles/nn_ops.dir/common/Utils.cpp.o"
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/nn_ops.dir/common/Utils.cpp.o -c /home/gwy/Documents/webml/webml-wasm/ml/nn/common/Utils.cpp
 
 CMakeFiles/nn_ops.dir/common/Utils.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/nn_ops.dir/common/Utils.cpp.i"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/googleSouce1/ml/nn/common/Utils.cpp > CMakeFiles/nn_ops.dir/common/Utils.cpp.i
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/gwy/Documents/webml/webml-wasm/ml/nn/common/Utils.cpp > CMakeFiles/nn_ops.dir/common/Utils.cpp.i
 
 CMakeFiles/nn_ops.dir/common/Utils.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/nn_ops.dir/common/Utils.cpp.s"
-	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/googleSouce1/ml/nn/common/Utils.cpp -o CMakeFiles/nn_ops.dir/common/Utils.cpp.s
+	/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/gwy/Documents/webml/webml-wasm/ml/nn/common/Utils.cpp -o CMakeFiles/nn_ops.dir/common/Utils.cpp.s
 
 CMakeFiles/nn_ops.dir/common/Utils.cpp.o.requires:
 
@@ -390,7 +390,7 @@ nn_ops.js: CMakeFiles/nn_ops.dir/common/Utils.cpp.o
 nn_ops.js: CMakeFiles/nn_ops.dir/build.make
 nn_ops.js: CMakeFiles/nn_ops.dir/objects1.rsp
 nn_ops.js: CMakeFiles/nn_ops.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Linking CXX executable nn_ops.js"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Linking CXX executable nn_ops.js"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/nn_ops.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -418,6 +418,6 @@ CMakeFiles/nn_ops.dir/clean:
 .PHONY : CMakeFiles/nn_ops.dir/clean
 
 CMakeFiles/nn_ops.dir/depend:
-	cd /home/gwy/Documents/webml/googleSouce1/ml/nn/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/gwy/Documents/webml/googleSouce1/ml/nn /home/gwy/Documents/webml/googleSouce1/ml/nn /home/gwy/Documents/webml/googleSouce1/ml/nn/build /home/gwy/Documents/webml/googleSouce1/ml/nn/build /home/gwy/Documents/webml/googleSouce1/ml/nn/build/CMakeFiles/nn_ops.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/gwy/Documents/webml/webml-wasm/ml/nn/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/gwy/Documents/webml/webml-wasm/ml/nn /home/gwy/Documents/webml/webml-wasm/ml/nn /home/gwy/Documents/webml/webml-wasm/ml/nn/build /home/gwy/Documents/webml/webml-wasm/ml/nn/build /home/gwy/Documents/webml/webml-wasm/ml/nn/build/CMakeFiles/nn_ops.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/nn_ops.dir/depend
 

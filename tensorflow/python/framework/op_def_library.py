@@ -482,8 +482,7 @@ class OpDefLibrary(object):
               else:
                 raise TypeError("%s that don't all match." % prefix)
             else:
-              raise TypeError(
-                  "%s that are invalid. Tensors: %s" % (prefix, values))
+              raise TypeError("%s that are invalid." % prefix)
 
           types = [x.dtype for x in values]
           inputs.extend(values)

@@ -37,7 +37,7 @@ string GetLocalDeviceName(StringPiece fullname) {
   auto pos = fullname.rfind('/');
   CHECK_NE(pos, StringPiece::npos);
   fullname.remove_prefix(pos + 1);
-  return string(fullname);
+  return std::string(fullname);
 }
 
 class RemoteDevice : public Device {

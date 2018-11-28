@@ -20,7 +20,6 @@ limitations under the License.
 #include <string>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/refcount.h"
@@ -89,15 +88,6 @@ class DeviceContext : public core::RefCounted {
                                      StringPiece tensor_name, Device* device,
                                      Tensor* cpu_tensor, StatusCallback done) {
     done(errors::Internal("Unrecognized device type in device-to-CPU Copy"));
-  }
-
-  // If possible, wait for all events on *stream to complete then execute func.
-  // A non-OK Status is returned otherwise.  The stream argument should be the
-  // one provided by GpuDeviceInfo.  This function is not applicable to devices
-  // that don't provide such a value.
-  virtual Status ThenExecute(Device* device, stream_executor::Stream* stream,
-                             std::function<void()> func) {
-    return errors::Internal("ThenExecute not supported by device");
   }
 };
 
@@ -177,9 +167,9 @@ class DeviceBase {
     return nullptr;
   }
 
+  // DEPRECATED: Use `this->GetAllocator()` or `this->GetScopedAllocator()`.
   // This method is provided for backwards compatibility, and will be removed
   // in a future release.
-  ABSL_DEPRECATED("Use `this->GetAllocator()` or `this->GetScopedAllocator()`.")
   Allocator* GetStepAllocator(AllocatorAttributes attr, ResourceMgr*) {
     return GetAllocator(attr);
   }
@@ -194,7 +184,9 @@ class DeviceBase {
 
   virtual ScopedAllocatorMgr* GetScopedAllocatorMgr() const { return nullptr; }
 
-  bool has_eigen_cpu_device() const { return !eigen_cpu_devices_.empty(); }
+  const bool has_eigen_cpu_device() const {
+    return !eigen_cpu_devices_.empty();
+  }
 
   virtual const Eigen::ThreadPoolDevice* eigen_cpu_device();
 
@@ -215,12 +207,10 @@ class DeviceBase {
 
   // This is overridden by GPU devices to reinitialize the derived
   // type returned by MakeGpuDevice.
-  virtual Status ReinitializeGpuDevice(OpKernelContext* /*context*/,
-                                       PerOpGpuDevice* /*device*/,
-                                       DeviceContext* /*dc*/,
-                                       Allocator* /*allocator*/) {
-    return Status::OK();
-  }
+  virtual void ReinitializeGpuDevice(OpKernelContext* /*context*/,
+                                     PerOpGpuDevice* /*device*/,
+                                     DeviceContext* /*dc*/,
+                                     Allocator* /*allocator*/) {}
 
   // Unimplemented by default
   virtual const DeviceAttributes& attributes() const;

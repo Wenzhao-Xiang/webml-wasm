@@ -24,7 +24,6 @@ limitations under the License.
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/core/stringpiece.h"
-#include "tensorflow/core/platform/cord.h"
 #include "tensorflow/core/platform/file_statistics.h"
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/platform.h"
@@ -253,15 +252,7 @@ class WritableFile {
   virtual ~WritableFile();
 
   /// \brief Append 'data' to the file.
-  virtual Status Append(StringPiece data) = 0;
-
-  // TODO(ebrevdo): Remove this ifdef when absl is updated.
-#if defined(PLATFORM_GOOGLE)
-  // \brief Append 'data' to the file.
-  virtual Status Append(const absl::Cord& cord) {
-    return errors::Unimplemented("Append(absl::Cord) is not implemented");
-  }
-#endif
+  virtual Status Append(const StringPiece& data) = 0;
 
   /// \brief Close the file.
   ///

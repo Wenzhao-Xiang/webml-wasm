@@ -26,81 +26,25 @@ limitations under the License.
 #include "tensorflow/core/lib/strings/str_util.h"
 
 namespace tensorflow {
+
 namespace {
-// Split input string `str` based on a character delimiter.
-// Returns a vector of StringPieces which are valid as long as input `str`
-// is valid.
-// Note: The single character delimiter is a common case and is implemented as
-// a series of finds in the input string, making it much more effcient than
-// SplitOnCharSet.
-template <typename Predicate>
-std::vector<StringPiece> SplitOnChar(const string& str, const char delim,
-                                     Predicate p) {
-  std::vector<StringPiece> result;
-  StringPiece text(str);
-  auto f = text.find(delim);
-  while (f != StringPiece::npos) {
-    StringPiece token = text.substr(0, f);
-    if (p(token)) {
-      result.emplace_back(token);
+
+std::vector<string> Split(const string& str, const string& delimiter,
+                          const bool skipEmpty) {
+  if (!delimiter.empty()) {
+    if (skipEmpty) {
+      return str_util::Split(str, delimiter, str_util::SkipEmpty());
     }
-    text.remove_prefix(f + 1);
-    f = text.find(delim);
+    return str_util::Split(str, delimiter);
   }
-  if (p(text)) {
-    result.push_back(text);
+  std::vector<string> char_vector(str.size());
+  for (size_t i = 0; i < str.size(); ++i) {
+    char_vector[i] = str[i];
   }
-  return result;
+  return char_vector;
 }
 
-// Split input string `str` based on a set of character delimiters.
-// Returns a vector of StringPieces which are valid as long as input `str`
-// is valid.
-// Based on str_util::Split.
-template <typename Predicate>
-std::vector<StringPiece> SplitOnCharSet(const string& str,
-                                        const string& delim_set, Predicate p) {
-  std::vector<StringPiece> result;
-  StringPiece text(str);
-  StringPiece delims(delim_set);
-  size_t token_start = 0;
-  for (size_t i = 0; i < text.size() + 1; i++) {
-    if ((i == text.size()) || (delims.find(text[i]) != StringPiece::npos)) {
-      StringPiece token(text.data() + token_start, i - token_start);
-      if (p(token)) {
-        result.emplace_back(token);
-      }
-      token_start = i + 1;
-    }
-  }
-  return result;
-}
-
-// Split input string `str` based on given delimiter.
-// Returns a vector of StringPieces which are valid as long as input `str`
-// is valid.
-template <typename Predicate>
-std::vector<StringPiece> Split(const string& str, const string& delimiter,
-                               Predicate predicate) {
-  if (str.empty()) {
-    return std::vector<StringPiece>();
-  }
-  if (delimiter.empty()) {
-    std::vector<StringPiece> result;
-    result.resize(str.size());
-    for (size_t i = 0; i < str.size(); ++i) {
-      result[i] = StringPiece(str.data() + i, 1);
-    }
-    return result;
-  }
-  if (delimiter.size() == 1) {
-    return SplitOnChar(str, delimiter[0], predicate);
-  }
-  return SplitOnCharSet(str, delimiter, predicate);
-}
-
-std::vector<StringPiece> SplitV2(const string& str, StringPiece sep,
-                                 int maxsplit) {
+std::vector<string> SplitV2(const string& str, StringPiece sep, int maxsplit) {
   // This SplitV2 method matches the behavior of python's str.split:
   //   If sep is given, consecutive delimiters are not grouped together
   //   and are deemed to delimit empty strings (for example, '1,,2'.split(',')
@@ -115,11 +59,11 @@ std::vector<StringPiece> SplitV2(const string& str, StringPiece sep,
   //   splitting an empty string or a string consisting of just whitespace
   //   with a None separator returns [].
 
-  std::vector<StringPiece> result;
+  std::vector<string> result;
 
   StringPiece text(str);
   if (maxsplit == 0) {
-    result.emplace_back(text);
+    result.emplace_back(std::string(text));
     return result;
   }
 
@@ -129,11 +73,11 @@ std::vector<StringPiece> SplitV2(const string& str, StringPiece sep,
     str_util::RemoveLeadingWhitespace(&text);
     int split = 0;
     while (str_util::ConsumeNonWhitespace(&text, &token)) {
-      result.push_back(token);
+      result.emplace_back(std::string(token));
       str_util::RemoveLeadingWhitespace(&text);
       ++split;
       if (maxsplit > 0 && split == maxsplit) {
-        result.push_back(text);
+        result.emplace_back(std::string(text));
         return result;
       }
     }
@@ -143,17 +87,17 @@ std::vector<StringPiece> SplitV2(const string& str, StringPiece sep,
   int split = 0;
   while (p != text.end()) {
     StringPiece token = text.substr(0, p - text.begin());
-    result.push_back(token);
+    result.emplace_back(std::string(token));
     text.remove_prefix(token.size());
     text.remove_prefix(sep.size());
     ++split;
     if (maxsplit > 0 && split == maxsplit) {
-      result.push_back(StringPiece(text));
+      result.emplace_back(std::string(text));
       return result;
     }
     p = std::search(text.begin(), text.end(), sep.begin(), sep.end());
   }
-  result.push_back(text);
+  result.emplace_back(std::string(text));
   return result;
 }
 
@@ -190,7 +134,7 @@ class StringSplitOp : public OpKernel {
     const auto delimiter_vec = delimiter_tensor->flat<string>();
     const string& delimiter = delimiter_vec(0);
     // Empty delimiter means split the input character by character.
-    std::vector<StringPiece> tokens;
+    std::vector<string> tokens;
     // Guess that we'll be unpacking a handful of tokens per example.
     static constexpr int kReserveSize = 4;
     tokens.reserve(batch_size * kReserveSize);
@@ -199,15 +143,12 @@ class StringSplitOp : public OpKernel {
     int64 max_num_entries = 0;
     std::vector<int64> num_indices(batch_size);
     for (int64 i = 0; i < batch_size; ++i) {
-      std::vector<StringPiece> parts =
-          skip_empty_ ? Split(input_vec(i), delimiter, str_util::SkipEmpty())
-                      : Split(input_vec(i), delimiter, str_util::AllowEmpty());
+      std::vector<string> parts = Split(input_vec(i), delimiter, skip_empty_);
       int64 n_entries = parts.size();
       num_indices[i] = n_entries;
       output_size += n_entries;
       max_num_entries = std::max(max_num_entries, n_entries);
-      tokens.insert(tokens.end(), std::make_move_iterator(parts.begin()),
-                    std::make_move_iterator(parts.end()));
+      tokens.insert(tokens.end(), parts.begin(), parts.end());
     }
 
     Tensor* sp_indices_t;
@@ -229,7 +170,7 @@ class StringSplitOp : public OpKernel {
       for (size_t j = 0; j < num_indices[i]; ++j) {
         sp_indices(c, 0) = i;
         sp_indices(c, 1) = j;
-        sp_tokens(c).assign(tokens[c].data(), tokens[c].size());
+        sp_tokens(c) = tokens[c];
         ++c;
       }
     }
@@ -263,7 +204,7 @@ class StringSplitV2Op : public OpKernel {
                                         sep_tensor->shape().DebugString()));
     const auto sep_vec = sep_tensor->flat<string>();
     StringPiece sep(sep_vec(0));
-    std::vector<StringPiece> tokens;
+    std::vector<string> tokens;
     // Guess that we'll be unpacking a handful of tokens per example.
     static constexpr int kReserveSize = 4;
     tokens.reserve(batch_size * kReserveSize);
@@ -272,7 +213,7 @@ class StringSplitV2Op : public OpKernel {
     int64 max_num_entries = 0;
     std::vector<int64> num_indices(batch_size);
     for (int64 i = 0; i < batch_size; ++i) {
-      std::vector<StringPiece> parts = SplitV2(input_vec(i), sep, maxsplit_);
+      std::vector<string> parts = SplitV2(input_vec(i), sep, maxsplit_);
       int64 n_entries = parts.size();
       num_indices[i] = n_entries;
       output_size += n_entries;
@@ -299,7 +240,7 @@ class StringSplitV2Op : public OpKernel {
       for (size_t j = 0; j < num_indices[i]; ++j) {
         sp_indices(c, 0) = i;
         sp_indices(c, 1) = j;
-        sp_tokens(c).assign(tokens[c].data(), tokens[c].size());
+        sp_tokens(c) = tokens[c];
         ++c;
       }
     }

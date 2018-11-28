@@ -60,7 +60,7 @@ class ParallelTaskAssignment {
 // own embedded computation, which is compiled as a parallel compute function,
 // and which is invoked from a kCall instruction that is lowered in codegen to
 // a runtime parallel fork/join call.
-class ParallelTaskAssigner : public HloModulePass {
+class ParallelTaskAssigner : public HloPassInterface {
  public:
   // 'max_parallelism': the maximum parallel task count per instruction.
   // 'shape_size': shape size function used by HloCostAnalysis during parallel
@@ -73,7 +73,7 @@ class ParallelTaskAssigner : public HloModulePass {
         target_machine_features_(*target_machine_features) {}
   ~ParallelTaskAssigner() override {}
 
-  absl::string_view name() const override {
+  tensorflow::StringPiece name() const override {
     return "cpu-parallel-task-assigner";
   }
 

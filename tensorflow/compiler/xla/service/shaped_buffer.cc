@@ -18,18 +18,19 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "absl/container/flat_hash_set.h"
-#include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
-#include "absl/strings/str_format.h"
 #include "tensorflow/compiler/xla/layout_util.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/status_macros.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/util.h"
+#include "tensorflow/core/lib/gtl/flatset.h"
+#include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace xla {
+
+using ::tensorflow::strings::Appendf;
 
 ShapedBuffer::ShapedBuffer(const Shape& on_host_shape,
                            const Shape& on_device_shape,
@@ -75,7 +76,7 @@ void ShapedBuffer::clear() {
 }
 
 string ShapedBuffer::ToString() const {
-  string s = absl::StrCat(
+  string s = tensorflow::strings::StrCat(
       "ShapedBuffer(", platform_->Name(), ":", device_ordinal(),
       "), on-host shape=" + ShapeUtil::HumanStringWithLayout(on_host_shape()),
       ", on-device shape=" +
@@ -91,9 +92,9 @@ string ShapedBuffer::ToString() const {
           shape_str = ShapeUtil::HumanStringWithLayout(subshape);
         }
         const se::DeviceMemoryBase& memory = buffer(index);
-        absl::StrAppendFormat(&s, "  %s%p (%d bytes) : %s\n",
-                              string(index.size() * 2, ' '), memory.opaque(),
-                              memory.size(), shape_str);
+        Appendf(&s, "  %s%p (%lld bytes) : %s\n",
+                string(index.size() * 2, ' ').c_str(), memory.opaque(),
+                memory.size(), shape_str.c_str());
       });
   return s;
 }
@@ -147,7 +148,7 @@ void ScopedShapedBuffer::Deallocate() {
   // Deallocate all non-null buffers. A buffer may appear in more than one spot
   // in the shape (eg, a tuple with a repeated element) so keep track of what
   // has been deallocated.
-  absl::flat_hash_set<void*> deallocated_ptrs;
+  tensorflow::gtl::FlatSet<void*> deallocated_ptrs;
   for (auto& pair : buffers_) {
     se::DeviceMemoryBase& memory_base = pair.second;
     if (!memory_base.is_null() &&

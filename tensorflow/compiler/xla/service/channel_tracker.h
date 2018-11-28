@@ -18,12 +18,12 @@ limitations under the License.
 
 #include <map>
 
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/service/hlo_module.h"
 #include "tensorflow/compiler/xla/status.h"
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/thread_annotations.h"
@@ -48,12 +48,11 @@ class ChannelTracker {
   struct Channel {
     bool has_sender;
     int64 receiver_count;
-    ChannelHandle::ChannelType type;
   };
 
   // Creates a new Channel object and returns the corresponding
   // ChannelHandle for it.
-  StatusOr<ChannelHandle> NewChannel(ChannelHandle::ChannelType type);
+  ChannelHandle NewChannel();
 
   // Informs that the given channel handle is used for a Send operation.
   // Returns an error status if the handle is already used by another Send.
@@ -66,8 +65,7 @@ class ChannelTracker {
  private:
   // Bumps the next_channel_ number and returns the allocated number
   // wrapped in a ChannelHandle.
-  ChannelHandle AllocateHandle(ChannelHandle::ChannelType type)
-      EXCLUSIVE_LOCKS_REQUIRED(channel_mutex_);
+  ChannelHandle AllocateHandle() EXCLUSIVE_LOCKS_REQUIRED(channel_mutex_);
 
   Status RegisterSendInternal(const ChannelHandle& handle)
       EXCLUSIVE_LOCKS_REQUIRED(channel_mutex_);

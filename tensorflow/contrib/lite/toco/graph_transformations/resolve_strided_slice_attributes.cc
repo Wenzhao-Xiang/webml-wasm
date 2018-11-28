@@ -37,47 +37,40 @@ int PadAttributeArray(Array* attribute_array, std::vector<int> pad_values,
   return mask;
 }
 
-::tensorflow::Status ResolveStridedSliceAttributes::Run(Model* model,
-                                                        std::size_t op_index,
-                                                        bool* modified) {
-  *modified = false;
+bool ResolveStridedSliceAttributes::Run(Model* model, std::size_t op_index) {
   const auto slice_it = model->operators.begin() + op_index;
   auto* slice_op = slice_it->get();
-  if (slice_op->type != OperatorType::kStridedSlice)
-    return ::tensorflow::Status::OK();
+  if (slice_op->type != OperatorType::kStridedSlice) return false;
 
   auto* op = static_cast<StridedSliceOperator*>(slice_op);
   if (!op->start_indices.empty()) {
     // We have already resolved these attributes
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK_EQ(op->inputs.size(), 4);
   const auto& input_array = model->GetArray(op->inputs[0]);
   if (!input_array.has_shape()) {
     // We require the dimensionality of the input to pad the indices
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   auto& start_array = model->GetArray(op->inputs[1]);
-  if (!start_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!start_array.has_shape()) return false;
   if (toco::RequiredBufferSizeForShape(start_array.shape()) > 4) {
     // Only 1-4D arrays are supported for now.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   auto& stop_array = model->GetArray(op->inputs[2]);
-  if (!stop_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!stop_array.has_shape()) return false;
 
   auto& stride_array = model->GetArray(op->inputs[3]);
-  if (!stride_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!stride_array.has_shape()) return false;
 
-  if (!IsConstantParameterArray(*model, op->inputs[1]))
-    return ::tensorflow::Status::OK();
-  if (!IsConstantParameterArray(*model, op->inputs[2]))
-    return ::tensorflow::Status::OK();
-  if (!IsConstantParameterArray(*model, op->inputs[3]))
-    return ::tensorflow::Status::OK();
+  if (!IsConstantParameterArray(*model, op->inputs[1])) return false;
+  if (!IsConstantParameterArray(*model, op->inputs[2])) return false;
+  if (!IsConstantParameterArray(*model, op->inputs[3])) return false;
 
   int num_input_axes = input_array.shape().dimensions_count();
   int start_indices_size = start_array.shape().dims(0);
@@ -119,7 +112,6 @@ int PadAttributeArray(Array* attribute_array, std::vector<int> pad_values,
   op->stop_indices = stop_array.GetBuffer<ArrayDataType::kInt32>().data;
   op->strides = stride_array.GetBuffer<ArrayDataType::kInt32>().data;
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 }  // namespace toco

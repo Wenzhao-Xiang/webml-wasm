@@ -147,7 +147,6 @@ py_library(
     deps = [
         ":distillation_loss",
         ":estimator_utils",
-        ":model",
         ":trainer_hooks",
         "//tensorflow/contrib/boosted_trees:gbdt_batch",
         "//tensorflow/contrib/boosted_trees:model_ops_py",
@@ -173,7 +172,6 @@ py_library(
 py_test(
     name = "dnn_tree_combined_estimator_test",
     size = "medium",
-    timeout = "long",
     srcs = ["dnn_tree_combined_estimator_test.py"],
     srcs_version = "PY2AND3",
     tags = [
@@ -192,7 +190,7 @@ py_test(
 
 py_test(
     name = "estimator_test",
-    size = "large",
+    size = "medium",
     srcs = ["estimator_test.py"],
     srcs_version = "PY2AND3",
     tags = [

@@ -183,7 +183,7 @@ class UnidirectionalRNNOpModel : public SingleOpModel {
     weights_ = AddInput(weights);
     recurrent_weights_ = AddInput(recurrent_weights);
     bias_ = AddInput(TensorType_FLOAT32);
-    hidden_state_ = AddInput(TensorType_FLOAT32, true);
+    hidden_state_ = AddOutput(TensorType_FLOAT32);
     output_ = AddOutput(TensorType_FLOAT32);
     SetBuiltinOp(BuiltinOperator_UNIDIRECTIONAL_SEQUENCE_RNN,
                  BuiltinOptions_SequenceRNNOptions,
@@ -194,14 +194,12 @@ class UnidirectionalRNNOpModel : public SingleOpModel {
       BuildInterpreter({{sequence_len_, batches_, input_size_},
                         {units_, input_size_},
                         {units_, units_},
-                        {units_},
-                        {batches_, units}});
+                        {units_}});
     } else {
       BuildInterpreter({{batches_, sequence_len_, input_size_},
                         {units_, input_size_},
                         {units_, units_},
-                        {units_},
-                        {batches_, units_}});
+                        {units_}});
     }
   }
 
@@ -221,6 +219,14 @@ class UnidirectionalRNNOpModel : public SingleOpModel {
 
   void SetInput(int offset, float* begin, float* end) {
     PopulateTensor(input_, offset, begin, end);
+  }
+
+  void ResetHiddenState() {
+    const int zero_buffer_size = units_ * batches_;
+    std::unique_ptr<float[]> zero_buffer(new float[zero_buffer_size]);
+    memset(zero_buffer.get(), 0, zero_buffer_size * sizeof(float));
+    PopulateTensor(hidden_state_, 0, zero_buffer.get(),
+                   zero_buffer.get() + zero_buffer_size);
   }
 
   std::vector<float> GetOutput() { return ExtractVector<float>(output_); }
@@ -267,6 +273,7 @@ TEST(UnidirectionalRNNOpTest, BlackBoxTest) {
   rnn.SetWeights(rnn_weights);
   rnn.SetBias(rnn_bias);
   rnn.SetRecurrentWeights(rnn_recurrent_weights);
+  rnn.ResetHiddenState();
 
   const int input_sequence_size = rnn.input_size() * rnn.sequence_len();
   float* batch_start = rnn_input;
@@ -292,6 +299,7 @@ TEST(HybridUnidirectionalRNNOpModelOpTest, BlackBoxTest) {
   rnn.SetWeights(rnn_weights);
   rnn.SetBias(rnn_bias);
   rnn.SetRecurrentWeights(rnn_recurrent_weights);
+  rnn.ResetHiddenState();
 
   const int input_sequence_size = rnn.input_size() * rnn.sequence_len();
   float* batch_start = rnn_input;
@@ -318,6 +326,7 @@ TEST(UnidirectionalRNNOpTest, TimeMajorBlackBoxTest) {
   rnn.SetWeights(rnn_weights);
   rnn.SetBias(rnn_bias);
   rnn.SetRecurrentWeights(rnn_recurrent_weights);
+  rnn.ResetHiddenState();
 
   for (int i = 0; i < rnn.sequence_len(); i++) {
     float* batch_start = rnn_input + i * rnn.input_size();
@@ -347,6 +356,7 @@ TEST(HybridUnidirectionalRNNOpModelOpTest, TimeMajorBlackBoxTest) {
   rnn.SetWeights(rnn_weights);
   rnn.SetBias(rnn_bias);
   rnn.SetRecurrentWeights(rnn_recurrent_weights);
+  rnn.ResetHiddenState();
 
   for (int i = 0; i < rnn.sequence_len(); i++) {
     float* batch_start = rnn_input + i * rnn.input_size();

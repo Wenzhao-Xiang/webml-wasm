@@ -1,5 +1,4 @@
 load("//tensorflow:tensorflow.bzl", "py_test")
-load("//tensorflow:tensorflow.bzl", "py_binary")
 
 package(
     default_visibility = ["//tensorflow:internal"],
@@ -17,7 +16,6 @@ config_setting(
 py_binary(
     name = "predict",
     srcs = ["predict.py"],
-    data = ["data/period_trend.csv"],
     srcs_version = "PY2AND3",
     tags = ["no_pip"],
     deps = select({

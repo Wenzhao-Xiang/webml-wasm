@@ -18,7 +18,7 @@ limitations under the License.
 namespace xla {
 
 HloReachabilityMap::HloReachabilityMap(
-    absl::Span<const HloInstruction* const> instructions)
+    tensorflow::gtl::ArraySlice<const HloInstruction*> instructions)
     : size_(instructions.size()) {
   bit_vectors_.reserve(size_);
   for (const HloInstruction* hlo : instructions) {
@@ -29,7 +29,7 @@ HloReachabilityMap::HloReachabilityMap(
 }
 
 bool HloReachabilityMap::SetReachabilityToUnion(
-    absl::Span<const HloInstruction* const> inputs,
+    tensorflow::gtl::ArraySlice<const HloInstruction*> inputs,
     const HloInstruction* instruction) {
   BitVector& bit_vector = GetBitVector(instruction);
   tmp_bit_vector_ = bit_vector;
@@ -38,13 +38,13 @@ bool HloReachabilityMap::SetReachabilityToUnion(
 }
 
 void HloReachabilityMap::FastSetReachabilityToUnion(
-    absl::Span<const HloInstruction* const> inputs,
+    tensorflow::gtl::ArraySlice<const HloInstruction*> inputs,
     const HloInstruction* instruction) {
   SetReachabilityToUnionHelper(inputs, instruction, &GetBitVector(instruction));
 }
 
 void HloReachabilityMap::SetReachabilityToUnionHelper(
-    absl::Span<const HloInstruction* const> inputs,
+    tensorflow::gtl::ArraySlice<const HloInstruction*> inputs,
     const HloInstruction* instruction, BitVector* bit_vector) {
   // If instruction is part of inputs, don't reset the bit_vector.
   if (std::find(inputs.begin(), inputs.end(), instruction) == inputs.end()) {

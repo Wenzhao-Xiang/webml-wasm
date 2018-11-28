@@ -108,9 +108,8 @@ namespace toco {
 // we can foresee these 'fast int8 kernels' to remain important to have into
 // the 2020s.
 //
-::tensorflow::Status EnsureUint8WeightsSafeForFastInt8Kernels::Run(
-    Model* model, std::size_t op_index, bool* modified) {
-  *modified = false;
+bool EnsureUint8WeightsSafeForFastInt8Kernels::Run(Model* model,
+                                                   std::size_t op_index) {
   const auto& op = *model->operators[op_index];
   int weights_index = 0;
   switch (op.type) {
@@ -149,16 +148,16 @@ namespace toco {
       // That's why at the moment we only handle operators that use a GEMM
       // (Conv, fully-connected --- note that LSTM merely wraps a
       // fully-connected operator).
-      return ::tensorflow::Status::OK();
+      return false;
   }
 
   const string& name = op.inputs[weights_index];
   auto& array = model->GetArray(name);
   if (!array.buffer) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (array.data_type != ArrayDataType::kUint8) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto& buffer_data = array.GetMutableBuffer<ArrayDataType::kUint8>().data;
 
@@ -182,7 +181,7 @@ namespace toco {
         // future without worrying.
         static constexpr int kMinDistanceBetweenBadValues = 16;
         if (distance < kMinDistanceBetweenBadValues) {
-          if (allow_nudging_weights() || has_default_ranges_flag()) {
+          if (allow_nudging_weights()) {
             buffer_data[i] = 1;
             changed = true;
             continue;
@@ -201,20 +200,10 @@ namespace toco {
   }
 
   if (changed) {
-    if (has_default_ranges_flag()) {
-      std::cerr
-          << "Since the specified values of --default_ranges_min and "
-             "--default_ranges_max result in values incompatible with TFLite's "
-             "fast int8 kernels, "
-             "--allow_nudging_weights_to_use_fast_gemm_kernel "
-             "has been enabled. This may affect the accuracy of the model."
-          << std::endl;
-    }
     AddMessageF("Tweaked weights values for %s", LogName(op));
   }
 
-  *modified = changed;
-  return ::tensorflow::Status::OK();
+  return changed;
 }
 
 }  // namespace toco

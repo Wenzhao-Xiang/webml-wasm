@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <cinttypes>
 #include <string>
 #include <vector>
 
@@ -33,7 +32,7 @@ bool ParseStringFlag(tensorflow::StringPiece arg, tensorflow::StringPiece flag,
   if (str_util::ConsumePrefix(&arg, "--") &&
       str_util::ConsumePrefix(&arg, flag) &&
       str_util::ConsumePrefix(&arg, "=")) {
-    *value_parsing_ok = hook(string(arg));
+    *value_parsing_ok = hook(std::string(arg));
     return true;
   }
 
@@ -71,7 +70,7 @@ bool ParseInt64Flag(tensorflow::StringPiece arg, tensorflow::StringPiece flag,
       str_util::ConsumePrefix(&arg, "=")) {
     char extra;
     int64_t parsed_int64;
-    if (sscanf(arg.data(), "%" SCNd64 "%c", &parsed_int64, &extra) != 1) {
+    if (sscanf(arg.data(), "%ld%c", &parsed_int64, &extra) != 1) {
       LOG(ERROR) << "Couldn't interpret value " << arg << " for flag " << flag
                  << ".";
       *value_parsing_ok = false;

@@ -23,11 +23,11 @@ limitations under the License.
 
 namespace tensorflow {
 
-bool Variant::Decode(VariantTensorData data) {
-  if (!is_empty()) {
-    return value_->Decode(std::move(data));
-  }
-  return true;
+bool Variant::TryDecode(Variant* out) const {
+  const VariantTensorDataProto* p = get<VariantTensorDataProto>();
+  if (p == nullptr) return false;
+  VariantTensorData data(*p);
+  return out->Decode(data);
 }
 
 template <>
@@ -54,12 +54,13 @@ string TypeNameVariant(const VariantTensorDataProto& value) {
 template <>
 void EncodeVariant(const VariantTensorDataProto& value,
                    VariantTensorData* data) {
-  data->FromConstProto(value);
+  data->FromProto(value);
 }
 
 template <>
-bool DecodeVariant(VariantTensorData* data, VariantTensorDataProto* value) {
-  data->ToProto(value);
+bool DecodeVariant(const VariantTensorData& data,
+                   VariantTensorDataProto* value) {
+  data.ToProto(value);
   return true;
 }
 
@@ -69,8 +70,8 @@ void EncodeVariant(const VariantTensorDataProto& value, string* buf) {
 }
 
 template <>
-bool DecodeVariant(string* buf, VariantTensorDataProto* value) {
-  return value->ParseFromString(*buf);
+bool DecodeVariant(const string& buf, VariantTensorDataProto* value) {
+  return value->ParseFromString(buf);
 }
 
 void EncodeVariantList(const Variant* variant_array, int64 n,
@@ -92,10 +93,8 @@ bool DecodeVariantList(std::unique_ptr<port::StringListDecoder> d,
     if (variant_array[i].is_empty()) {
       variant_array[i] = VariantTensorDataProto();
     }
-    // TODO(ebrevdo): Replace with StringPiece?  Any way to make this a
-    // zero-copy operation that keeps a reference to the data in d?
     string str(d->Data(sizes[i]), sizes[i]);
-    if (!variant_array[i].Decode(std::move(str))) return false;
+    if (!variant_array[i].Decode(str)) return false;
     if (!DecodeUnaryVariant(&variant_array[i])) {
       LOG(ERROR) << "Could not decode variant with type_name: \""
                  << variant_array[i].TypeName()

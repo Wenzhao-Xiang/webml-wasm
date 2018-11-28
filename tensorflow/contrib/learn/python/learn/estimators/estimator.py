@@ -72,7 +72,6 @@ from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.summary import summary as core_summary
 from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import device_setter
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import saver
@@ -892,7 +891,7 @@ class BaseEstimator(sklearn.BaseEstimator, evaluable.Evaluable,
 
     # Check that model has been trained (if nothing has been set explicitly).
     if not checkpoint_path:
-      latest_path = checkpoint_management.latest_checkpoint(self._model_dir)
+      latest_path = saver.latest_checkpoint(self._model_dir)
       if not latest_path:
         raise NotFittedError(
             "Couldn't find trained model at %s." % self._model_dir)
@@ -957,7 +956,7 @@ class BaseEstimator(sklearn.BaseEstimator, evaluable.Evaluable,
                    as_iterable=True,
                    iterate_batches=False):
     # Check that model has been trained.
-    checkpoint_path = checkpoint_management.latest_checkpoint(self._model_dir)
+    checkpoint_path = saver.latest_checkpoint(self._model_dir)
     if not checkpoint_path:
       raise NotFittedError(
           "Couldn't find trained model at %s." % self._model_dir)
@@ -1365,7 +1364,7 @@ class Estimator(BaseEstimator):
 
     if not checkpoint_path:
       # Locate the latest checkpoint
-      checkpoint_path = checkpoint_management.latest_checkpoint(self._model_dir)
+      checkpoint_path = saver.latest_checkpoint(self._model_dir)
     if not checkpoint_path:
       raise NotFittedError(
           "Couldn't find trained model at %s." % self._model_dir)
@@ -1433,12 +1432,13 @@ class Estimator(BaseEstimator):
                            'must specify no transforms.')
         untransformed_tags = graph_rewrite_specs[0].tags
 
+        # TODO(soergel): switch to main_op or otherwise update when dust settles
         builder.add_meta_graph_and_variables(
             session,
             untransformed_tags,
             signature_def_map=signature_def_map,
             assets_collection=ops.get_collection(ops.GraphKeys.ASSET_FILEPATHS),
-            main_op=init_op,
+            legacy_init_op=init_op,
             strip_default_attrs=strip_default_attrs)
 
     # pylint: disable=protected-access

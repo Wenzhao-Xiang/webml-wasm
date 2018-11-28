@@ -71,7 +71,7 @@ class LocalWinFileSystem : public WindowsFileSystem {
   string TranslateName(const string& name) const override {
     StringPiece scheme, host, path;
     io::ParseURI(name, &scheme, &host, &path);
-    return string(path);
+    return path.ToString();
   }
 };
 

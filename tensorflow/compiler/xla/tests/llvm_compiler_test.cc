@@ -14,11 +14,10 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/compiler/xla/service/llvm_compiler.h"
-#include "absl/memory/memory.h"
 #include "tensorflow/compiler/xla/literal_util.h"
 #include "tensorflow/compiler/xla/service/backend.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_compiler.h"
-#include "tensorflow/compiler/xla/service/gpu/nvptx_compiler.h"
+#include "tensorflow/compiler/xla/service/gpu/gpu_compiler.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 #include "tensorflow/compiler/xla/service/platform_util.h"
 #include "tensorflow/compiler/xla/test_helpers.h"
@@ -93,16 +92,15 @@ class LLVMCompilerTest : public ::testing::Test {
     std::unique_ptr<HloModule> hlo_module = CreateNewModule();
     hlo_module->AddEntryComputation(builder.Build());
 
-    auto module_group = absl::make_unique<HloModuleGroup>("test_module_group");
-    module_group->push_back(hlo_module->Clone());
-    module_group->push_back(std::move(hlo_module));
+    std::vector<std::unique_ptr<HloModule>> modules;
+    modules.push_back(hlo_module->Clone());
+    modules.push_back(std::move(hlo_module));
 
     std::vector<std::vector<se::StreamExecutor *>> executors;
     executors.push_back({backend_->default_stream_executor()});
     executors.push_back({backend_->default_stream_executor()});
 
-    EXPECT_IS_OK(compiler->Compile(std::move(module_group),
-                                   std::move(executors),
+    EXPECT_IS_OK(compiler->Compile(std::move(modules), std::move(executors),
                                    /*device_allocator=*/nullptr));
   }
 
@@ -127,7 +125,7 @@ class LLVMCompilerTest : public ::testing::Test {
   static std::unique_ptr<HloModule> CreateNewModule() {
     HloModuleConfig config;
     config.set_debug_options(legacy_flags::GetDebugOptionsFromFlags());
-    return absl::make_unique<HloModule>(TestName(), config);
+    return MakeUnique<HloModule>(TestName(), config);
   }
 };
 
@@ -147,17 +145,17 @@ TEST_F(CpuCompilerTest, HooksTest) {
 }
 
 TEST_F(GpuCompilerTest, HooksTest) {
-  gpu::NVPTXCompiler compiler;
+  gpu::GpuCompiler compiler;
   TestCompilerHooks(&compiler);
 }
 
-TEST_F(CpuCompilerTest, CpuMultiModuleCompilation) {
+TEST_F(CpuCompilerTest, MultiModuleCompilation) {
   cpu::CpuCompiler compiler;
   TestMultiModuleCompilation(&compiler);
 }
 
-TEST_F(GpuCompilerTest, NVPTXMultiModuleCompilation) {
-  gpu::NVPTXCompiler compiler;
+TEST_F(GpuCompilerTest, MultModuleCompilation) {
+  gpu::GpuCompiler compiler;
   TestMultiModuleCompilation(&compiler);
 }
 }  // namespace

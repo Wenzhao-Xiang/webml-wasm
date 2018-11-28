@@ -27,9 +27,6 @@ limitations under the License.
 #include <type_traits>
 #include <vector>
 
-#include "absl/memory/memory.h"
-#include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/array2d.h"
 #include "tensorflow/compiler/xla/array3d.h"
 #include "tensorflow/compiler/xla/array4d.h"
@@ -37,6 +34,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/layout_util.h"
 #include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/primitive_util.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/sparse_index_array.h"
 #include "tensorflow/compiler/xla/status_macros.h"
@@ -45,6 +43,8 @@ limitations under the License.
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/core/lib/core/bitmap.h"
 #include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/lib/core/stringpiece.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/protobuf.h"
@@ -69,34 +69,37 @@ class LiteralUtil {
   // The variants not ending with WithLayout use the default XLA layout for the
   // literal's linear representation in memory.
   template <typename NativeT>
-  static Literal CreateR0(NativeT value);
+  static std::unique_ptr<Literal> CreateR0(NativeT value);
   template <typename NativeT>
-  static Literal CreateR1(absl::Span<const NativeT> values);
-  static Literal CreateR1(const tensorflow::core::Bitmap& values);
+  static std::unique_ptr<Literal> CreateR1(
+      tensorflow::gtl::ArraySlice<NativeT> values);
+  static std::unique_ptr<Literal> CreateR1(
+      const tensorflow::core::Bitmap& values);
   template <typename NativeT>
-  static Literal CreateR2(
+  static std::unique_ptr<Literal> CreateR2(
       std::initializer_list<std::initializer_list<NativeT>> values);
   template <typename NativeT>
-  static Literal CreateR2WithLayout(
+  static std::unique_ptr<Literal> CreateR2WithLayout(
       std::initializer_list<std::initializer_list<NativeT>> values,
       const Layout& layout);
   template <typename NativeT>
-  static Literal CreateR3(std::initializer_list<
-                          std::initializer_list<std::initializer_list<NativeT>>>
-                              values);
+  static std::unique_ptr<Literal> CreateR3(
+      std::initializer_list<
+          std::initializer_list<std::initializer_list<NativeT>>>
+          values);
   template <typename NativeT>
-  static Literal CreateR3WithLayout(
+  static std::unique_ptr<Literal> CreateR3WithLayout(
       std::initializer_list<
           std::initializer_list<std::initializer_list<NativeT>>>
           values,
       const Layout& layout);
   template <typename NativeT>
-  static Literal CreateR4(
+  static std::unique_ptr<Literal> CreateR4(
       std::initializer_list<std::initializer_list<
           std::initializer_list<std::initializer_list<NativeT>>>>
           values);
   template <typename NativeT>
-  static Literal CreateR4WithLayout(
+  static std::unique_ptr<Literal> CreateR4WithLayout(
       std::initializer_list<std::initializer_list<
           std::initializer_list<std::initializer_list<NativeT>>>>
           values,
@@ -137,10 +140,9 @@ class LiteralUtil {
   //     [9, 10, 11]: 4.0
   //
   template <typename NativeT>
-  static Literal CreateSparse(absl::Span<const int64> dimensions,
-                              SparseIndexArray indices,
-                              absl::Span<const NativeT> values,
-                              bool sort = true);
+  static std::unique_ptr<Literal> CreateSparse(
+      tensorflow::gtl::ArraySlice<int64> dimensions, SparseIndexArray indices,
+      tensorflow::gtl::ArraySlice<NativeT> values, bool sort = true);
 
   // Creates a scalar literal value zero of the given primitive type.
   static Literal Zero(PrimitiveType primitive_type);
@@ -154,120 +156,132 @@ class LiteralUtil {
   static Literal MaxValue(PrimitiveType primitive_type);
   // Creates a literal of the given shape where each element is `value`.
   template <typename NativeT>
-  static Literal CreateFullWithDescendingLayout(
-      absl::Span<const int64> dimensions, NativeT value);
+  static std::unique_ptr<Literal> CreateFullWithDescendingLayout(
+      tensorflow::gtl::ArraySlice<int64> dimensions, NativeT value);
 
   // Creates a new literal from an Array type. The variants not ending with
   // WithLayout use the default XLA layout for the literal's linear
   // representation in memory.
   template <typename NativeT>
-  static Literal CreateFromArray(const Array<NativeT>& values);
+  static std::unique_ptr<Literal> CreateFromArray(const Array<NativeT>& values);
   template <typename NativeT>
-  static Literal CreateFromArrayWithLayout(const Array<NativeT>& values,
-                                           const Layout& layout);
+  static std::unique_ptr<Literal> CreateFromArrayWithLayout(
+      const Array<NativeT>& values, const Layout& layout);
   template <typename NativeT>
-  static Literal CreateR2FromArray2D(const Array2D<NativeT>& values);
+  static std::unique_ptr<Literal> CreateR2FromArray2D(
+      const Array2D<NativeT>& values);
   template <typename NativeT>
-  static Literal CreateR2FromArray2DWithLayout(const Array2D<NativeT>& values,
-                                               const Layout& layout);
+  static std::unique_ptr<Literal> CreateR2FromArray2DWithLayout(
+      const Array2D<NativeT>& values, const Layout& layout);
   template <typename NativeT>
-  static Literal CreateR3FromArray3D(const Array3D<NativeT>& values);
+  static std::unique_ptr<Literal> CreateR3FromArray3D(
+      const Array3D<NativeT>& values);
   template <typename NativeT>
-  static Literal CreateR3FromArray3DWithLayout(const Array3D<NativeT>& values,
-                                               const Layout& layout);
+  static std::unique_ptr<Literal> CreateR3FromArray3DWithLayout(
+      const Array3D<NativeT>& values, const Layout& layout);
   template <typename NativeT>
-  static Literal CreateR4FromArray4D(const Array4D<NativeT>& values);
+  static std::unique_ptr<Literal> CreateR4FromArray4D(
+      const Array4D<NativeT>& values);
   template <typename NativeT>
-  static Literal CreateR4FromArray4DWithLayout(const Array4D<NativeT>& values,
-                                               const Layout& layout);
+  static std::unique_ptr<Literal> CreateR4FromArray4DWithLayout(
+      const Array4D<NativeT>& values, const Layout& layout);
 
   // Creates a new vector of U8s literal value from a string.
-  static Literal CreateR1U8(absl::string_view value);
+  static std::unique_ptr<Literal> CreateR1U8(tensorflow::StringPiece value);
 
   // Creates a linspace-populated literal with the given number of rows and
   // columns.
-  static Literal CreateR2F32Linspace(float from, float to, int64 rows,
-                                     int64 cols);
+  static std::unique_ptr<Literal> CreateR2F32Linspace(float from, float to,
+                                                      int64 rows, int64 cols);
 
   // Creates a literal that projects the (x, y) dimensions given in values into
   // the z dimension given by "projection".
   template <typename NativeT>
-  static Literal CreateR3Projected(
+  static std::unique_ptr<Literal> CreateR3Projected(
       std::initializer_list<std::initializer_list<NativeT>> values,
       int64 projection);
 
   // Creates a literal that projects the (x, y) dimensions given in values into
   // the z and p dimensions given.
   template <typename NativeT>
-  static Literal CreateR4Projected(
+  static std::unique_ptr<Literal> CreateR4Projected(
       std::initializer_list<std::initializer_list<NativeT>> values,
       int64 projection_p, int64 projection_z);
 
   // Returns an identity matrix (rank 2) with the given row and column count.
   template <typename NativeT>
-  static Literal MakeIdentityR2(int64 size);
+  static std::unique_ptr<Literal> MakeIdentityR2(int64 size);
 
   // Returns a tuple literal composed of given literals. Data is copied from the
   // given elements into the returned literal.
-  static Literal MakeTuple(absl::Span<const Literal* const> elements);
+  static std::unique_ptr<Literal> MakeTuple(
+      tensorflow::gtl::ArraySlice<const Literal*> elements);
 
-  static Literal MakeTupleFromSlices(absl::Span<const LiteralSlice> elements);
+  static std::unique_ptr<Literal> MakeTupleFromSlices(
+      tensorflow::gtl::ArraySlice<LiteralSlice> elements);
 
   // As above, but intended to be invoked with move semantics; i.e.
   //
-  //  std::vector<Literal> elements = ...;
+  //  std::vector<std::unique_ptr<Literal>> elements = ...;
   //  auto result = LiteralUtil::MakeTupleOwned(std::move(elements));
   //
   // This would have been declared as an overload, but there is ambiguity
   // in invocation between the above signature and this one.
-  static Literal MakeTupleOwned(std::vector<Literal> elements);
+  static std::unique_ptr<Literal> MakeTupleOwned(
+      std::vector<std::unique_ptr<Literal>> elements);
 
-  // This overload lets you pass a braced list of Literals to
+  // This overload lets you pass a braced list of unique_ptr<Literal>s to
   // MakeTupleOwned:
   //
   //   LiteralUtil::MakeTupleOwned(LiteralUtil::CreateR1(...), ...).
   //
-  // Simply relying on the MakeTupleOwned(std::vector<Literal>)
+  // Simply relying on the MakeTupleOwned(std::vector<unique_ptr<Literal>>)
   // overload doesn't work because std::initializer_list's elements are always
   // const.
   //
-  // The arguments to this function must all be Literal.
+  // The arguments to this function must all be unique_ptr<Literal>.
   template <typename... Ts>
-  static Literal MakeTupleOwned(Ts... elements) {
-    std::array<Literal, sizeof...(Ts)> arr{std::move(elements)...};
-    std::vector<Literal> v;
+  static std::unique_ptr<Literal> MakeTupleOwned(
+      std::unique_ptr<Ts>... elements) {
+    std::array<std::unique_ptr<Literal>, sizeof...(Ts)> arr{
+        std::move(elements)...};
+    std::vector<std::unique_ptr<Literal>> v;
     v.insert(v.begin(), std::make_move_iterator(arr.begin()),
              std::make_move_iterator(arr.end()));
     return MakeTupleOwned(std::move(v));
   }
 
   // Create a constant token literal. Token types have no value.
-  static Literal CreateToken();
+  static std::unique_ptr<Literal> CreateToken();
 
   // Creates a new Literal object with its values havings the primitive_type
   // type, and with dimensions defined by the dimensions parameter.
   // The content of the literal values is the default value of the primitive
   // type of literal itself (0 for numeric types, and false for predicates).
-  static Literal CreateFromDimensions(PrimitiveType primitive_type,
-                                      absl::Span<const int64> dimensions);
+  static std::unique_ptr<Literal> CreateFromDimensions(
+      PrimitiveType primitive_type,
+      tensorflow::gtl::ArraySlice<int64> dimensions);
 
   // If the given literal's data type is bfloat16, converts it to a float
   // literal; otherwise, returns a copy of it. If the literal is a tuple,
   // recursively converts its elements.
-  static Literal ConvertBF16ToF32(const LiteralSlice& bf16_literal);
+  static std::unique_ptr<Literal> ConvertBF16ToF32(
+      const LiteralSlice& bf16_literal);
 
   // If the given literal's data type is float, converts it to a bfloat16
   // literal; otherwise, returns a copy of it. If the literal is a tuple,
   // recursively converts its elements.
-  static Literal ConvertF32ToBF16(const LiteralSlice& f32_literal);
+  static std::unique_ptr<Literal> ConvertF32ToBF16(
+      const LiteralSlice& f32_literal);
 
   // Creates a literal with a new shape with the given new dimensions using the
   // data in the given input literal. For reshaping purposes the (flat) data
   // buffer of the input literal is assumed to have the given minor_to_major
   // layout order.
-  static Literal ReshapeSlice(absl::Span<const int64> new_dimensions,
-                              absl::Span<const int64> minor_to_major,
-                              const LiteralSlice& literal);
+  static std::unique_ptr<Literal> ReshapeSlice(
+      tensorflow::gtl::ArraySlice<int64> new_dimensions,
+      tensorflow::gtl::ArraySlice<int64> minor_to_major,
+      const LiteralSlice& literal);
 
   // Creates a literal with the supplied shape, and uses the provided value
   // generator to populate the literal's values.
@@ -275,9 +289,9 @@ class LiteralUtil {
   template <
       PrimitiveType type,
       typename T = typename primitive_util::PrimitiveTypeToNative<type>::type>
-  static StatusOr<Literal> CreateRandomLiteral(
+  static StatusOr<std::unique_ptr<Literal>> CreateRandomLiteral(
       const Shape& shape,
-      const std::function<T(absl::Span<const int64>)>& generator);
+      const std::function<T(tensorflow::gtl::ArraySlice<int64>)>& generator);
 
   // Creates a literal with the supplied shape, and initializes the literal
   // values using a normal distribution with given mean and stddev standard
@@ -286,8 +300,8 @@ class LiteralUtil {
   template <
       PrimitiveType type, typename E,
       typename T = typename primitive_util::PrimitiveTypeToNative<type>::type>
-  static StatusOr<Literal> CreateRandomLiteral(const Shape& shape, E* engine,
-                                               T mean, T stddev);
+  static StatusOr<std::unique_ptr<Literal>> CreateRandomLiteral(
+      const Shape& shape, E* engine, T mean, T stddev);
 
   // Creates a literal with the supplied shape, and initializes the literal
   // values using a normal distribution with given mean and stddev standard
@@ -296,8 +310,8 @@ class LiteralUtil {
   template <
       PrimitiveType type,
       typename T = typename primitive_util::PrimitiveTypeToNative<type>::type>
-  static StatusOr<Literal> CreateRandomLiteral(const Shape& shape, T mean,
-                                               T stddev);
+  static StatusOr<std::unique_ptr<Literal>> CreateRandomLiteral(
+      const Shape& shape, T mean, T stddev);
 
   //
   // End of factory methods.
@@ -305,49 +319,51 @@ class LiteralUtil {
   // Returns a multi-dimensional index as a string. For example: '{7, 8}' will
   // be returned for a 2-dimensional index with dimension 0 index equal to 7,
   // dimension 1 equal to 8.
-  static string MultiIndexAsString(absl::Span<const int64> multi_index);
+  static string MultiIndexAsString(
+      tensorflow::gtl::ArraySlice<int64> multi_index);
 };
 
 std::ostream& operator<<(std::ostream& out, const Literal& literal);
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR0(NativeT value) {
-  Literal literal(ShapeUtil::MakeShape(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR0(NativeT value) {
+  auto literal = MakeUnique<Literal>(ShapeUtil::MakeShape(
       primitive_util::NativeToPrimitiveType<NativeT>(), {}));
-  literal.Set({}, value);
+  literal->Set({}, value);
   return literal;
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR1(absl::Span<const NativeT> values) {
-  Literal literal(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR1(
+    tensorflow::gtl::ArraySlice<NativeT> values) {
+  auto literal = MakeUnique<Literal>(
       ShapeUtil::MakeShape(primitive_util::NativeToPrimitiveType<NativeT>(),
                            {static_cast<int64>(values.size())}));
-  literal.PopulateR1(values);
+  literal->PopulateR1(values);
   return literal;
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR2WithLayout(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR2WithLayout(
     std::initializer_list<std::initializer_list<NativeT>> values,
     const Layout& layout) {
-  Literal literal(ShapeUtil::MakeShapeWithLayout(
+  auto literal = MakeUnique<Literal>(ShapeUtil::MakeShapeWithLayout(
       primitive_util::NativeToPrimitiveType<NativeT>(),
       {static_cast<int64>(values.size()),
        static_cast<int64>(values.begin()->size())},
       AsInt64Slice(layout.minor_to_major())));
-  literal.PopulateR2(values);
+  literal->PopulateR2(values);
   return literal;
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR2(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR2(
     std::initializer_list<std::initializer_list<NativeT>> values) {
   return CreateR2WithLayout(values, LayoutUtil::GetDefaultLayoutForR2());
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR3WithLayout(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR3WithLayout(
     std::initializer_list<std::initializer_list<std::initializer_list<NativeT>>>
         values,
     const Layout& layout) {
@@ -372,14 +388,14 @@ template <typename NativeT>
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR3(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR3(
     std::initializer_list<std::initializer_list<std::initializer_list<NativeT>>>
         values) {
   return CreateR3WithLayout(values, LayoutUtil::GetDefaultLayoutForR3());
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR4WithLayout(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR4WithLayout(
     std::initializer_list<std::initializer_list<
         std::initializer_list<std::initializer_list<NativeT>>>>
         values,
@@ -410,22 +426,22 @@ template <typename NativeT>
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateSparse(
-    absl::Span<const int64> dimensions, SparseIndexArray indices,
-    absl::Span<const NativeT> values, bool sort) {
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateSparse(
+    tensorflow::gtl::ArraySlice<int64> dimensions, SparseIndexArray indices,
+    tensorflow::gtl::ArraySlice<NativeT> values, bool sort) {
   int64 num_elements = values.size();
   int64 rank = dimensions.size();
   CHECK_EQ(num_elements, indices.index_count());
   CHECK_EQ(rank, indices.rank());
-  Literal literal(ShapeUtil::MakeShapeWithSparseLayout(
+  auto literal = MakeUnique<Literal>(ShapeUtil::MakeShapeWithSparseLayout(
       primitive_util::NativeToPrimitiveType<NativeT>(), dimensions,
       indices.max_indices()));
-  literal.PopulateSparse(indices, values, sort);
+  literal->PopulateSparse(indices, values, sort);
   return literal;
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR4(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR4(
     std::initializer_list<std::initializer_list<
         std::initializer_list<std::initializer_list<NativeT>>>>
         values) {
@@ -433,48 +449,50 @@ template <typename NativeT>
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateFromArrayWithLayout(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateFromArrayWithLayout(
     const Array<NativeT>& values, const Layout& layout) {
-  Literal literal(ShapeUtil::MakeShapeWithLayout(
+  auto literal = MakeUnique<Literal>(ShapeUtil::MakeShapeWithLayout(
       primitive_util::NativeToPrimitiveType<NativeT>(), values.dimensions(),
       AsInt64Slice(layout.minor_to_major())));
-  literal.PopulateFromArray(values);
+  literal->PopulateFromArray(values);
   return literal;
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateFromArray(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateFromArray(
     const Array<NativeT>& values) {
   return CreateFromArrayWithLayout(
       values, LayoutUtil::GetDefaultLayoutForRank(values.num_dimensions()));
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR2FromArray2DWithLayout(
-    const Array2D<NativeT>& values, const Layout& layout) {
+/* static */ std::unique_ptr<Literal>
+LiteralUtil::CreateR2FromArray2DWithLayout(const Array2D<NativeT>& values,
+                                           const Layout& layout) {
   return CreateFromArrayWithLayout(values, layout);
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR2FromArray2D(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR2FromArray2D(
     const Array2D<NativeT>& values) {
   return CreateFromArray(values);
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR3FromArray3DWithLayout(
-    const Array3D<NativeT>& values, const Layout& layout) {
+/* static */ std::unique_ptr<Literal>
+LiteralUtil::CreateR3FromArray3DWithLayout(const Array3D<NativeT>& values,
+                                           const Layout& layout) {
   return CreateFromArrayWithLayout(values, layout);
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR3FromArray3D(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR3FromArray3D(
     const Array3D<NativeT>& values) {
   return CreateFromArray(values);
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR3Projected(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR3Projected(
     std::initializer_list<std::initializer_list<NativeT>> values,
     int64 projection) {
   int64 dim0_size = projection;
@@ -499,7 +517,7 @@ template <typename NativeT>
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR4Projected(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR4Projected(
     std::initializer_list<std::initializer_list<NativeT>> values,
     int64 projection_p, int64 projection_z) {
   int64 dim0_size = projection_p;
@@ -527,20 +545,21 @@ template <typename NativeT>
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR4FromArray4D(
+/* static */ std::unique_ptr<Literal> LiteralUtil::CreateR4FromArray4D(
     const Array4D<NativeT>& values) {
   return CreateFromArray(values);
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateR4FromArray4DWithLayout(
-    const Array4D<NativeT>& values, const Layout& layout) {
+/* static */ std::unique_ptr<Literal>
+LiteralUtil::CreateR4FromArray4DWithLayout(const Array4D<NativeT>& values,
+                                           const Layout& layout) {
   return CreateFromArrayWithLayout(values, layout);
 }
 
 // Returns an identity matrix (rank 2) with the given row and column count.
 template <typename NativeT>
-/* static */ Literal LiteralUtil::MakeIdentityR2(int64 size) {
+/* static */ std::unique_ptr<Literal> LiteralUtil::MakeIdentityR2(int64 size) {
   Array2D<NativeT> array(size, size, 0);
   for (int64 i = 0; i < size; ++i) {
     array(i, i) = 1;
@@ -549,39 +568,45 @@ template <typename NativeT>
 }
 
 template <typename NativeT>
-/* static */ Literal LiteralUtil::CreateFullWithDescendingLayout(
-    absl::Span<const int64> dimensions, NativeT value) {
-  Literal literal(ShapeUtil::MakeShapeWithDescendingLayout(
+/* static */ std::unique_ptr<Literal>
+LiteralUtil::CreateFullWithDescendingLayout(
+    tensorflow::gtl::ArraySlice<int64> dimensions, NativeT value) {
+  auto literal = MakeUnique<Literal>(ShapeUtil::MakeShapeWithDescendingLayout(
       primitive_util::NativeToPrimitiveType<NativeT>(), dimensions));
-  literal.PopulateWithValue(value);
+  literal->PopulateWithValue(value);
   return literal;
 }
 
 template <PrimitiveType type, typename T>
-/* static */ StatusOr<Literal> LiteralUtil::CreateRandomLiteral(
+/* static */ StatusOr<std::unique_ptr<Literal>>
+LiteralUtil::CreateRandomLiteral(
     const Shape& shape,
-    const std::function<T(absl::Span<const int64>)>& generator) {
+    const std::function<T(tensorflow::gtl::ArraySlice<int64>)>& generator) {
   using NativeT = typename primitive_util::PrimitiveTypeToNative<type>::type;
   TF_RET_CHECK(shape.element_type() == type);
-  Literal literal(shape);
-  TF_RETURN_IF_ERROR(literal.Populate<NativeT>(
-      [&](absl::Span<const int64> indexes) { return generator(indexes); }));
+  auto literal = MakeUnique<Literal>(shape);
+  TF_RETURN_IF_ERROR(literal.get()->Populate<NativeT>(
+      [&](tensorflow::gtl::ArraySlice<int64> indexes) {
+        return generator(indexes);
+      }));
   return std::move(literal);
 }
 
 template <PrimitiveType type, typename E, typename T>
-/* static */ StatusOr<Literal> LiteralUtil::CreateRandomLiteral(
-    const Shape& shape, E* engine, T mean, T stddev) {
+/* static */ StatusOr<std::unique_ptr<Literal>>
+LiteralUtil::CreateRandomLiteral(const Shape& shape, E* engine, T mean,
+                                 T stddev) {
   using NativeT = typename primitive_util::PrimitiveTypeToNative<type>::type;
   std::normal_distribution<NativeT> generator(mean, stddev);
   return CreateRandomLiteral<type, NativeT>(
-      shape,
-      [&](absl::Span<const int64> /*indexes*/) { return generator(*engine); });
+      shape, [&](tensorflow::gtl::ArraySlice<int64> /*indexes*/) {
+        return generator(*engine);
+      });
 }
 
 template <PrimitiveType type, typename T>
-/* static */ StatusOr<Literal> LiteralUtil::CreateRandomLiteral(
-    const Shape& shape, T mean, T stddev) {
+/* static */ StatusOr<std::unique_ptr<Literal>>
+LiteralUtil::CreateRandomLiteral(const Shape& shape, T mean, T stddev) {
   std::minstd_rand0 engine;
   return CreateRandomLiteral<type>(shape, &engine, mean, stddev);
 }

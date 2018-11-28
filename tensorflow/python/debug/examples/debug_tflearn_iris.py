@@ -94,15 +94,13 @@ def main(_):
         "sepal_length", "sepal_width", "petal_length", "petal_width", "label"]
     batch_size = 32
     def training_input_fn():
-      return tf.data.experimental.make_csv_dataset([training_data_path],
-                                                   batch_size,
-                                                   column_names=column_names,
-                                                   label_name="label")
+      return tf.contrib.data.make_csv_dataset(
+          [training_data_path], batch_size,
+          column_names=column_names, label_name="label")
     def test_input_fn():
-      return tf.data.experimental.make_csv_dataset([test_data_path],
-                                                   batch_size,
-                                                   column_names=column_names,
-                                                   label_name="label")
+      return tf.contrib.data.make_csv_dataset(
+          [test_data_path], batch_size,
+          column_names=column_names, label_name="label")
     feature_columns = [tf.feature_column.numeric_column(feature)
                        for feature in column_names[:-1]]
 
@@ -115,16 +113,17 @@ def main(_):
       n_classes=3,
       model_dir=model_dir)
 
+  hooks = None
   if FLAGS.debug and FLAGS.tensorboard_debug_address:
     raise ValueError(
         "The --debug and --tensorboard_debug_address flags are mutually "
         "exclusive.")
-  hooks = []
   if FLAGS.debug:
-    hooks.append(tf_debug.LocalCLIDebugHook(ui_type=FLAGS.ui_type,
-                                            dump_root=FLAGS.dump_root))
+    debug_hook = tf_debug.LocalCLIDebugHook(ui_type=FLAGS.ui_type,
+                                            dump_root=FLAGS.dump_root)
   elif FLAGS.tensorboard_debug_address:
-    hooks.append(tf_debug.TensorBoardDebugHook(FLAGS.tensorboard_debug_address))
+    debug_hook = tf_debug.TensorBoardDebugHook(FLAGS.tensorboard_debug_address)
+  hooks = [debug_hook]
 
   # Train model, using tfdbg hook.
   classifier.train(training_input_fn,

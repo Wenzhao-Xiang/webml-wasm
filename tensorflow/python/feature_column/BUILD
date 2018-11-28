@@ -12,7 +12,6 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":feature_column",
-        ":feature_column_v2",
         "//tensorflow/python:util",
     ],
 )
@@ -54,7 +53,6 @@ py_library(
     srcs = ["feature_column_v2.py"],
     srcs_version = "PY2AND3",
     deps = [
-        ":feature_column",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:check_ops",
         "//tensorflow/python:control_flow_ops",
@@ -102,7 +100,6 @@ py_test(
     tags = [
         "no_cuda_on_cpu_tap",
         "no_pip",
-        "no_windows",
     ],
     deps = [
         ":feature_column",
@@ -125,7 +122,7 @@ py_test(
         "//tensorflow/python:variables",
         "//tensorflow/python/eager:backprop",
         "//tensorflow/python/eager:context",
-        "//third_party/py/numpy",
+        "//tensorflow/python/estimator:numpy_io",
     ],
 )
 
@@ -137,7 +134,6 @@ py_test(
     tags = [
         "no_cuda_on_cpu_tap",
         "no_pip",
-        "no_windows",
     ],
     deps = [
         ":feature_column_py",
@@ -160,7 +156,7 @@ py_test(
         "//tensorflow/python:variables",
         "//tensorflow/python/eager:backprop",
         "//tensorflow/python/eager:context",
-        "//tensorflow/python/estimator:estimator_py",
+        "//tensorflow/python/estimator:numpy_io",
         "//third_party/py/numpy",
     ],
 )

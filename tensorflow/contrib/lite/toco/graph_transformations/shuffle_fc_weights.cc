@@ -24,17 +24,15 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ShuffleFCWeights::Run(Model* model, std::size_t op_index,
-                                           bool* modified) {
-  *modified = false;
+bool ShuffleFCWeights::Run(Model* model, std::size_t op_index) {
   Operator* op = model->operators[op_index].get();
   if (op->type != OperatorType::kFullyConnected) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   FullyConnectedOperator* fc_op = static_cast<FullyConnectedOperator*>(op);
   // Exit if this FC op already has shuffled weights
   if (fc_op->weights_format != FullyConnectedWeightsFormat::kDefault) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const Array& input_array = model->GetArray(fc_op->inputs[0]);
   const string& weights_name = fc_op->inputs[1];
@@ -48,11 +46,11 @@ namespace toco {
       output_array.data_type != ArrayDataType::kInt16 ||
       !input_array.quantization_params || !weights_array.quantization_params ||
       !output_array.quantization_params) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Exit if the shapes aren't known
   if (!input_array.has_shape() || !weights_array.has_shape()) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Exit if, based on the known shapes, this FC op is not a GEMV.
   // The shuffling of FC weights is only useful to enable fast GEMV paths.
@@ -66,7 +64,7 @@ namespace toco {
           "the input shape is not 1D or 2D (possibly with additional inner "
           "dimensions of size 1)",
           LogName(*op));
-      return ::tensorflow::Status::OK();
+      return false;
     }
   }
   if (input_shape.dims(0) != 1 && input_shape.dims(0) != 4) {
@@ -75,7 +73,7 @@ namespace toco {
         "the input shape's leading dimension, i.e. the 'batch size', is not "
         "equal to 1 or 4",
         LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Exit if the weights shape isn't an integral multiple of the shuffled
   // block shape, 4x16. We don't want to have to write code dealing with
@@ -90,7 +88,7 @@ namespace toco {
   // two.
   const Shape& weights_shape = weights_array.shape();
   if (weights_shape.dimensions_count() != 2) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   const int rows = weights_shape.dims(0);
   const int cols = weights_shape.dims(1);
@@ -99,11 +97,11 @@ namespace toco {
         "Not applying experimental shuffling to the weights of %s because its "
         "shape isn't a multiple of the shuffling block shape, 4x16",
         LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Exit if the weights aren't already a constant array.
   if (!weights_array.buffer) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Exit if the weights are used by more than one op.
   if (CountOpsWithInput(*model, weights_name) != 1) {
@@ -111,7 +109,7 @@ namespace toco {
         "Not applying experimental shuffling to the weights of %s because that "
         "array is consumed by other operators",
         LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Compute the shuffled weights
   auto& weights_data =
@@ -154,8 +152,7 @@ namespace toco {
   shuffled_input_workspace_array.GetOrCreateQuantizationParams() =
       input_array.GetQuantizationParams();
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

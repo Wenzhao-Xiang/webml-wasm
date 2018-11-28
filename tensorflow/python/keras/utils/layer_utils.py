@@ -26,7 +26,6 @@ from tensorflow.python.keras.utils.conv_utils import convert_kernel
 from tensorflow.python.util.tf_export import tf_export
 
 
-@tf_export('keras.utils.get_source_inputs')
 def get_source_inputs(tensor, layer=None, node_index=None):
   """Returns the list of input tensors necessary to compute `tensor`.
 

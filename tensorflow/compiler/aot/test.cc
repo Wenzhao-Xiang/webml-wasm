@@ -51,9 +51,11 @@ namespace tensorflow {
 namespace tfcompile {
 namespace {
 
-void zero_buffers(XlaCompiledCpuFunction* computation) {
-  for (int i = 0; i < computation->num_args(); ++i) {
-    memset(computation->arg_data(i), 0, computation->arg_size(i));
+void zero_buffers(void** bufs, const intptr_t* sizes, size_t n) {
+  for (int i = 0; i < n; ++i) {
+    if (sizes[i] != -1) {
+      memset(bufs[i], 0, sizes[i]);
+    }
   }
 }
 
@@ -64,7 +66,7 @@ TEST(TEST_NAME, NoCrash) {
 
   CPP_CLASS computation;
   computation.set_thread_pool(&device);
-  zero_buffers(&computation);
+  zero_buffers(computation.args(), CPP_CLASS::ArgSizes(), CPP_CLASS::kNumArgs);
 
   EXPECT_TRUE(computation.Run());
 }
@@ -78,7 +80,7 @@ void BM_NAME(int iters) {
 
   CPP_CLASS computation;
   computation.set_thread_pool(&device);
-  zero_buffers(&computation);
+  zero_buffers(computation.args(), CPP_CLASS::ArgSizes(), CPP_CLASS::kNumArgs);
 
   testing::StartTiming();
   while (--iters) {

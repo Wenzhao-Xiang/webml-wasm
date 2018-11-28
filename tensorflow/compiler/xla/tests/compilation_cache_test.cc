@@ -17,11 +17,10 @@ limitations under the License.
 #include <memory>
 #include <string>
 
-#include "absl/types/span.h"
 #include "tensorflow/compiler/xla/client/global_data.h"
 #include "tensorflow/compiler/xla/client/local_client.h"
-#include "tensorflow/compiler/xla/client/xla_builder.h"
-#include "tensorflow/compiler/xla/client/xla_computation.h"
+#include "tensorflow/compiler/xla/client/xla_client/xla_builder.h"
+#include "tensorflow/compiler/xla/client/xla_client/xla_computation.h"
 #include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/statusor.h"
@@ -31,6 +30,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/tests/test_utils.h"
 #include "tensorflow/compiler/xla/xla.pb.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/test.h"
 
 namespace xla {
@@ -38,24 +38,25 @@ namespace {
 
 class CompilationCacheTest : public ClientLibraryTestBase {
  public:
-  void ExecuteComputationR0F32(const XlaComputation& computation,
-                               absl::Span<GlobalData* const> arguments,
-                               float expected_result, bool expect_cache_hit) {
+  void ExecuteComputationR0F32(
+      const XlaComputation& computation,
+      tensorflow::gtl::ArraySlice<GlobalData*> arguments, float expected_result,
+      bool expect_cache_hit) {
     ExecutionProfile execution_profile;
-    Literal result =
+    std::unique_ptr<Literal> result =
         client_
             ->ExecuteAndTransfer(computation, arguments,
                                  /*execution_options=*/&execution_options_,
                                  &execution_profile)
             .ConsumeValueOrDie();
     EXPECT_TRUE(LiteralTestUtil::Near(
-        LiteralUtil::CreateR0<float>(expected_result), result, error_spec_));
+        *LiteralUtil::CreateR0<float>(expected_result), *result, error_spec_));
     EXPECT_EQ(expect_cache_hit, execution_profile.compilation_cache_hit());
   }
 
   void ExecuteComputationR2F32(
       const XlaComputation& computation,
-      absl::Span<GlobalData* const> arguments,
+      tensorflow::gtl::ArraySlice<GlobalData*> arguments,
       std::initializer_list<std::initializer_list<float>> expected_result,
       bool expect_cache_hit) {
     ExecutionProfile execution_profile;
@@ -63,9 +64,10 @@ class CompilationCacheTest : public ClientLibraryTestBase {
                            ->Execute(computation, arguments,
                                      &execution_options_, &execution_profile)
                            .ConsumeValueOrDie();
-    Literal result = client_->Transfer(*data_handle).ConsumeValueOrDie();
+    std::unique_ptr<Literal> result =
+        client_->Transfer(*data_handle).ConsumeValueOrDie();
     EXPECT_TRUE(LiteralTestUtil::Near(
-        LiteralUtil::CreateR2<float>(expected_result), result, error_spec_));
+        *LiteralUtil::CreateR2<float>(expected_result), *result, error_spec_));
     EXPECT_EQ(expect_cache_hit, execution_profile.compilation_cache_hit());
   }
 
@@ -87,13 +89,13 @@ XLA_TEST_F(CompilationCacheTest, DISABLED_ComputationCalledMultipleTimes) {
 XLA_TEST_F(CompilationCacheTest,
            DISABLED_ComputationCalledWithDifferentParameters) {
   std::unique_ptr<GlobalData> data_42 =
-      client_->TransferToServer(LiteralUtil::CreateR0<float>(42.0f))
+      client_->TransferToServer(*LiteralUtil::CreateR0<float>(42.0f))
           .ConsumeValueOrDie();
   std::unique_ptr<GlobalData> data_123 =
-      client_->TransferToServer(LiteralUtil::CreateR0<float>(123.0f))
+      client_->TransferToServer(*LiteralUtil::CreateR0<float>(123.0f))
           .ConsumeValueOrDie();
   std::unique_ptr<GlobalData> data_456 =
-      client_->TransferToServer(LiteralUtil::CreateR0<float>(456.0f))
+      client_->TransferToServer(*LiteralUtil::CreateR0<float>(456.0f))
           .ConsumeValueOrDie();
 
   XlaBuilder builder(TestName());
@@ -144,12 +146,12 @@ XLA_TEST_F(CompilationCacheTest, DISABLED_DifferentParameterLayouts) {
   auto rowmaj_array = LiteralUtil::CreateR2WithLayout(
       {{1.0f, 2.0f}, {3.0f, 4.0f}}, LayoutUtil::MakeLayout({1, 0}));
   auto rowmaj_handle =
-      client_->TransferToServer(rowmaj_array).ConsumeValueOrDie();
+      client_->TransferToServer(*rowmaj_array).ConsumeValueOrDie();
 
   auto colmaj_array = LiteralUtil::CreateR2WithLayout(
       {{1.0f, 2.0f}, {3.0f, 4.0f}}, LayoutUtil::MakeLayout({0, 1}));
   auto colmaj_handle =
-      client_->TransferToServer(colmaj_array).ConsumeValueOrDie();
+      client_->TransferToServer(*colmaj_array).ConsumeValueOrDie();
 
   XlaBuilder builder(TestName());
   Parameter(&builder, 0, ShapeUtil::MakeShape(F32, {2, 2}), "param0");

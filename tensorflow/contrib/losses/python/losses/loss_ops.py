@@ -22,7 +22,6 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.contrib.framework.python.ops import add_arg_scope
-from tensorflow.python.compat import compat
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
@@ -83,8 +82,6 @@ def _safe_div(numerator, denominator, name="value"):
   Returns:
     The element-wise value of the numerator divided by the denominator.
   """
-  if compat.forward_compatible(2018, 11, 1):
-    return math_ops.div_no_nan(numerator, denominator, name=name)
   return array_ops.where(
       math_ops.greater(denominator, 0),
       math_ops.div(numerator,
@@ -107,7 +104,7 @@ def _safe_mean(losses, num_present):
       then zero is returned.
   """
   total_loss = math_ops.reduce_sum(losses)
-  return _safe_div(total_loss, num_present, name="value")
+  return _safe_div(total_loss, num_present)
 
 
 @deprecated("2016-12-30", "Use tf.losses.compute_weighted_loss instead.")
@@ -612,14 +609,11 @@ def mean_pairwise_squared_error(predictions,
         math_ops.square(diffs), reduction_indices=reduction_indices)
     num_present_per_batch = _num_present(diffs, weights, per_batch=True)
 
-    term1 = 2.0 * _safe_div(sum_squares_diff_per_batch,
-                            num_present_per_batch,
-                            name="value")
+    term1 = 2.0 * _safe_div(sum_squares_diff_per_batch, num_present_per_batch)
 
     sum_diff = math_ops.reduce_sum(diffs, reduction_indices=reduction_indices)
-    term2 = 2.0 * _safe_div(math_ops.square(sum_diff),
-                            math_ops.square(num_present_per_batch),
-                            name="value")
+    term2 = 2.0 * _safe_div(
+        math_ops.square(sum_diff), math_ops.square(num_present_per_batch))
 
     loss = _scale_losses(term1 - term2, weights)
 

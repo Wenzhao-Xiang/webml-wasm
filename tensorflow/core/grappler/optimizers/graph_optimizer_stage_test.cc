@@ -61,7 +61,6 @@ TEST_F(GraphOptimizerStageTest, OptimizedNodeName) {
                             /*optimized_graph*/ nullptr,
                             /*graph_properties*/ nullptr,
                             /*node_name*/ nullptr,
-                            /*feed_nodes*/ nullptr,
                             /*opt_level*/ RewriterConfig::ON);
   FakeOptimizerStage stage("my_opt", "my_stg", ctx);
 
@@ -98,7 +97,6 @@ TEST_F(GraphOptimizerStageTest, GetInputNodeAndProperties) {
                             /*optimized_graph*/ &item.graph,
                             /*graph_properties*/ &properties,
                             /*node_name*/ &node_map,
-                            /*feed_nodes*/ nullptr,
                             /*opt_level*/ RewriterConfig::ON);
   FakeOptimizerStage stage("my_opt", "my_stg", ctx);
 
@@ -139,7 +137,6 @@ TEST_F(GraphOptimizerStageTest, AddNodes) {
                             /*optimized_graph*/ &item.graph,
                             /*graph_properties*/ &properties,
                             /*node_name*/ &node_map,
-                            /*feed_nodes*/ nullptr,
                             /*opt_level*/ RewriterConfig::ON);
   FakeOptimizerStage stage("my_opt", "my_stg", ctx);
 

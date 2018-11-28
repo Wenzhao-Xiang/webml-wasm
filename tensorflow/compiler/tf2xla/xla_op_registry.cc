@@ -18,7 +18,6 @@ limitations under the License.
 #include <functional>
 #include <memory>
 
-#include "tensorflow/compiler/jit/xla_cluster_util.h"
 #include "tensorflow/compiler/tf2xla/type_util.h"
 #include "tensorflow/compiler/tf2xla/xla_context.h"
 #include "tensorflow/compiler/xla/client/client_library.h"
@@ -91,11 +90,6 @@ XlaOpRegistry::~XlaOpRegistry() = default;
                  << " have incompatible compile time constant inputs.";
     return false;
   }
-  if (x.is_metadata_op != y.is_metadata_op) {
-    LOG(WARNING) << "Registrations of " << x.name
-                 << " have incompatible values for is_metadata_op.";
-    return false;
-  }
   return true;
 }
 
@@ -111,7 +105,7 @@ XlaOpRegistry::~XlaOpRegistry() = default;
 
 /* static */ void XlaOpRegistry::RegisterBackend(
     const string& compilation_device_name,
-    absl::Span<const DataType> supported_types, BackendOpFilter op_filter) {
+    gtl::ArraySlice<DataType> supported_types, BackendOpFilter op_filter) {
   XlaOpRegistry& registry = Instance();
   mutex_lock lock(registry.mutex_);
   auto result = registry.backends_.emplace(compilation_device_name, Backend());
@@ -331,94 +325,18 @@ std::vector<const KernelDef*> XlaOpRegistry::DeviceKernels(
   return kernels;
 }
 
-/*static*/ std::vector<string> XlaOpRegistry::GetAllRegisteredOps() {
-  std::vector<string> ops;
-  XlaOpRegistry& registry = Instance();
-  mutex_lock lock(registry.mutex_);
-  for (const auto& pair : registry.ops_) {
-    ops.push_back(pair.first);
-  }
-  std::sort(ops.begin(), ops.end());
-  return ops;
-}
-
-/* static */ Status XlaOpRegistry::CompileTimeConstantInputs(
-    const NodeDef& node_def, const OpKernel* op_kernel, const OpDef* op_def,
-    std::vector<int>* result) {
-  result->clear();
-
-  DCHECK(op_def != nullptr || op_kernel != nullptr);
-
-  std::unordered_set<string> compile_time_constant_inputs_from_attr;
-  std::vector<string> compile_time_constant_inputs_vect_from_attr;
-
-  const std::unordered_set<string>* compile_time_constant_inputs;
-
-  if (GetNodeAttr(node_def, kXlaCompileTimeConstantInputsAttr,
-                  &compile_time_constant_inputs_vect_from_attr)
-          .ok()) {
-    absl::c_copy(compile_time_constant_inputs_vect_from_attr,
-                 std::inserter(compile_time_constant_inputs_from_attr,
-                               compile_time_constant_inputs_from_attr.end()));
-    compile_time_constant_inputs = &compile_time_constant_inputs_from_attr;
-  } else {
-    const string& op = node_def.op();
-
-    XlaOpRegistry& registry = Instance();
-    mutex_lock lock(registry.mutex_);
-    auto it = registry.ops_.find(op);
-    if (it == registry.ops_.end() || it->second.empty()) {
-      return Status::OK();
-    } else {
-      // The test in IsCompatible ensures that if there are multiple matching
-      // registrations for this op name, they all have the same value of
-      // compile_time_constant_inputs, so only the first match is returned.
-      //
-      // TODO(sanjoy): This can probably be a std::vector<string>.
-      compile_time_constant_inputs =
-          &it->second.front()->compile_time_constant_inputs;
-    }
-  }
-
-  for (const string& input : *compile_time_constant_inputs) {
-    if (op_def) {
-      NameRangeMap input_name_ranges;
-      TF_RETURN_IF_ERROR(
-          NameRangesForNode(node_def, *op_def, &input_name_ranges, nullptr));
-      auto name_range = input_name_ranges.find(input);
-      if (name_range == input_name_ranges.end()) {
-        continue;
-      }
-
-      for (int i = name_range->second.first; i < name_range->second.second;
-           i++) {
-        result->push_back(i);
-      }
-    } else {
-      int start, stop;
-      TF_CHECK_OK(op_kernel->InputRange(input, &start, &stop));
-      for (int i = start; i < stop; ++i) {
-        result->push_back(i);
-      }
-    }
-  }
-
-  absl::c_sort(*result);
-  return Status::OK();
-}
-
-/*static*/ bool XlaOpRegistry::IsMetadataOp(const string& op) {
+/* static */ const std::unordered_set<string>*
+XlaOpRegistry::CompileTimeConstantInputs(const string& op) {
   XlaOpRegistry& registry = Instance();
   mutex_lock lock(registry.mutex_);
   auto it = registry.ops_.find(op);
   if (it == registry.ops_.end() || it->second.empty()) {
-    return false;
+    return nullptr;
   }
-
   // The test in IsCompatible ensures that if there are multiple matching
   // registrations for this op name, they all have the same value of
-  // is_metadata_op, so only the first match is returned.
-  return it->second.front()->is_metadata_op;
+  // compile_time_constant_inputs, so only the first match is returned.
+  return &it->second.front()->compile_time_constant_inputs;
 }
 
 std::vector<string> XlaOpRegistry::BackendNames() {
@@ -442,30 +360,28 @@ XlaOpRegistry& XlaOpRegistry::Instance() {
   return *r;
 }
 
-XlaOpRegistrationBuilder::XlaOpRegistrationBuilder(absl::string_view name) {
+XlaOpRegistrationBuilder::XlaOpRegistrationBuilder(StringPiece name) {
   registration_.reset(new XlaOpRegistry::OpRegistration);
-  registration_->name = string(name);
+  registration_->name = std::string(name);
 }
 
-XlaOpRegistrationBuilder XlaOpRegistrationBuilder::Name(
-    absl::string_view name) {
+XlaOpRegistrationBuilder XlaOpRegistrationBuilder::Name(StringPiece name) {
   XlaOpRegistrationBuilder registration(name);
   return registration;
 }
 
 XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::Device(
-    absl::Span<const absl::string_view> devices) {
+    gtl::ArraySlice<StringPiece> devices) {
   registration_->has_device_whitelist = true;
-  for (absl::string_view device : devices) {
-    registration_->device_whitelist.emplace(device);
+  for (StringPiece device : devices) {
+    registration_->device_whitelist.insert(std::string(device));
   }
   return *this;
 }
 
-XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::Device(
-    absl::string_view device) {
+XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::Device(StringPiece device) {
   registration_->has_device_whitelist = true;
-  registration_->device_whitelist.emplace(device);
+  registration_->device_whitelist.insert(std::string(device));
   return *this;
 }
 
@@ -480,31 +396,26 @@ XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::AllowResourceTypes() {
 }
 
 XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::TypeConstraint(
-    absl::string_view attr_name, DataType allowed) {
+    StringPiece attr_name, DataType allowed) {
   std::set<DataType>& types =
-      registration_->type_constraints[string(attr_name)];
+      registration_->type_constraints[std::string(attr_name)];
   types.insert(allowed);
   return *this;
 }
 
 XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::TypeConstraint(
-    absl::string_view attr_name, absl::Span<const DataType> allowed) {
+    StringPiece attr_name, gtl::ArraySlice<DataType> allowed) {
   std::set<DataType>& types =
-      registration_->type_constraints[string(attr_name)];
+      registration_->type_constraints[std::string(attr_name)];
   for (DataType t : allowed) {
     types.insert(t);
   }
   return *this;
 }
 
-XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::CompileTimeConstantInput(
-    absl::string_view input_name) {
-  registration_->compile_time_constant_inputs.emplace(input_name);
-  return *this;
-}
-
-XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::IsMetadataOp() {
-  registration_->is_metadata_op = true;
+XlaOpRegistrationBuilder& XlaOpRegistrationBuilder::CompileTimeConstInput(
+    StringPiece input_name) {
+  registration_->compile_time_constant_inputs.insert(std::string(input_name));
   return *this;
 }
 
@@ -530,10 +441,10 @@ XlaOpRegistrar::XlaOpRegistrar(
 }
 
 XlaBackendRegistrar::XlaBackendRegistrar(
-    absl::string_view name, absl::Span<const DataType> types,
+    StringPiece name, gtl::ArraySlice<DataType> types,
     XlaOpRegistry::BackendOpFilter op_filter) {
   XlaOpRegistry& registry = XlaOpRegistry::Instance();
-  registry.RegisterBackend(string(name), types, op_filter);
+  registry.RegisterBackend(std::string(name), types, op_filter);
 }
 
 }  // namespace tensorflow

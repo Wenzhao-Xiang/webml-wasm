@@ -9,7 +9,6 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":containers",
-        ":python_state",
         ":split_dependency",
         ":visualize",
         "//tensorflow/python/training/checkpointable:data_structures",
@@ -38,33 +37,6 @@ py_test(
         "//tensorflow/python/training/checkpointable:base",
         "//tensorflow/python/training/checkpointable:util",
         "@six_archive//:six",
-    ],
-)
-
-py_library(
-    name = "python_state",
-    srcs = ["python_state.py"],
-    srcs_version = "PY2AND3",
-    visibility = ["//tensorflow:internal"],
-    deps = [
-        "//tensorflow/python/training/checkpointable:base",
-        "//third_party/py/numpy",
-        "@six_archive//:six",
-    ],
-)
-
-py_test(
-    name = "python_state_test",
-    srcs = ["python_state_test.py"],
-    deps = [
-        ":python_state",
-        "//tensorflow/python:framework_ops",
-        "//tensorflow/python:framework_test_lib",
-        "//tensorflow/python:session",
-        "//tensorflow/python:variables",
-        "//tensorflow/python/eager:test",
-        "//tensorflow/python/training/checkpointable:util",
-        "//third_party/py/numpy",
     ],
 )
 

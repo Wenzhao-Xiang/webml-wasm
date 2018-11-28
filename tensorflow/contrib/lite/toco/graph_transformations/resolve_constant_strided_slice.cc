@@ -52,18 +52,14 @@ void StridedSlice(StridedSliceOperator const& op, Array const& input_array,
   Buffer<Type> const& input_buffer = input_array.GetBuffer<Type>();
   std::vector<int> src_coord(num_input_axes);
   std::vector<int> stop_for_axis(num_input_axes);
-  const auto strided_slice_params =
-      tflite::strided_slice::BuildStridedSliceParams(
-          op.begin_mask, op.end_mask, op.shrink_axis_mask, op.start_indices,
-          op.stop_indices, op.strides);
-
   for (int axis = 0; axis < num_input_axes; axis++) {
-    int start_index = tflite::strided_slice::StartForAxis(
-        strided_slice_params, ToRuntimeShape(input_array.shape()), axis);
-    src_coord[axis] = start_index;
+    int start = tflite::strided_slice::StartForAxis(
+        op.begin_mask, op.start_indices, op.strides, input_shape.dims().data(),
+        axis);
+    src_coord[axis] = start;
     stop_for_axis[axis] = tflite::strided_slice::StopForAxis(
-        strided_slice_params, ToRuntimeShape(input_array.shape()), axis,
-        start_index);
+        op.end_mask, op.shrink_axis_mask, op.stop_indices, op.strides,
+        input_shape.dims().data(), axis, start);
   }
 
   // In order to handle any number (N) of dimensions, we copy elements one by
@@ -90,7 +86,8 @@ void StridedSlice(StridedSliceOperator const& op, Array const& input_array,
       if (tflite::strided_slice::LoopCondition(src_coord[axis], stop, stride)) {
         // Reset axis and set carry
         src_coord[axis] = tflite::strided_slice::StartForAxis(
-            strided_slice_params, ToRuntimeShape(input_shape), axis);
+            op.begin_mask, op.start_indices, op.strides,
+            input_shape.dims().data(), axis);
         carry = true;
       } else {
         carry = false;
@@ -103,14 +100,11 @@ void StridedSlice(StridedSliceOperator const& op, Array const& input_array,
 
 }  // anonymous namespace
 
-::tensorflow::Status ResolveConstantStridedSlice::Run(Model* model,
-                                                      std::size_t op_index,
-                                                      bool* modified) {
-  *modified = false;
+bool ResolveConstantStridedSlice::Run(Model* model, std::size_t op_index) {
   const auto it = model->operators.begin() + op_index;
   const auto* base_op = it->get();
   if (base_op->type != OperatorType::kStridedSlice) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const StridedSliceOperator* op =
@@ -120,28 +114,28 @@ void StridedSlice(StridedSliceOperator const& op, Array const& input_array,
   auto& output_array = model->GetArray(op->outputs[0]);
   if (output_array.data_type == ArrayDataType::kNone) {
     // Yield until the output type has been set by PropagateArrayDataTypes
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!output_array.has_shape()) {
     // Yield until the output shape has been set by PropagateFixedShapes
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (op->start_indices.empty() || op->stop_indices.empty() ||
       op->strides.empty()) {
     // Attributes have not resolved yet.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   const auto& input_array = model->GetArray(op->inputs[0]);
   if (!input_array.has_shape()) {
     // Yield until the value shape has been resolved.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   if (!IsConstantParameterArray(*model, op->inputs[0])) {
     // Yield until the value is constant.
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK(!output_array.buffer);
@@ -158,9 +152,6 @@ void StridedSlice(StridedSliceOperator const& op, Array const& input_array,
     case ArrayDataType::kInt64:
       StridedSlice<ArrayDataType::kInt64>(*op, input_array, &output_array);
       break;
-    case ArrayDataType::kComplex64:
-      StridedSlice<ArrayDataType::kComplex64>(*op, input_array, &output_array);
-      break;
     default:
       LOG(FATAL)
           << "Unsupported data type input to StridedSlice op with output \""
@@ -170,8 +161,7 @@ void StridedSlice(StridedSliceOperator const& op, Array const& input_array,
 
   DeleteOpAndArraysIfUnused(model, it->get());
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

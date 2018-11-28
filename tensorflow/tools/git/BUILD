@@ -6,8 +6,6 @@ package(default_visibility = ["//tensorflow:internal"])
 
 licenses(["notice"])  # Apache 2.0
 
-py_binary(
-    name = "gen_git_source",
-    srcs = ["gen_git_source.py"],
-    srcs_version = "PY2AND3",
+exports_files(
+    ["gen_git_source.py"],
 )

@@ -164,11 +164,11 @@ class KinesisDatasetOp : public DatasetOpKernel {
   }
 
  private:
-  class Dataset : public DatasetBase {
+  class Dataset : public GraphDatasetBase {
    public:
     Dataset(OpKernelContext* ctx, const string& stream, const string& shard,
             const bool read_indefinitely, const int64 interval)
-        : DatasetBase(DatasetContext(ctx)),
+        : GraphDatasetBase(ctx),
           stream_(stream),
           shard_(shard),
           read_indefinitely_(read_indefinitely),
@@ -194,8 +194,7 @@ class KinesisDatasetOp : public DatasetOpKernel {
     string DebugString() const override { return "KinesisDatasetOp::Dataset"; }
 
    protected:
-    Status AsGraphDefInternal(SerializationContext* ctx,
-                              DatasetGraphDefBuilder* b,
+    Status AsGraphDefInternal(DatasetGraphDefBuilder* b,
                               Node** output) const override {
       Node* stream = nullptr;
       TF_RETURN_IF_ERROR(b->AddScalar(stream_, &stream));

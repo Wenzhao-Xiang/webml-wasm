@@ -35,7 +35,7 @@ limitations under the License.
 
 namespace tensorflow {
 namespace tensorrt {
-struct TRTInt8Calibrator;
+class TRTInt8Calibrator;
 class TRTCalibrationResource;
 class AsyncHelper;
 //  TODO(Sami): Remove this file?
@@ -60,12 +60,6 @@ class TRTEngineOp : public AsyncOpKernel {
   // Execute replaced native segment as function Op.
   void ExecuteNativeSegment(OpKernelContext* ctx, AsyncHelper* helper);
 
-  // Execute the tensorrt engine. Returns whether we need to retry by running
-  // the native segment.
-  bool ExecuteTrtEngine(OpKernelContext* ctx, const int num_batch,
-                        nvinfer1::ICudaEngine* trt_engine_ptr,
-                        nvinfer1::IExecutionContext* trt_execution_context_ptr);
-
   // Allocate necessary resources for calibration
   Status AllocateCalibrationResources(OpKernelContext* ctx,
                                       TRTCalibrationResource** cr);
@@ -87,7 +81,7 @@ class TRTEngineOp : public AsyncOpKernel {
   std::vector<string> output_nodes_;
 
   // keep device allocator for TRT.
-  std::unique_ptr<TRTBaseAllocator> allocator_;
+  std::unique_ptr<TRTDeviceAllocator> allocator_;
 
   // serialized protobuf segment or trt engine depending on static_engine_ flag.
   string serialized_segment_;

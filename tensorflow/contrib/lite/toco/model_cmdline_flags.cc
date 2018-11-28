@@ -322,10 +322,6 @@ void ReadModelFlagsFromCommandLineFlags(
     for (int i = 0; i < input_shapes.size(); ++i) {
       auto* shape = model_flags->mutable_input_arrays(i)->mutable_shape();
       shape->clear_dims();
-      // Treat an empty input shape as a scalar.
-      if (input_shapes[i].empty()) {
-        continue;
-      }
       for (const auto& dim_str : absl::StrSplit(input_shapes[i], ',')) {
         int size;
         CHECK(absl::SimpleAtoi(dim_str, &size))
@@ -394,18 +390,12 @@ void ReadModelFlagsFromCommandLineFlags(
     }
   }
 
-  if (!model_flags->has_allow_nonascii_arrays()) {
-    model_flags->set_allow_nonascii_arrays(
-        parsed_model_flags.allow_nonascii_arrays.value());
-  }
-  if (!model_flags->has_allow_nonexistent_arrays()) {
-    model_flags->set_allow_nonexistent_arrays(
-        parsed_model_flags.allow_nonexistent_arrays.value());
-  }
-  if (!model_flags->has_change_concat_input_ranges()) {
-    model_flags->set_change_concat_input_ranges(
-        parsed_model_flags.change_concat_input_ranges.value());
-  }
+  model_flags->set_allow_nonascii_arrays(
+      parsed_model_flags.allow_nonascii_arrays.value());
+  model_flags->set_allow_nonexistent_arrays(
+      parsed_model_flags.allow_nonexistent_arrays.value());
+  model_flags->set_change_concat_input_ranges(
+      parsed_model_flags.change_concat_input_ranges.value());
 
   if (parsed_model_flags.arrays_extra_info_file.specified()) {
     string arrays_extra_info_file_contents;

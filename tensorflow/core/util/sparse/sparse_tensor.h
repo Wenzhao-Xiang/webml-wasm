@@ -20,7 +20,6 @@ limitations under the License.
 #include <numeric>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_types.h"
@@ -96,21 +95,21 @@ class SparseTensor {
 
   SparseTensor() : dims_(0) {}
 
-  ABSL_DEPRECATED("Use Create() functions instead of constructors directly.")
+  // DEPRECATED: use Create() functions instead of constructors directly.
   SparseTensor(Tensor ix, Tensor vals, const TensorShape& shape)
       : SparseTensor(ix, vals, TensorShapeToVector(shape),
                      UndefinedOrder(TensorShapeToVector(shape))) {}
 
-  ABSL_DEPRECATED("Use Create() functions instead of constructors directly.")
+  // DEPRECATED: use Create() functions instead of constructors directly.
   SparseTensor(Tensor ix, Tensor vals, const VarDimArray shape)
       : SparseTensor(ix, vals, shape, UndefinedOrder(shape)) {}
 
-  ABSL_DEPRECATED("use Create() functions instead of constructors directly.")
+  // DEPRECATED: use Create() functions instead of constructors directly.
   SparseTensor(Tensor ix, Tensor vals, const TensorShape& shape,
                const VarDimArray order)
       : SparseTensor(ix, vals, TensorShapeToVector(shape), order) {}
 
-  ABSL_DEPRECATED("Use Create() functions instead of constructors directly.")
+  // DEPRECATED: use Create() functions instead of constructors directly.
   SparseTensor(Tensor ix, Tensor vals, const VarDimArray shape,
                const VarDimArray order)
       : ix_(ix),
@@ -238,10 +237,9 @@ class SparseTensor {
   static Status Split(const SparseTensor& tensor, const int split_dim,
                       const int num_split, std::vector<SparseTensor>* result);
 
+  // DEPRECATED: use the form of Split() that takes an output pointer and
+  // returns a status instead.
   template <typename T>
-  ABSL_DEPRECATED(
-      "Use the form of Split() that takes an output pointer and returns a "
-      "status instead.")
   static std::vector<SparseTensor> Split(const SparseTensor& tensor,
                                          const int split_dim,
                                          const int num_split,

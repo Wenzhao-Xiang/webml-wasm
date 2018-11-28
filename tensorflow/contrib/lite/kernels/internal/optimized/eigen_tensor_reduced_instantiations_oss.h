@@ -23,7 +23,7 @@ limitations under the License.
 #define TENSORFLOW_CONTRIB_LITE_KERNELS_INTERNAL_OPTIMIZED_EIGEN_TENSOR_REDUCED_INSTANTIATIONS_OSS_H_
 
 
-#include "Eigen/Core"
+#include "eigen/Eigen/Core"
 
 #if defined(EIGEN_USE_SYCL)
 #undef min

@@ -25,7 +25,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/client/lib/constants.h"
 #include "tensorflow/compiler/xla/client/lib/math.h"
 #include "tensorflow/compiler/xla/client/lib/numeric.h"
-#include "tensorflow/compiler/xla/client/xla_builder.h"
+#include "tensorflow/compiler/xla/client/xla_client/xla_builder.h"
 #include "tensorflow/compiler/xla/literal_util.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/status_macros.h"
@@ -65,9 +65,9 @@ namespace {
 //   return (v, tau, beta)
 // TODO(phawkins): LAPACK's xLARFG implementation has code for handling
 // overflows in the norm/beta calculations. Perhaps do the same here.
-xla::Status House(xla::XlaOp x, xla::XlaOp k,
-                  absl::Span<const int64> batch_dims, const int64 m,
-                  xla::XlaOp* v, xla::XlaOp* tau, xla::XlaOp* beta) {
+xla::Status House(xla::XlaOp x, xla::XlaOp k, gtl::ArraySlice<int64> batch_dims,
+                  const int64 m, xla::XlaOp* v, xla::XlaOp* tau,
+                  xla::XlaOp* beta) {
   xla::XlaBuilder* const builder = x.builder();
   TF_ASSIGN_OR_RETURN(xla::Shape x_shape, builder->GetShape(x));
   const xla::PrimitiveType type = x_shape.element_type();
@@ -149,8 +149,7 @@ struct QRBlockResult {
   xla::XlaOp taus;  // Shape: [..., n]
   xla::XlaOp vs;    // Shape: [..., m, n]
 };
-xla::StatusOr<QRBlockResult> QRBlock(
-    xla::XlaOp a, xla::PrecisionConfig::Precision precision) {
+xla::StatusOr<QRBlockResult> QRBlock(xla::XlaOp a) {
   xla::XlaBuilder* builder = a.builder();
   TF_ASSIGN_OR_RETURN(xla::Shape a_shape, builder->GetShape(a));
   const int num_dims = xla::ShapeUtil::Rank(a_shape);
@@ -173,7 +172,7 @@ xla::StatusOr<QRBlockResult> QRBlock(
   std::iota(batch_dim_indices.begin(), batch_dim_indices.end(), 0);
 
   auto qr_body_fn =
-      [&](xla::XlaOp j, absl::Span<const xla::XlaOp> values,
+      [&](xla::XlaOp j, gtl::ArraySlice<xla::XlaOp> values,
           xla::XlaBuilder* builder) -> xla::StatusOr<std::vector<xla::XlaOp>> {
     auto a = values[0];
     auto vs = values[1];
@@ -191,12 +190,8 @@ xla::StatusOr<QRBlockResult> QRBlock(
     auto v_broadcast = xla::Reshape(v, shape);
     // a[:, :] -= tau * np.dot(v[:, np.newaxis],
     //                          np.dot(v[np.newaxis, :], a[:, :]))
-    auto vva =
-        BatchDot(v_broadcast, a, /*transpose_x=*/false, /*transpose_y=*/false,
-                 /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
-    vva =
-        BatchDot(v_broadcast, vva, /*transpose_x=*/true, /*transpose_y=*/false,
-                 /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
+    auto vva = BatchDot(v_broadcast, a);
+    vva = BatchDot(v_broadcast, vva, /*transpose_x=*/true);
     a = a - xla::Mul(tau, vva,
                      /*broadcast_dimensions=*/batch_dim_indices);
 
@@ -255,15 +250,14 @@ xla::StatusOr<QRBlockResult> QRBlock(
 // There is no need to return Y since at termination of the loop it is equal to
 // vs.
 xla::StatusOr<xla::XlaOp> ComputeWYRepresentation(
-    xla::PrimitiveType type, absl::Span<const int64> batch_dims, xla::XlaOp vs,
-    xla::XlaOp taus, int64 m, int64 n,
-    xla::PrecisionConfig::Precision precision) {
+    xla::PrimitiveType type, gtl::ArraySlice<int64> batch_dims, xla::XlaOp vs,
+    xla::XlaOp taus, int64 m, int64 n) {
   std::vector<int64> batch_dim_indices(batch_dims.size());
   std::iota(batch_dim_indices.begin(), batch_dim_indices.end(), 0);
   int64 n_index = batch_dims.size() + 1;
 
   auto body_fn =
-      [&](xla::XlaOp j, absl::Span<const xla::XlaOp> values,
+      [&](xla::XlaOp j, gtl::ArraySlice<xla::XlaOp> values,
           xla::XlaBuilder* builder) -> xla::StatusOr<std::vector<xla::XlaOp>> {
     auto w = values[0];
     auto y = values[1];
@@ -278,12 +272,9 @@ xla::StatusOr<xla::XlaOp> ComputeWYRepresentation(
     auto beta = DynamicSliceInMinorDims(taus, {j}, {1});
 
     // yv has shape [..., n, 1]
-    auto yv = BatchDot(y, v, /*transpose_x=*/true, /*transpose_y=*/false,
-                       /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
+    auto yv = BatchDot(y, v, /*transpose_x=*/true);
     // wyv has shape [..., m, 1]
-    auto wyv =
-        BatchDot(w, yv, /*transpose_x=*/false, /*transpose_y=*/false,
-                 /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
+    auto wyv = BatchDot(w, yv);
 
     auto z = xla::Mul(
         -beta, v + wyv,
@@ -330,9 +321,8 @@ xla::StatusOr<xla::XlaOp> ComputeWYRepresentation(
 //   return (q, a)
 // TODO(phawkins): consider using UT transformations (in the form I - V U V')
 // rather than WY transformations.
-xla::StatusOr<QRDecompositionResult> QRDecomposition(
-    xla::XlaOp a, bool full_matrices, int64 block_size,
-    xla::PrecisionConfig::Precision precision) {
+xla::StatusOr<QRDecompositionResult> QRDecomposition(xla::XlaOp a,
+                                                     int64 block_size) {
   xla::XlaBuilder* builder = a.builder();
   TF_ASSIGN_OR_RETURN(xla::Shape a_shape, builder->GetShape(a));
   const int num_dims = xla::ShapeUtil::Rank(a_shape);
@@ -362,47 +352,33 @@ xla::StatusOr<QRDecompositionResult> QRDecomposition(
     int64 k = std::min(block_size, p - i);
 
     auto a_block = SliceInMinorDims(a, {i, i}, {m, i + k});
-    TF_ASSIGN_OR_RETURN(auto qr_block, QRBlock(a_block, precision));
+    TF_ASSIGN_OR_RETURN(auto qr_block, QRBlock(a_block));
 
     a = UpdateSliceInMinorDims(a, qr_block.r, {i, i});
 
     // Compute the I-WY block representation of a product of Householder
     // matrices.
-    TF_ASSIGN_OR_RETURN(
-        auto w, ComputeWYRepresentation(type, batch_dims, qr_block.vs,
-                                        qr_block.taus, m - i, k, precision));
+    TF_ASSIGN_OR_RETURN(auto w,
+                        ComputeWYRepresentation(type, batch_dims, qr_block.vs,
+                                                qr_block.taus, m - i, k));
     auto y = qr_block.vs;
 
     // a[i:, i+k:] += np.dot(Y, np.dot(W.T, a[i:, i+k:]))
     auto a_panel = SliceInMinorDims(a, {i, i + k}, {m, n});
-    auto a_update =
-        BatchDot(w, a_panel, /*transpose_x=*/true, /*transpose_y=*/false,
-                 /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
-    a_update =
-        BatchDot(y, a_update, /*transpose_x=*/false, /*transpose_y=*/false,
-                 /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
+    auto a_update = BatchDot(w, a_panel, /*transpose_x=*/true);
+    a_update = BatchDot(y, a_update);
     a_panel = a_panel + a_update;
     a = UpdateSliceInMinorDims(a, a_panel, {i, i + k});
 
     // q[:, i:] += np.dot(np.dot(q[:, i:], W), Y.T))
     auto q_panel = SliceInMinorDims(q, {0, i}, {m, m});
-    auto q_update =
-        BatchDot(q_panel, w, /*transpose_x=*/false, /*transpose_y=*/false,
-                 /*conjugate_x=*/false, /*conjugate_y=*/false, precision);
-    q_update = BatchDot(q_update, y, /*transpose_x=*/false,
-                        /*transpose_y=*/true, /*conjugate_x=*/false,
-                        /*conjugate_y=*/false, precision);
+    auto q_update = BatchDot(q_panel, w);
+    q_update =
+        BatchDot(q_update, y, /*transpose_x=*/false, /*transpose_y=*/true);
     q_panel = q_panel + q_update;
     q = UpdateSliceInMinorDims(q, q_panel, {0, i});
   }
   QRDecompositionResult result;
-
-  // full_matrices is false when only a partial result in needed. Slice to the
-  // needed dimensions here.
-  if (!full_matrices) {
-    q = SliceInMinorDims(q, {0, 0}, {m, p});
-    a = SliceInMinorDims(a, {0, 0}, {p, n});
-  }
   result.q = q;
   result.r = a;
   return result;

@@ -28,7 +28,6 @@ limitations under the License.
 #include "tensorflow/core/kernels/ops_util.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/lib/strings/strcat.h"
-#include "tensorflow/core/platform/abi.h"
 #include "tensorflow/core/platform/test.h"
 #include "tensorflow/core/platform/types.h"
 
@@ -61,7 +60,8 @@ Status GetShapeFromKnownVecSize(const KnownVecSize& ks, TensorShape* s) {
 
 REGISTER_UNARY_VARIANT_DECODE_FUNCTION(KnownVecSize, "KNOWN VECTOR SIZE TYPE");
 
-REGISTER_UNARY_VARIANT_SHAPE_FUNCTION(KnownVecSize, GetShapeFromKnownVecSize);
+REGISTER_UNARY_VARIANT_SHAPE_FUNCTION(KnownVecSize, "KNOWN VECTOR SIZE TYPE",
+                                      GetShapeFromKnownVecSize);
 
 static void ExpectHasError(const Status& s, StringPiece substr) {
   EXPECT_TRUE(str_util::StrContains(s.ToString(), substr))
@@ -94,9 +94,9 @@ TEST_F(ShapeOpTest, Simple) {
     Status s = session.Run({{input, variant_tensor}}, {shape_output}, &outputs);
     EXPECT_FALSE(s.ok());
     ExpectHasError(
-        s, strings::StrCat(
-               "No unary variant shape function found for Variant type_index: ",
-               port::MaybeAbiDemangle(MakeTypeIndex<NoKnownShape>().name())));
+        s,
+        "No unary variant shape function found for Variant type_name: "
+        "NO KNOWN SHAPE");
   }
 
   {

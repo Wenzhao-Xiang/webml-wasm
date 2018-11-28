@@ -17,9 +17,8 @@ limitations under the License.
 
 #include <deque>
 
-#include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/map_util.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/service/call_graph.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
@@ -30,13 +29,16 @@ limitations under the License.
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace xla {
-namespace {
 
 using Worklist = std::deque<const HloInstruction*>;
 using Workset = std::unordered_set<const HloInstruction*>;
+
+namespace {
 
 void AddToWorklist(const HloInstruction* instruction, Worklist* worklist,
                    Workset* workset) {
@@ -219,33 +221,6 @@ void PropagateLivenessToParameterCallers(
   }
 }
 
-// Makes sure that if a live instruction is within a computation used in control
-// flow operations, we mark live even other related instructions.
-void PropagateLivenessThroughControlFlow(
-    const HloInstruction* instruction,
-    HloLivenessAnalysis::HloIndexMap* live_index_map, Worklist* worklist,
-    Workset* workset, CallGraph* call_graph) {
-  const CallGraphNode& call_graph_node =
-      call_graph->GetNode(instruction->parent());
-  if (call_graph_node.context() == CallContext::kSequential) {
-    for (const CallSite& callsite : call_graph_node.caller_callsites()) {
-      HloInstruction* caller = callsite.instruction();
-      if (caller->opcode() == HloOpcode::kWhile) {
-        // If a live instruction is within the %while body or condition
-        // computation, mark the predicate value returned by the condition
-        // computation live as well.
-        MarkLiveAtIndex(caller->while_condition()->root_instruction(), {},
-                        live_index_map, worklist, workset);
-      } else if (caller->opcode() == HloOpcode::kConditional) {
-        // If a live instruction is within the true or false branches of a
-        // conditional, we mark the predicate operand live as well.
-        MarkLiveAtIndex(caller->operand(0), {}, live_index_map, worklist,
-                        workset);
-      }
-    }
-  }
-}
-
 }  // namespace
 
 HloLivenessAnalysis::HloLivenessAnalysis(const HloModule& module)
@@ -284,10 +259,12 @@ void HloLivenessAnalysis::RunAnalysis() {
     } else if (instruction->opcode() == HloOpcode::kGetTupleElement) {
       PropagateLivenessThroughGTE(instruction, &live_index_map_, &worklist,
                                   &workset);
-    } else if (instruction->opcode() == HloOpcode::kWhile) {
+    } else if (instruction->opcode() == HloOpcode::kWhile &&
+               ShapeUtil::IsTuple(instruction->shape())) {
       PropagateLivenessThroughWhile(instruction, &live_index_map_, &worklist,
                                     &workset);
-    } else if (instruction->opcode() == HloOpcode::kParameter) {
+    } else if (instruction->opcode() == HloOpcode::kParameter &&
+               ShapeUtil::IsTuple(instruction->shape())) {
       PropagateLivenessToParameterCallers(instruction, &live_index_map_,
                                           &worklist, &workset,
                                           call_graph_.get());
@@ -302,8 +279,6 @@ void HloLivenessAnalysis::RunAnalysis() {
         MarkLiveAtAllIndices(operand, &live_index_map_, &worklist, &workset);
       }
     }
-    PropagateLivenessThroughControlFlow(instruction, &live_index_map_,
-                                        &worklist, &workset, call_graph_.get());
   }
 }
 
@@ -321,7 +296,7 @@ StatusOr<std::unique_ptr<HloLivenessAnalysis>> HloLivenessAnalysis::Run(
   VLOG(1) << "HloLivenessAnalysis::Run on module " << module.name();
   XLA_VLOG_LINES(2, module.ToString());
 
-  auto liveness_analysis = absl::WrapUnique(new HloLivenessAnalysis(module));
+  auto liveness_analysis = WrapUnique(new HloLivenessAnalysis(module));
 
   liveness_analysis->RunAnalysis();
 

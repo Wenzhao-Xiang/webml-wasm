@@ -14,15 +14,15 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/compiler/xla/service/hlo_execution_profile.h"
-#include "absl/strings/str_cat.h"
 #include "tensorflow/compiler/xla/service/hlo_cost_analysis.h"
 #include "tensorflow/compiler/xla/service/hlo_parser.h"
 #include "tensorflow/compiler/xla/tests/hlo_test_base.h"
+#include "tensorflow/core/lib/strings/strcat.h"
 
 namespace xla {
 namespace {
 
-using absl::StrCat;
+using tensorflow::strings::StrCat;
 using ::testing::AllOf;
 using ::testing::ContainsRegex;
 

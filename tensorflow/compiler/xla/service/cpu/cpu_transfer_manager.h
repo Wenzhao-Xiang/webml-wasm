@@ -13,18 +13,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_CPU_CPU_TRANSFER_MANAGER_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_CPU_CPU_TRANSFER_MANAGER_H_
+#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_CPU_TRANSFER_MANAGER_H_
+#define TENSORFLOW_COMPILER_XLA_SERVICE_CPU_TRANSFER_MANAGER_H_
 
 #include <vector>
 
-#include "absl/types/span.h"
-#include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/service/cpu/xfeed_manager.h"
 #include "tensorflow/compiler/xla/service/generic_transfer_manager.h"
 #include "tensorflow/compiler/xla/service/transfer_manager.h"
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
+#include "tensorflow/core/lib/gtl/array_slice.h"
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/stream_executor_no_cuda.h"
 #include "tensorflow/core/platform/types.h"
@@ -42,7 +41,7 @@ class CpuTransferManager : public GenericTransferManager {
                                  const LiteralSlice& literal) override;
   Status TransferLiteralFromOutfeed(se::StreamExecutor* executor,
                                     const Shape& literal_shape,
-                                    MutableBorrowingLiteral literal) override;
+                                    Literal* literal) override;
 
  private:
   Status TransferBufferToInfeed(se::StreamExecutor* executor, int64 size,
@@ -56,7 +55,7 @@ class CpuTransferManager : public GenericTransferManager {
   // Helper that transfers a tuple of element buffers from the device's outfeed.
   StatusOr<Shape> TransferTupleBuffersFromOutfeed(
       se::StreamExecutor* executor,
-      absl::Span<const std::pair<void*, int64>> buffer_data);
+      tensorflow::gtl::ArraySlice<std::pair<void*, int64>> buffer_data);
 
   // Helper that transfers an array buffer from the device's outfeed.
   StatusOr<Shape> TransferArrayBufferFromOutfeed(se::StreamExecutor* executor,
@@ -68,11 +67,12 @@ class CpuTransferManager : public GenericTransferManager {
   // for the given buffers.
   StatusOr<Shape> TransferBuffersFromOutfeedInternal(
       se::StreamExecutor* executor,
-      absl::Span<const std::pair<void*, int64>> buffer_data, bool is_tuple);
+      tensorflow::gtl::ArraySlice<std::pair<void*, int64>> buffer_data,
+      bool is_tuple);
 
   TF_DISALLOW_COPY_AND_ASSIGN(CpuTransferManager);
 };
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_CPU_CPU_TRANSFER_MANAGER_H_
+#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_CPU_TRANSFER_MANAGER_H_

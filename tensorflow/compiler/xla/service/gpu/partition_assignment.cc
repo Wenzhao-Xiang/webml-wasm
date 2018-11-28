@@ -18,15 +18,15 @@ limitations under the License.
 #include <ostream>
 #include <string>
 
-#include "absl/memory/memory.h"
-#include "absl/strings/str_format.h"
 #include "tensorflow/compiler/xla/map_util.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_opcode.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/core/bits.h"
+#include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace xla {
@@ -34,8 +34,9 @@ namespace gpu {
 
 std::ostream& operator<<(std::ostream& out,
                          const LaunchDimensions& launch_dims) {
-  out << absl::StrFormat("[block: %d, thread: %d]", launch_dims.block_count(),
-                         launch_dims.threads_per_block());
+  out << tensorflow::strings::Printf("[block: %lld, thread: %lld]",
+                                     launch_dims.block_count(),
+                                     launch_dims.threads_per_block());
   return out;
 }
 
@@ -62,8 +63,13 @@ LaunchDimensions CalculateLaunchDimensions(
   //
   //   <num threads per block> * <max blocks per core> = <max threads per core>
 
-  int64 threads_per_block = device_desc.threads_per_block_limit();
-  if (threads_per_block == 0) {
+  auto threads_per_core = device_desc.threads_per_core_limit();
+  auto blocks_per_core = device_desc.blocks_per_core_limit();
+  int64 threads_per_block;
+  if (threads_per_core != 0 && blocks_per_core != 0) {
+    threads_per_block = device_desc.threads_per_core_limit() /
+                        device_desc.blocks_per_core_limit();
+  } else {
     static std::atomic<int64> log_count{0};
     if (log_count.fetch_add(1) < 8) {
       LOG(WARNING) << "Attempting to calculate launch dimensions for GPU "
@@ -85,9 +91,9 @@ LaunchDimensions CalculateLaunchDimensions(
   }
 
   int64 block_count = CeilOfRatio(num_elements, threads_per_block);
-  VLOG(2) << absl::StrFormat(
+  VLOG(2) << tensorflow::strings::Printf(
       "Initialized the block count to ceil(# of elements / threads per "
-      "block) = ceil(%d/%d) = %d",
+      "block) = ceil(%lld/%lld) = %lld",
       num_elements, threads_per_block, block_count);
 
   return LaunchDimensions(block_count, threads_per_block);

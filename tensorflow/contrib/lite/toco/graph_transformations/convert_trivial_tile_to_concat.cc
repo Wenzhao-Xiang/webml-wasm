@@ -21,13 +21,10 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ConvertTrivialTileToConcat::Run(Model* model,
-                                                     std::size_t op_index,
-                                                     bool* modified) {
-  *modified = false;
+bool ConvertTrivialTileToConcat::Run(Model* model, std::size_t op_index) {
   auto tile_it = model->operators.begin() + op_index;
   if (tile_it->get()->type != OperatorType::kTile) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
   auto* tile_op = static_cast<TransposeOperator*>(tile_it->get());
 
@@ -37,13 +34,13 @@ namespace toco {
   if (!input_array.has_shape() || !multiples_array.has_shape() ||
       !output_array.has_shape()) {
     // Yield until PropagateFixedSizes has been run on this op.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   // Note: We can assume we have error checked inputs in PropagateFixedSizes.
 
   if (!multiples_array.buffer) {
     // Yield until the multiples is constant.
-    return ::tensorflow::Status::OK();
+    return false;
   }
   std::vector<int32> const& multiples =
       multiples_array.GetBuffer<ArrayDataType::kInt32>().data;
@@ -62,7 +59,7 @@ namespace toco {
     // The tile is non-trivial. Good luck.
     AddMessageF("Tile %s is non-trivial (has more than one multiply dimension)",
                 LogName(*tile_op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // The tile is like a concat.
@@ -91,8 +88,7 @@ namespace toco {
   CHECK_EQ(tile_it->get(), tile_op);
   model->operators.erase(tile_it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

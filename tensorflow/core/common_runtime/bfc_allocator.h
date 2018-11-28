@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_COMMON_RUNTIME_BFC_ALLOCATOR_H_
-#define TENSORFLOW_CORE_COMMON_RUNTIME_BFC_ALLOCATOR_H_
+#ifndef TENSORFLOW_COMMON_RUNTIME_BFC_ALLOCATOR_H_
+#define TENSORFLOW_COMMON_RUNTIME_BFC_ALLOCATOR_H_
 
 #include <array>
 #include <memory>
@@ -23,7 +23,7 @@ limitations under the License.
 #include <vector>
 
 #include "tensorflow/core/common_runtime/allocator_retry.h"
-#include "tensorflow/core/framework/allocator.h"
+#include "tensorflow/core/common_runtime/visitable_allocator.h"
 #include "tensorflow/core/lib/gtl/stl_util.h"
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/macros.h"
@@ -42,7 +42,7 @@ namespace tensorflow {
 // coalescing.  One assumption we make is that the process using this
 // allocator owns pretty much all of the memory, and that nearly
 // all requests to allocate memory go through this interface.
-class BFCAllocator : public Allocator {
+class BFCAllocator : public VisitableAllocator {
  public:
   // Takes ownership of sub_allocator.
   BFCAllocator(SubAllocator* sub_allocator, size_t total_memory,
@@ -54,6 +54,11 @@ class BFCAllocator : public Allocator {
   void* AllocateRaw(size_t alignment, size_t num_bytes,
                     const AllocationAttributes& allocation_attr) override;
   void DeallocateRaw(void* ptr) override;
+
+  void AddAllocVisitor(Visitor visitor) override;
+
+  // Does nothing, because memory is never freed.
+  void AddFreeVisitor(Visitor visitor) override {}
 
   bool TracksAllocationSizes() override;
 
@@ -83,20 +88,11 @@ class BFCAllocator : public Allocator {
   static const int kInvalidBinNum = -1;
   static const int kNumBins = 21;
 
-  // A Chunk points to a piece of memory that's either entirely free or entirely
-  // in use by one user memory allocation.
-  //
-  // An AllocationRegion's memory is split up into one or more disjoint Chunks,
-  // which together cover the whole region without gaps.  Chunks participate in
-  // a doubly-linked list, and the prev/next pointers point to the physically
-  // adjacent chunks.
-  //
-  // Since a chunk cannot be partially in use, we may need to split a free chunk
-  // in order to service a user allocation.  We always merge adjacent free
-  // chunks.
-  //
-  // Chunks contain information about whether they are in use or whether they
-  // are free, and contain a pointer to the bin they are in.
+  // Chunks point to memory.  Their prev/next pointers form a
+  // doubly-linked list of addresses sorted by base address that
+  // must be contiguous.  Chunks contain information about whether
+  // they are in use or whether they are free, and contain a pointer
+  // to the bin they are in.
   struct Chunk {
     size_t size = 0;  // Full size of buffer.
 
@@ -181,12 +177,8 @@ class BFCAllocator : public Allocator {
   static const size_t kMinAllocationBits = 8;
   static const size_t kMinAllocationSize = 1 << kMinAllocationBits;
 
-  // BFCAllocator allocates memory into a collection of disjoint
-  // AllocationRegions.  Each AllocationRegion corresponds to one call to
-  // SubAllocator::Alloc().
-  //
-  // An AllocationRegion contains one or more Chunks, covering all of its
-  // memory.  Its primary job is to map a pointers to ChunkHandles.
+  // AllocationRegion maps pointers to ChunkHandles for a single
+  // contiguous memory region.
   //
   // This class is thread-compatible.
   class AllocationRegion {
@@ -199,14 +191,18 @@ class BFCAllocator : public Allocator {
       DCHECK_EQ(0, memory_size % kMinAllocationSize);
       const size_t n_handles =
           (memory_size + kMinAllocationSize - 1) / kMinAllocationSize;
-      handles_.reset(new ChunkHandle[n_handles]);
+      handles_ = new ChunkHandle[n_handles];
       for (size_t i = 0; i < n_handles; i++) {
         handles_[i] = kInvalidChunkHandle;
       }
     }
 
-    AllocationRegion() = default;
+    AllocationRegion() {}
+
+    ~AllocationRegion() { delete[] handles_; }
+
     AllocationRegion(AllocationRegion&& other) { Swap(other); }
+
     AllocationRegion& operator=(AllocationRegion&& other) {
       Swap(other);
       return *this;
@@ -245,7 +241,7 @@ class BFCAllocator : public Allocator {
     // Array of size "memory_size / kMinAllocationSize".  It is
     // indexed by (p-base) / kMinAllocationSize, contains ChunkHandle
     // for the memory allocation represented by "p"
-    std::unique_ptr<ChunkHandle[]> handles_;
+    ChunkHandle* handles_ = nullptr;
 
     TF_DISALLOW_COPY_AND_ASSIGN(AllocationRegion);
   };
@@ -304,7 +300,7 @@ class BFCAllocator : public Allocator {
   };
 
   // Returns 'bytes' rounded up to the next highest kMinAllocationSize.
-  static size_t RoundedBytes(size_t bytes);
+  size_t RoundedBytes(size_t bytes);
 
   // Try to add a new memory region that can satisfy an allocation of
   // 'rounded_bytes' bytes.  Returns true on success and false on
@@ -418,7 +414,7 @@ class BFCAllocator : public Allocator {
   // of the available memory.
   bool started_backpedal_ = false;
 
-  std::unique_ptr<SubAllocator> sub_allocator_;
+  std::unique_ptr<SubAllocator> suballocator_;
   string name_;
 
   // Structures mutable after construction
@@ -429,6 +425,9 @@ class BFCAllocator : public Allocator {
 
   // Pointer to head of linked list of free Chunks
   ChunkHandle free_chunks_list_ GUARDED_BY(lock_);
+
+  // Called once on each region, ASAP.
+  std::vector<Visitor> region_visitors_ GUARDED_BY(lock_);
 
   // Counter containing the next unique identifier to assign to a
   // newly-created chunk.
@@ -443,4 +442,4 @@ class BFCAllocator : public Allocator {
 
 }  // namespace tensorflow
 
-#endif  // TENSORFLOW_CORE_COMMON_RUNTIME_BFC_ALLOCATOR_H_
+#endif  // TENSORFLOW_COMMON_RUNTIME_BFC_ALLOCATOR_H_

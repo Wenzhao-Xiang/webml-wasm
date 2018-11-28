@@ -58,7 +58,7 @@ class KLTest(test.TestCase):
 
     # pylint: disable=unused-argument,unused-variable
 
-    with self.cached_session():
+    with self.test_session():
       a = MyDistException(loc=0.0, scale=1.0, allow_nan_stats=False)
       kl = kullback_leibler.kl_divergence(a, a, allow_nan_stats=False)
       with self.assertRaisesOpError(

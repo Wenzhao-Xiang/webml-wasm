@@ -1,4 +1,4 @@
-licenses(["notice"])  # Apache 2.0
+licenses(["restricted"])
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,11 +12,12 @@ cc_library(
     srcs = ["interpreter_transfer_manager.cc"],
     hdrs = ["interpreter_transfer_manager.h"],
     deps = [
+        "//tensorflow/compiler/xla:util",
+        "//tensorflow/compiler/xla:xla_data_proto",
         "//tensorflow/compiler/xla/service:generic_transfer_manager",
         "//tensorflow/compiler/xla/service:transfer_manager",
         "//tensorflow/compiler/xla/service/interpreter:platform_id",
         "//tensorflow/core:lib",
-        "@com_google_absl//absl/memory",
     ],
     alwayslink = True,  # Contains per-platform transfer manager registration
 )
@@ -31,6 +32,8 @@ cc_library(
         "//tensorflow/compiler/xla:status",
         "//tensorflow/compiler/xla:status_macros",
         "//tensorflow/compiler/xla:statusor",
+        "//tensorflow/compiler/xla:util",
+        "//tensorflow/compiler/xla:xla_data_proto",
         "//tensorflow/compiler/xla/service:algebraic_simplifier",
         "//tensorflow/compiler/xla/service:compiler",
         "//tensorflow/compiler/xla/service:computation_placer",
@@ -45,13 +48,12 @@ cc_library(
         "//tensorflow/compiler/xla/service:hlo_pass",
         "//tensorflow/compiler/xla/service:hlo_pass_pipeline",
         "//tensorflow/compiler/xla/service:hlo_subcomputation_unification",
+        "//tensorflow/compiler/xla/service:inliner",
         "//tensorflow/compiler/xla/service:layout_assignment",
-        "//tensorflow/compiler/xla/service:map_inliner",
         "//tensorflow/compiler/xla/service:reshape_mover",
         "//tensorflow/compiler/xla/service:while_loop_simplifier",
         "//tensorflow/core:lib",
         "//tensorflow/stream_executor",
-        "@com_google_absl//absl/memory",
     ],
     alwayslink = True,  # Contains compiler registration
 )
@@ -77,6 +79,7 @@ cc_library(
         "//tensorflow/compiler/xla:status_macros",
         "//tensorflow/compiler/xla:statusor",
         "//tensorflow/compiler/xla:types",
+        "//tensorflow/compiler/xla:util",
         "//tensorflow/compiler/xla:xla_data_proto",
         "//tensorflow/compiler/xla/service:executable",
         "//tensorflow/compiler/xla/service:hlo",
@@ -88,8 +91,6 @@ cc_library(
         "//tensorflow/compiler/xla/service:transfer_manager",
         "//tensorflow/core:lib",
         "//tensorflow/core:stream_executor_no_cuda",
-        "@com_google_absl//absl/memory",
-        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -115,6 +116,5 @@ cc_library(
         "//tensorflow/compiler/xla:xla_data_proto",
         "//tensorflow/core:lib",
         "//tensorflow/core:stream_executor_headers_lib",
-        "@com_google_absl//absl/types:span",
     ],
 )

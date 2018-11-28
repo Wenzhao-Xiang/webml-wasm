@@ -17,7 +17,6 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 
 namespace tensorflow {
-namespace data {
 namespace {
 
 class BigtableSampleKeysDatasetOp : public DatasetOpKernel {
@@ -28,15 +27,14 @@ class BigtableSampleKeysDatasetOp : public DatasetOpKernel {
     BigtableTableResource* resource;
     OP_REQUIRES_OK(ctx,
                    LookupResource(ctx, HandleFromInput(ctx, 0), &resource));
-    core::ScopedUnref scoped_unref(resource);
     *output = new Dataset(ctx, resource);
   }
 
  private:
-  class Dataset : public DatasetBase {
+  class Dataset : public GraphDatasetBase {
    public:
     explicit Dataset(OpKernelContext* ctx, BigtableTableResource* table)
-        : DatasetBase(DatasetContext(ctx)), table_(table) {
+        : GraphDatasetBase(ctx), table_(table) {
       table_->Ref();
     }
 
@@ -45,7 +43,7 @@ class BigtableSampleKeysDatasetOp : public DatasetOpKernel {
     std::unique_ptr<IteratorBase> MakeIteratorInternal(
         const string& prefix) const override {
       return std::unique_ptr<IteratorBase>(new Iterator(
-          {this, strings::StrCat(prefix, "::BigtableSampleKeys")}));
+          {this, strings::StrCat(prefix, "::BigtableSampleKeysDataset")}));
     }
 
     const DataTypeVector& output_dtypes() const override {
@@ -64,14 +62,6 @@ class BigtableSampleKeysDatasetOp : public DatasetOpKernel {
     }
 
     BigtableTableResource* table() const { return table_; }
-
-   protected:
-    Status AsGraphDefInternal(SerializationContext* ctx,
-                              DatasetGraphDefBuilder* b,
-                              Node** output) const override {
-      return errors::Unimplemented("%s does not support serialization",
-                                   DebugString());
-    }
 
    private:
     class Iterator : public DatasetIterator<Dataset> {
@@ -120,5 +110,4 @@ REGISTER_KERNEL_BUILDER(Name("BigtableSampleKeysDataset").Device(DEVICE_CPU),
                         BigtableSampleKeysDatasetOp);
 
 }  // namespace
-}  // namespace data
 }  // namespace tensorflow

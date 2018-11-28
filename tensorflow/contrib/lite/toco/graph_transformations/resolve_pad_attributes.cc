@@ -24,23 +24,19 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ResolvePadAttributes::Run(Model* model,
-                                               std::size_t op_index,
-                                               bool* modified) {
-  *modified = false;
+bool ResolvePadAttributes::Run(Model* model, std::size_t op_index) {
   const auto pad_it = model->operators.begin() + op_index;
   auto* pad_op = pad_it->get();
-  if (pad_op->type != OperatorType::kPad) return ::tensorflow::Status::OK();
+  if (pad_op->type != OperatorType::kPad) return false;
 
   auto* op = static_cast<PadOperator*>(pad_op);
-  if (!op->left_padding.empty()) return ::tensorflow::Status::OK();
+  if (!op->left_padding.empty()) return false;
 
   CHECK_EQ(op->inputs.size(), 2);
-  if (!IsConstantParameterArray(*model, op->inputs[1]))
-    return ::tensorflow::Status::OK();
+  if (!IsConstantParameterArray(*model, op->inputs[1])) return false;
 
   const auto& array = model->GetArray(op->inputs[1]);
-  if (!array.has_shape()) return ::tensorflow::Status::OK();
+  if (!array.has_shape()) return false;
 
   const std::vector<int>& dims = array.shape().dims();
   CHECK_EQ(dims.size(), 2);
@@ -54,7 +50,6 @@ namespace toco {
 
   // TODO(dkalenichenko): Delete the extra input?
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 }  // namespace toco

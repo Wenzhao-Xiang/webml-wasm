@@ -31,15 +31,6 @@ from tensorflow.python.platform import test
 
 class CrfTest(test.TestCase):
 
-  def calculateSequenceScore(self, inputs, transition_params, tag_indices,
-                             sequence_lengths):
-    expected_unary_score = sum(
-        inputs[i][tag_indices[i]] for i in range(sequence_lengths))
-    expected_binary_score = sum(
-        transition_params[tag_indices[i], tag_indices[i + 1]]
-        for i in range(sequence_lengths - 1))
-    return expected_unary_score + expected_binary_score
-
   def testCrfSequenceScore(self):
     transition_params = np.array(
         [[-3, 5, -2], [3, 4, 1], [1, 2, 1]], dtype=np.float32)
@@ -61,7 +52,7 @@ class CrfTest(test.TestCase):
     for sequence_lengths, inputs, tag_indices in zip(sequence_lengths_list,
                                                      inputs_list,
                                                      tag_indices_list):
-      with self.cached_session() as sess:
+      with self.test_session() as sess:
         sequence_score = crf.crf_sequence_score(
             inputs=array_ops.expand_dims(inputs, 0),
             tag_indices=array_ops.expand_dims(tag_indices, 0),
@@ -69,54 +60,13 @@ class CrfTest(test.TestCase):
             transition_params=constant_op.constant(transition_params))
         sequence_score = array_ops.squeeze(sequence_score, [0])
         tf_sequence_score = sess.run(sequence_score)
-        expected_sequence_score = self.calculateSequenceScore(
-            inputs, transition_params, tag_indices, sequence_lengths)
+        expected_unary_score = sum(inputs[i][tag_indices[i]]
+                                   for i in range(sequence_lengths))
+        expected_binary_score = sum(
+            transition_params[tag_indices[i], tag_indices[i + 1]]
+            for i in range(sequence_lengths - 1))
+        expected_sequence_score = expected_unary_score + expected_binary_score
         self.assertAllClose(tf_sequence_score, expected_sequence_score)
-
-  def testCrfMultiTagSequenceScore(self):
-    transition_params = np.array(
-        [[-3, 5, -2], [3, 4, 1], [1, 2, 1]], dtype=np.float32)
-    # Test both the length-1 and regular cases.
-    sequence_lengths_list = [
-        np.array(3, dtype=np.int32),
-        np.array(1, dtype=np.int32)
-    ]
-    inputs_list = [
-        np.array([[4, 5, -3], [3, -1, 3], [-1, 2, 1], [0, 0, 0]],
-                 dtype=np.float32),
-        np.array([[4, 5, -3]],
-                 dtype=np.float32),
-    ]
-    tag_bitmap_list = [
-        np.array(
-            [[True, True, False], [True, False, True], [False, True, True],
-             [True, False, True]],
-            dtype=np.bool),
-        np.array([[True, True, False]], dtype=np.bool)
-    ]
-    for sequence_lengths, inputs, tag_bitmap in zip(
-        sequence_lengths_list, inputs_list, tag_bitmap_list):
-      with self.cached_session() as sess:
-        sequence_score = crf.crf_multitag_sequence_score(
-            inputs=array_ops.expand_dims(inputs, 0),
-            tag_bitmap=array_ops.expand_dims(tag_bitmap, 0),
-            sequence_lengths=array_ops.expand_dims(sequence_lengths, 0),
-            transition_params=constant_op.constant(transition_params))
-        sequence_score = array_ops.squeeze(sequence_score, [0])
-        tf_sum_sequence_score = sess.run(sequence_score)
-        all_indices_list = [
-            single_index_bitmap.nonzero()[0]
-            for single_index_bitmap in tag_bitmap[:sequence_lengths]
-        ]
-        expected_sequence_scores = [
-            self.calculateSequenceScore(inputs, transition_params, indices,
-                                        sequence_lengths)
-            for indices in itertools.product(*all_indices_list)
-        ]
-        expected_log_sum_exp_sequence_scores = np.logaddexp.reduce(
-            expected_sequence_scores)
-        self.assertAllClose(tf_sum_sequence_score,
-                            expected_log_sum_exp_sequence_scores)
 
   def testCrfUnaryScore(self):
     inputs = np.array(
@@ -124,7 +74,7 @@ class CrfTest(test.TestCase):
     for dtype in (np.int32, np.int64):
       tag_indices = np.array([1, 2, 1, 0], dtype=dtype)
       sequence_lengths = np.array(3, dtype=np.int32)
-      with self.cached_session() as sess:
+      with self.test_session() as sess:
         unary_score = crf.crf_unary_score(
             tag_indices=array_ops.expand_dims(tag_indices, 0),
             sequence_lengths=array_ops.expand_dims(sequence_lengths, 0),
@@ -140,7 +90,7 @@ class CrfTest(test.TestCase):
     transition_params = np.array(
         [[-3, 5, -2], [3, 4, 1], [1, 2, 1]], dtype=np.float32)
     sequence_lengths = np.array(3, dtype=np.int32)
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       binary_score = crf.crf_binary_score(
           tag_indices=array_ops.expand_dims(tag_indices, 0),
           sequence_lengths=array_ops.expand_dims(sequence_lengths, 0),
@@ -158,7 +108,7 @@ class CrfTest(test.TestCase):
     # Test both the length-1 and regular cases.
     sequence_lengths_list = [
         np.array(3, dtype=np.int32),
-        np.array(1, dtype=np.int64)
+        np.array(1, dtype=np.int32)
     ]
     inputs_list = [
         np.array([[4, 5, -3], [3, -1, 3], [-1, 2, 1], [0, 0, 0]],
@@ -176,7 +126,7 @@ class CrfTest(test.TestCase):
                                                      tag_indices_list):
       num_words = inputs.shape[0]
       num_tags = inputs.shape[1]
-      with self.cached_session() as sess:
+      with self.test_session() as sess:
         all_sequence_scores = []
 
         # Compare the dynamic program with brute force computation.
@@ -206,7 +156,7 @@ class CrfTest(test.TestCase):
     """
     Test `crf_log_norm` when `sequence_lengths` contains one or more zeros.
     """
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       inputs = constant_op.constant(np.ones([2, 10, 5],
                                             dtype=np.float32))
       transition_params = constant_op.constant(np.ones([5, 5],
@@ -226,7 +176,7 @@ class CrfTest(test.TestCase):
     sequence_lengths = np.array(3, dtype=np.int32)
     num_words = inputs.shape[0]
     num_tags = inputs.shape[1]
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       all_sequence_log_likelihoods = []
 
       # Make sure all probabilities sum to 1.
@@ -254,7 +204,7 @@ class CrfTest(test.TestCase):
     num_words = inputs.shape[0]
     num_tags = inputs.shape[1]
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       all_sequence_scores = []
       all_sequences = []
 
@@ -291,7 +241,7 @@ class CrfTest(test.TestCase):
     # Test both the length-1 and regular cases.
     sequence_lengths_list = [
         np.array(3, dtype=np.int32),
-        np.array(1, dtype=np.int64)
+        np.array(1, dtype=np.int32)
     ]
     inputs_list = [
         np.array([[4, 5, -3], [3, -1, 3], [-1, 2, 1], [0, 0, 0]],
@@ -310,7 +260,7 @@ class CrfTest(test.TestCase):
       num_words = inputs.shape[0]
       num_tags = inputs.shape[1]
 
-      with self.cached_session() as sess:
+      with self.test_session() as sess:
         all_sequence_scores = []
         all_sequences = []
 
@@ -351,7 +301,7 @@ class CrfTest(test.TestCase):
     """
     Test that crf_decode works when sequence_length contains one or more zeros.
     """
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       inputs = constant_op.constant(np.ones([2, 10, 5],
                                             dtype=np.float32))
       transition_params = constant_op.constant(np.ones([5, 5],

@@ -81,7 +81,7 @@ bool convFloat32(const float* inputData, const Shape& inputShape,
                  int32_t stride_width, int32_t stride_height,
                  int32_t activation,
                  float* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("convFloat32");
+    // NNTRACE_TRANS("convFloat32");
 
     ANDROID_NN_CONV_PARAMETERS(float)
 
@@ -91,7 +91,7 @@ bool convFloat32(const float* inputData, const Shape& inputShape,
 
     int32_t dilationWidthFactor = 1, dilationHeightFactor = 1;
 
-    NNTRACE_COMP_SWITCH("optimized_ops::Conv");
+    // NNTRACE_COMP_SWITCH("optimized_ops::Conv");
     tflite::optimized_ops::Conv(
             inputData, convertShapeToDims(inputShape),
             filterData, convertShapeToDims(filterShape),
@@ -113,7 +113,7 @@ bool convQuant8(const uint8_t* inputData, const Shape& inputShape,
                 int32_t stride_width, int32_t stride_height,
                 int32_t activation,
                 uint8_t* outputData, const Shape& outputShape) {
-    NNTRACE_TRANS("convQuant8");
+    // NNTRACE_TRANS("convQuant8");
 
     ANDROID_NN_CONV_PARAMETERS(uint8_t)
 
@@ -141,7 +141,7 @@ bool convQuant8(const uint8_t* inputData, const Shape& inputShape,
     // Alow gemmlowp automatically decide how many threads to use.
     gemm_context.set_max_num_threads(0);
 
-    NNTRACE_COMP_SWITCH("optimized_ops::Conv");
+    // NNTRACE_COMP_SWITCH("optimized_ops::Conv");
     tflite::optimized_ops::Conv(
             inputData, convertShapeToDims(inputShape), inputOffset,
             filterData, convertShapeToDims(filterShape), filterOffset,

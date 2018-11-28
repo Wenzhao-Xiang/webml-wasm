@@ -23,12 +23,12 @@ namespace xla {
 // This pass rewrites gather operations into (roughly) while loops of dynamic
 // slices.  This lets backends that don't support gather directly to
 // nevertheless have a minimum level of support.
-class GatherExpander : public HloModulePass {
+class GatherExpander : public HloPassInterface {
  public:
-  absl::string_view name() const override { return "gather_expander"; }
+  tensorflow::StringPiece name() const override { return "gather_expander"; }
   StatusOr<bool> Run(HloModule* module) override;
 
- protected:
+ private:
   StatusOr<HloInstruction*> ExpandGather(HloInstruction* gather_instr);
 };
 

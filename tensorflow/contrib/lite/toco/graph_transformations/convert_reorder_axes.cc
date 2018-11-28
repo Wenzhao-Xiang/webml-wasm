@@ -86,12 +86,9 @@ TransposeOperator* CreateTransposeFromReorderAxes(
 
 // Converts ReorderAxes into Transpose and Reshape which are compatible with the
 // TFLite interpreter.
-::tensorflow::Status ConvertReorderAxes::Run(Model* model, std::size_t op_index,
-                                             bool* modified) {
-  *modified = false;
+bool ConvertReorderAxes::Run(Model* model, std::size_t op_index) {
   auto reorder_it = model->operators.begin() + op_index;
-  if (reorder_it->get()->type != OperatorType::kReorderAxes)
-    return ::tensorflow::Status::OK();
+  if (reorder_it->get()->type != OperatorType::kReorderAxes) return false;
 
   auto* reorder_op = static_cast<ReorderAxesOperator*>(reorder_it->get());
   CHECK_EQ(reorder_op->inputs.size(), 1);
@@ -116,9 +113,8 @@ TransposeOperator* CreateTransposeFromReorderAxes(
   // Yield if input array contains constants or if output array size has not
   // been adjusted to reflect the permutations in ReorderAxes. ReorderAxes will
   // be merged into a constant array when possible.
-  if (IsConstantParameterArray(*model, constant_input_array_name))
-    return ::tensorflow::Status::OK();
-  if (!output_array.has_shape()) return ::tensorflow::Status::OK();
+  if (IsConstantParameterArray(*model, constant_input_array_name)) return false;
+  if (!output_array.has_shape()) return false;
 
   const auto input_axes_order = reorder_op->input_axes_order;
   const auto output_axes_order = reorder_op->output_axes_order;
@@ -147,8 +143,7 @@ TransposeOperator* CreateTransposeFromReorderAxes(
   CHECK_EQ(reorder_it->get(), reorder_op);
   model->operators.erase(reorder_it);
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco

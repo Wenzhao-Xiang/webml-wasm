@@ -24,35 +24,29 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status ResolveSliceAttributes::Run(Model* model,
-                                                 std::size_t op_index,
-                                                 bool* modified) {
-  *modified = false;
+bool ResolveSliceAttributes::Run(Model* model, std::size_t op_index) {
   const auto slice_it = model->operators.begin() + op_index;
   auto* slice_op = slice_it->get();
-  if (slice_op->type != OperatorType::kSlice) return ::tensorflow::Status::OK();
+  if (slice_op->type != OperatorType::kSlice) return false;
 
   auto* op = static_cast<SliceOperator*>(slice_op);
-  if (!op->begin.empty()) return ::tensorflow::Status::OK();
+  if (!op->begin.empty()) return false;
 
   CHECK_EQ(op->inputs.size(), 3);
-  if (!IsConstantParameterArray(*model, op->inputs[1]))
-    return ::tensorflow::Status::OK();
-  if (!IsConstantParameterArray(*model, op->inputs[2]))
-    return ::tensorflow::Status::OK();
+  if (!IsConstantParameterArray(*model, op->inputs[1])) return false;
+  if (!IsConstantParameterArray(*model, op->inputs[2])) return false;
 
   const auto& begin_array = model->GetArray(op->inputs[1]);
-  if (!begin_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!begin_array.has_shape()) return false;
 
   const auto& size_array = model->GetArray(op->inputs[2]);
-  if (!size_array.has_shape()) return ::tensorflow::Status::OK();
+  if (!size_array.has_shape()) return false;
 
   op->begin = begin_array.GetBuffer<ArrayDataType::kInt32>().data;
   op->size = size_array.GetBuffer<ArrayDataType::kInt32>().data;
 
   // TODO(dkalenichenko): Delete the extra inputs?
 
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 }  // namespace toco

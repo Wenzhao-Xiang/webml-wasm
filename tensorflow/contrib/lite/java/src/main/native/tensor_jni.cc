@@ -16,36 +16,17 @@ limitations under the License.
 #include "tensorflow/contrib/lite/java/src/main/native/tensor_jni.h"
 #include <cstring>
 #include <memory>
-#include "tensorflow/contrib/lite/interpreter.h"
 #include "tensorflow/contrib/lite/java/src/main/native/exception_jni.h"
 
 namespace {
 
-// Convenience handle for obtaining a TfLiteTensor given an interpreter and
-// tensor index.
-//
-// Historically, the Java Tensor class used a TfLiteTensor pointer as its native
-// handle. However, this approach isn't generally safe, as the interpreter may
-// invalidate all TfLiteTensor* handles during inference or allocation.
-class TensorHandle {
- public:
-  TensorHandle(tflite::Interpreter* interpreter, int tensor_index)
-      : interpreter_(interpreter), tensor_index_(tensor_index) {}
-
-  TfLiteTensor* tensor() const { return interpreter_->tensor(tensor_index_); }
-
- private:
-  tflite::Interpreter* const interpreter_;
-  const int tensor_index_;
-};
-
-TfLiteTensor* GetTensorFromHandle(JNIEnv* env, jlong handle) {
+TfLiteTensor* convertLongToTensor(JNIEnv* env, jlong handle) {
   if (handle == 0) {
     throwException(env, kIllegalArgumentException,
                    "Internal error: Invalid handle to TfLiteTensor.");
     return nullptr;
   }
-  return reinterpret_cast<TensorHandle*>(handle)->tensor();
+  return reinterpret_cast<TfLiteTensor*>(handle);
 }
 
 size_t elementByteSize(TfLiteType data_type) {
@@ -211,23 +192,10 @@ size_t writeMultiDimensionalArray(JNIEnv* env, jobject src, TfLiteType type,
 
 }  // namespace
 
-JNIEXPORT jlong JNICALL Java_org_tensorflow_lite_Tensor_create(
-    JNIEnv* env, jclass clazz, jlong interpreter_handle, jint tensor_index) {
-  tflite::Interpreter* interpreter =
-      reinterpret_cast<tflite::Interpreter*>(interpreter_handle);
-  return reinterpret_cast<jlong>(new TensorHandle(interpreter, tensor_index));
-}
-
-JNIEXPORT void JNICALL Java_org_tensorflow_lite_Tensor_delete(JNIEnv* env,
-                                                              jclass clazz,
-                                                              jlong handle) {
-  delete reinterpret_cast<TensorHandle*>(handle);
-}
-
 JNIEXPORT jobject JNICALL Java_org_tensorflow_lite_Tensor_buffer(JNIEnv* env,
                                                                  jclass clazz,
                                                                  jlong handle) {
-  TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return nullptr;
   if (tensor->data.raw == nullptr) {
     throwException(env, kIllegalArgumentException,
@@ -240,7 +208,7 @@ JNIEXPORT jobject JNICALL Java_org_tensorflow_lite_Tensor_buffer(JNIEnv* env,
 
 JNIEXPORT void JNICALL Java_org_tensorflow_lite_Tensor_writeDirectBuffer(
     JNIEnv* env, jclass clazz, jlong handle, jobject src) {
-  TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return;
 
   char* src_data_raw = static_cast<char*>(env->GetDirectBufferAddress(src));
@@ -258,7 +226,7 @@ Java_org_tensorflow_lite_Tensor_readMultiDimensionalArray(JNIEnv* env,
                                                           jclass clazz,
                                                           jlong handle,
                                                           jobject value) {
-  TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return;
   int num_dims = tensor->dims->size;
   if (num_dims == 0) {
@@ -275,7 +243,7 @@ Java_org_tensorflow_lite_Tensor_writeMultiDimensionalArray(JNIEnv* env,
                                                            jclass clazz,
                                                            jlong handle,
                                                            jobject src) {
-  TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return;
   if (tensor->data.raw == nullptr) {
     throwException(env, kIllegalArgumentException,
@@ -294,14 +262,14 @@ Java_org_tensorflow_lite_Tensor_writeMultiDimensionalArray(JNIEnv* env,
 JNIEXPORT jint JNICALL Java_org_tensorflow_lite_Tensor_dtype(JNIEnv* env,
                                                              jclass clazz,
                                                              jlong handle) {
-  TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return 0;
   return static_cast<jint>(tensor->type);
 }
 
 JNIEXPORT jintArray JNICALL
 Java_org_tensorflow_lite_Tensor_shape(JNIEnv* env, jclass clazz, jlong handle) {
-  TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return nullptr;
   int num_dims = tensor->dims->size;
   jintArray result = env->NewIntArray(num_dims);
@@ -312,7 +280,7 @@ Java_org_tensorflow_lite_Tensor_shape(JNIEnv* env, jclass clazz, jlong handle) {
 JNIEXPORT jint JNICALL Java_org_tensorflow_lite_Tensor_numBytes(JNIEnv* env,
                                                                 jclass clazz,
                                                                 jlong handle) {
-  const TfLiteTensor* tensor = GetTensorFromHandle(env, handle);
+  const TfLiteTensor* tensor = convertLongToTensor(env, handle);
   if (tensor == nullptr) return 0;
   return static_cast<jint>(tensor->bytes);
 }

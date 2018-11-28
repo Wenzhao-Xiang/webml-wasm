@@ -66,7 +66,7 @@ class TestGatherTree(test.TestCase):
         max_sequence_lengths=max_sequence_lengths,
         end_token=11)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       res_ = sess.run(res)
 
     self.assertAllEqual(expected_result, res_)
@@ -115,7 +115,7 @@ class TestGatherTree(test.TestCase):
     sorted_array = beam_search_decoder.gather_tree_from_array(
         array, parent_ids, sequence_length)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sorted_array = sess.run(sorted_array)
       expected_array = sess.run(expected_array)
       self.assertAllEqual(expected_array, sorted_array)
@@ -170,7 +170,7 @@ class TestGatherTree(test.TestCase):
     sorted_array = beam_search_decoder.gather_tree_from_array(
         array, parent_ids, sequence_length)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       sorted_array, expected_array = sess.run([sorted_array, expected_array])
       self.assertAllEqual(expected_array, sorted_array)
 
@@ -186,7 +186,7 @@ class TestArrayShapeChecks(test.TestCase):
     batch_size = array_ops.constant(batch_size)
     check_op = beam_search_decoder._check_batch_beam(t, batch_size, beam_width)  # pylint: disable=protected-access
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       if is_valid:
         sess.run(check_op)
       else:
@@ -220,7 +220,7 @@ class TestEosMasking(test.TestCase):
     masked = beam_search_decoder._mask_probs(probs, eos_token,
                                              previously_finished)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       probs = sess.run(probs)
       masked = sess.run(masked)
 
@@ -248,7 +248,6 @@ class TestBeamStep(test.TestCase):
     self.vocab_size = 5
     self.end_token = 0
     self.length_penalty_weight = 0.6
-    self.coverage_penalty_weight = 0.0
 
   def test_step(self):
     dummy_cell_state = array_ops.zeros([self.batch_size, self.beam_width])
@@ -259,8 +258,7 @@ class TestBeamStep(test.TestCase):
         lengths=constant_op.constant(
             2, shape=[self.batch_size, self.beam_width], dtype=dtypes.int64),
         finished=array_ops.zeros(
-            [self.batch_size, self.beam_width], dtype=dtypes.bool),
-        accumulated_attention_probs=())
+            [self.batch_size, self.beam_width], dtype=dtypes.bool))
 
     logits_ = np.full([self.batch_size, self.beam_width, self.vocab_size],
                       0.0001)
@@ -283,10 +281,9 @@ class TestBeamStep(test.TestCase):
         batch_size=ops.convert_to_tensor(self.batch_size),
         beam_width=self.beam_width,
         end_token=self.end_token,
-        length_penalty_weight=self.length_penalty_weight,
-        coverage_penalty_weight=self.coverage_penalty_weight)
+        length_penalty_weight=self.length_penalty_weight)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       outputs_, next_state_, state_, log_probs_ = sess.run(
           [outputs, next_beam_state, beam_state, log_probs])
 
@@ -316,8 +313,7 @@ class TestBeamStep(test.TestCase):
         lengths=ops.convert_to_tensor(
             [[2, 1, 2], [2, 2, 1]], dtype=dtypes.int64),
         finished=ops.convert_to_tensor(
-            [[False, True, False], [False, False, True]], dtype=dtypes.bool),
-        accumulated_attention_probs=())
+            [[False, True, False], [False, False, True]], dtype=dtypes.bool))
 
     logits_ = np.full([self.batch_size, self.beam_width, self.vocab_size],
                       0.0001)
@@ -340,10 +336,9 @@ class TestBeamStep(test.TestCase):
         batch_size=ops.convert_to_tensor(self.batch_size),
         beam_width=self.beam_width,
         end_token=self.end_token,
-        length_penalty_weight=self.length_penalty_weight,
-        coverage_penalty_weight=self.coverage_penalty_weight)
+        length_penalty_weight=self.length_penalty_weight)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       outputs_, next_state_, state_, log_probs_ = sess.run(
           [outputs, next_beam_state, beam_state, log_probs])
 
@@ -377,7 +372,6 @@ class TestLargeBeamStep(test.TestCase):
     self.vocab_size = 5
     self.end_token = 0
     self.length_penalty_weight = 0.6
-    self.coverage_penalty_weight = 0.0
 
   def test_step(self):
 
@@ -417,8 +411,7 @@ class TestLargeBeamStep(test.TestCase):
         cell_state=dummy_cell_state,
         log_probs=log_probs,
         lengths=_lengths,
-        finished=_finished,
-        accumulated_attention_probs=())
+        finished=_finished)
 
     logits_ = np.full([self.batch_size, self.beam_width, self.vocab_size],
                       0.0001)
@@ -441,10 +434,9 @@ class TestLargeBeamStep(test.TestCase):
         batch_size=ops.convert_to_tensor(self.batch_size),
         beam_width=self.beam_width,
         end_token=self.end_token,
-        length_penalty_weight=self.length_penalty_weight,
-        coverage_penalty_weight=self.coverage_penalty_weight)
+        length_penalty_weight=self.length_penalty_weight)
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       outputs_, next_state_, _, _ = sess.run(
           [outputs, next_beam_state, beam_state, log_probs])
 
@@ -479,14 +471,12 @@ class BeamSearchDecoderTest(test.TestCase):
     output_layer = layers_core.Dense(vocab_size, use_bias=True, activation=None)
     beam_width = 3
 
-    with self.cached_session() as sess:
+    with self.test_session() as sess:
       batch_size_tensor = constant_op.constant(batch_size)
       embedding = np.random.randn(vocab_size, embedding_dim).astype(np.float32)
       cell = rnn_cell.LSTMCell(cell_depth)
       initial_state = cell.zero_state(batch_size, dtypes.float32)
-      coverage_penalty_weight = 0.0
       if has_attention:
-        coverage_penalty_weight = 0.2
         inputs = array_ops.placeholder_with_default(
             np.random.randn(batch_size, decoder_max_time, input_depth).astype(
                 np.float32),
@@ -518,8 +508,7 @@ class BeamSearchDecoderTest(test.TestCase):
           initial_state=cell_state,
           beam_width=beam_width,
           output_layer=output_layer,
-          length_penalty_weight=0.0,
-          coverage_penalty_weight=coverage_penalty_weight)
+          length_penalty_weight=0.0)
 
       final_outputs, final_state, final_sequence_lengths = (
           decoder.dynamic_decode(

@@ -22,7 +22,6 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -36,6 +35,7 @@ limitations under the License.
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "tensorflow/compiler/xla/ptr_util.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/llvm_ir_runtime.h"
 #include "tensorflow/compiler/xla/service/llvm_ir/llvm_util.h"
@@ -156,26 +156,9 @@ std::unique_ptr<llvm::MemoryBuffer> CompilerFunctor::operator()(
   target_machine_->addPassesToEmitMC(codegen_passes, mc_context, ostream);
   codegen_passes.run(module);
 
-  std::unique_ptr<llvm::MemoryBuffer> memory_buffer(
+  // Construct ObjectFile from machine code buffer.
+  return std::unique_ptr<llvm::MemoryBuffer>(
       new llvm::SmallVectorMemoryBuffer(std::move(stream_buffer)));
-
-  if (VLOG_IS_ON(2)) {
-    llvm::Expected<std::unique_ptr<llvm::object::ObjectFile>> obj_file =
-        llvm::object::ObjectFile::createObjectFile(*memory_buffer);
-    if (obj_file) {
-      StatusOr<DisassemblerResult> disasm_result =
-          disassembler_->DisassembleObjectFile(*obj_file.get());
-      if (disasm_result.ok()) {
-        XLA_VLOG_LINES(2, disasm_result.ValueOrDie().text);
-      } else {
-        LOG(WARNING) << "Could not disassemble object file!";
-      }
-    } else {
-      LOG(WARNING) << "Could convert memory buffer to object file!";
-    }
-  }
-
-  return memory_buffer;
 }
 
 static std::vector<llvm::VecDesc> VectorFunctionsForTargetLibraryInfoImpl() {
@@ -205,7 +188,7 @@ void CompilerFunctor::AddTargetInfoPasses(
     llvm::legacy::PassManagerBase* passes) const {
   llvm::Triple target_triple(target_machine_->getTargetTriple());
   auto target_library_info_impl =
-      absl::make_unique<llvm::TargetLibraryInfoImpl>(target_triple);
+      MakeUnique<llvm::TargetLibraryInfoImpl>(target_triple);
   target_library_info_impl->addVectorizableFunctions(
       VectorFunctionsForTargetLibraryInfoImpl());
   passes->add(

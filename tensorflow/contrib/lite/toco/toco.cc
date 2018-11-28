@@ -25,7 +25,6 @@ limitations under the License.
 #include "tensorflow/contrib/lite/toco/toco_port.h"
 #include "tensorflow/contrib/lite/toco/toco_tooling.h"
 #include "tensorflow/contrib/lite/toco/toco_types.h"
-#include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace toco {
@@ -70,8 +69,8 @@ void ReadInputData(const ParsedTocoFlags& parsed_toco_flags,
             .ok());
 }
 
-tensorflow::Status ToolMain(const ParsedTocoFlags& parsed_toco_flags,
-                            const ParsedModelFlags& parsed_model_flags) {
+void ToolMain(const ParsedTocoFlags& parsed_toco_flags,
+              const ParsedModelFlags& parsed_model_flags) {
   ModelFlags model_flags;
   ReadModelFlagsFromCommandLineFlags(parsed_model_flags, &model_flags);
 
@@ -87,12 +86,11 @@ tensorflow::Status ToolMain(const ParsedTocoFlags& parsed_toco_flags,
       Import(toco_flags, model_flags, graph_def_contents);
   Transform(toco_flags, model.get());
   string output_file_contents;
-  TF_RETURN_IF_ERROR(Export(toco_flags, *model, toco_flags.allow_custom_ops(),
-                            &output_file_contents));
-  TF_RETURN_IF_ERROR(
-      port::file::SetContents(parsed_toco_flags.output_file.value(),
-                              output_file_contents, port::file::Defaults()));
-  return tensorflow::Status();
+  Export(toco_flags, *model, toco_flags.allow_custom_ops(),
+         &output_file_contents);
+  CHECK(port::file::SetContents(parsed_toco_flags.output_file.value(),
+                                output_file_contents, port::file::Defaults())
+            .ok());
 }
 
 }  // namespace
@@ -126,6 +124,5 @@ int main(int argc, char** argv) {
     return 1;
   }
   toco::port::InitGoogle(argv[0], effective_argc, &effective_argv, true);
-  auto status = toco::ToolMain(parsed_toco_flags, parsed_model_flags);
-  return status.ok() ? 0 : -1;
+  toco::ToolMain(parsed_toco_flags, parsed_model_flags);
 }

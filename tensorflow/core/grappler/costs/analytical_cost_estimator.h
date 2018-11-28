@@ -39,16 +39,12 @@ class AnalyticalCostEstimator : public CostEstimator {
  public:
   // Does not take ownership of cluster.
   AnalyticalCostEstimator(Cluster* cluster, bool use_static_shapes);
-  // Does not take ownership of cluster or run_metadata
-  //
-  // When metadata is provided, step_stats and partition_graphs fields will
-  // always be filled during PredictCosts, and the cost_graph field of metadata
-  // will be filled only when cost_graph is not nullptr when invoking
-  // PredictCosts.
+  // Does not take ownership of the cluster, but takes ownership of the
+  // node_estimator and the node_manager
   AnalyticalCostEstimator(Cluster* cluster,
-                          std::unique_ptr<OpLevelCostEstimator> node_estimator,
-                          std::unique_ptr<ReadyNodeManager> node_manager,
-                          bool use_static_shapes, RunMetadata* run_metadata);
+                          OpLevelCostEstimator* node_estimator,
+                          ReadyNodeManager* node_manager,
+                          bool use_static_shapes);
   ~AnalyticalCostEstimator() override {}
 
   // Initializes the estimator for the specified grappler item.
@@ -57,21 +53,16 @@ class AnalyticalCostEstimator : public CostEstimator {
 
   // Predict the performance of each node of the optimized graph and annotate
   // the CostGraphDef with the corresponding estimates. Also returns the
-  // expected cost for the whole graph.
+  // expected latency for the whole graph.
   Status PredictCosts(const GraphDef& optimized_graph, CostGraphDef* cost_graph,
-                      Costs* cost) const override;
-
-  const VirtualScheduler* GetScheduler() const { return scheduler_.get(); }
+                      Costs* overall_latency) const override;
 
  private:
-  Cluster* cluster_;
+  Cluster* cluster_;  // Not owned.
   GrapplerItem item_;
   std::unique_ptr<OpLevelCostEstimator> node_estimator_;
   std::unique_ptr<ReadyNodeManager> node_manager_;
   bool use_static_shapes_;
-  std::unique_ptr<VirtualScheduler> scheduler_;
-
-  RunMetadata* run_metadata_;
 };
 
 }  // end namespace grappler

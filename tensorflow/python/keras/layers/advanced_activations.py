@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.keras import activations
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
@@ -54,7 +55,6 @@ class LeakyReLU(Layer):
     super(LeakyReLU, self).__init__(**kwargs)
     self.supports_masking = True
     self.alpha = K.cast_to_floatx(alpha)
-    self._can_use_graph_functions = True
 
   def call(self, inputs):
     return K.relu(inputs, alpha=self.alpha)
@@ -118,7 +118,6 @@ class PReLU(Layer):
       self.shared_axes = [shared_axes]
     else:
       self.shared_axes = list(shared_axes)
-    self._can_use_graph_functions = True
 
   @tf_utils.shape_type_conversion
   def build(self, input_shape):
@@ -193,7 +192,6 @@ class ELU(Layer):
     super(ELU, self).__init__(**kwargs)
     self.supports_masking = True
     self.alpha = K.cast_to_floatx(alpha)
-    self._can_use_graph_functions = True
 
   def call(self, inputs):
     return K.elu(inputs, self.alpha)
@@ -233,7 +231,6 @@ class ThresholdedReLU(Layer):
     super(ThresholdedReLU, self).__init__(**kwargs)
     self.supports_masking = True
     self.theta = K.cast_to_floatx(theta)
-    self._can_use_graph_functions = True
 
   def call(self, inputs, mask=None):
     return inputs * math_ops.cast(
@@ -269,10 +266,9 @@ class Softmax(Layer):
     super(Softmax, self).__init__(**kwargs)
     self.supports_masking = True
     self.axis = axis
-    self._can_use_graph_functions = True
 
   def call(self, inputs):
-    return K.softmax(inputs, axis=self.axis)
+    return activations.softmax(inputs, axis=self.axis)
 
   def get_config(self):
     config = {'axis': self.axis}
@@ -288,13 +284,6 @@ class Softmax(Layer):
 class ReLU(Layer):
   """Rectified Linear Unit activation function.
 
-  With default values, it returns element-wise `max(x, 0)`.
-
-  Otherwise, it follows:
-  `f(x) = max_value` for `x >= max_value`,
-  `f(x) = x` for `threshold <= x < max_value`,
-  `f(x) = negative_slope * (x - threshold)` otherwise.
-
   Input shape:
       Arbitrary. Use the keyword argument `input_shape`
       (tuple of integers, does not include the samples axis)
@@ -305,41 +294,21 @@ class ReLU(Layer):
 
   Arguments:
       max_value: float >= 0. Maximum activation value.
-      negative_slope: float >= 0. Negative slope coefficient.
-      threshold: float. Threshold value for thresholded activation.
   """
 
-  def __init__(self, max_value=None, negative_slope=0, threshold=0, **kwargs):
+  def __init__(self, max_value=None, **kwargs):
     super(ReLU, self).__init__(**kwargs)
-    if max_value is not None and max_value < 0.:
+    self.support_masking = True
+    self.max_value = K.cast_to_floatx(max_value)
+    if self.max_value < 0.:
       raise ValueError('max_value of Relu layer '
                        'cannot be negative value: ' + str(max_value))
-    if negative_slope < 0.:
-      raise ValueError('negative_slope of Relu layer '
-                       'cannot be negative value: ' + str(negative_slope))
-
-    self.support_masking = True
-    if max_value is not None:
-      max_value = K.cast_to_floatx(max_value)
-    self.max_value = max_value
-    self.negative_slope = K.cast_to_floatx(negative_slope)
-    self.threshold = K.cast_to_floatx(threshold)
-    self._can_use_graph_functions = True
 
   def call(self, inputs):
-    # alpha is used for leaky relu slope in activations instead of
-    # negative_slope.
-    return K.relu(inputs,
-                  alpha=self.negative_slope,
-                  max_value=self.max_value,
-                  threshold=self.threshold)
+    return activations.relu(inputs, max_value=self.max_value)
 
   def get_config(self):
-    config = {
-        'max_value': self.max_value,
-        'negative_slope': self.negative_slope,
-        'threshold': self.threshold
-    }
+    config = {'max_value': self.max_value}
     base_config = super(ReLU, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 

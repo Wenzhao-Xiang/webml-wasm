@@ -69,11 +69,8 @@ class SparseSoftmaxOp : public OpKernel {
 
     const int nnz = static_cast<int>(indices_t->dim_size(0));
     const int rank = static_cast<int>(indices_t->dim_size(1));
-    SparseTensor st;
-    OP_REQUIRES_OK(
-        context, SparseTensor::Create(
-                     tensor::DeepCopy(*indices_t), tensor::DeepCopy(*values_t),
-                     TensorShape(shape_t->flat<int64>()), &st));
+    SparseTensor st(tensor::DeepCopy(*indices_t), tensor::DeepCopy(*values_t),
+                    TensorShape(shape_t->flat<int64>()));
 
     Tensor *output_values = nullptr;
     OP_REQUIRES_OK(context, context->allocate_output(0, TensorShape({nnz}),
@@ -90,7 +87,7 @@ class SparseSoftmaxOp : public OpKernel {
     // { 0, ..., rank-1 }.
     const ArraySlice<int64> kReorderDims(dims);
     // All but the last dim -- the class dimension to be max-reduced along.
-    const ArraySlice<int64> kGroupByDims = kReorderDims.subspan(0, rank - 1);
+    const ArraySlice<int64> kGroupByDims(kReorderDims, 0, rank - 1);
     st.Reorder<T>(kReorderDims);
     int count = 0;
 

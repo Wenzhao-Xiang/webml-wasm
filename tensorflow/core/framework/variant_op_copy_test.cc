@@ -90,15 +90,15 @@ REGISTER_UNARY_VARIANT_DECODE_FUNCTION(StoredTensorValue, "StoredTensorValue");
 
 INTERNAL_REGISTER_UNARY_VARIANT_DEVICE_COPY_FUNCTION(
     StoredTensorValue, VariantDeviceCopyDirection::HOST_TO_DEVICE,
-    StoredTensorValue::CopyCPUToGPU);
+    "StoredTensorValue", StoredTensorValue::CopyCPUToGPU);
 
 INTERNAL_REGISTER_UNARY_VARIANT_DEVICE_COPY_FUNCTION(
     StoredTensorValue, VariantDeviceCopyDirection::DEVICE_TO_HOST,
-    StoredTensorValue::CopyGPUToCPU);
+    "StoredTensorValue", StoredTensorValue::CopyGPUToCPU);
 
 INTERNAL_REGISTER_UNARY_VARIANT_DEVICE_COPY_FUNCTION(
     StoredTensorValue, VariantDeviceCopyDirection::DEVICE_TO_DEVICE,
-    StoredTensorValue::CopyGPUToGPU);
+    "StoredTensorValue", StoredTensorValue::CopyGPUToGPU);
 
 REGISTER_OP("CreateTestVariant")
     .Input("input: T")

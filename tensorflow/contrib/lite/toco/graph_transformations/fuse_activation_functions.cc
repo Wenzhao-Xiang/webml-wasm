@@ -25,30 +25,27 @@ limitations under the License.
 
 namespace toco {
 
-::tensorflow::Status FuseActivationFunctions::Run(Model* model,
-                                                  std::size_t op_index,
-                                                  bool* modified) {
-  *modified = false;
+bool FuseActivationFunctions::Run(Model* model, std::size_t op_index) {
   const auto ac_it = model->operators.begin() + op_index;
   const auto* ac_op = ac_it->get();
 
   if (ac_op->type != OperatorType::kRelu6 &&
       ac_op->type != OperatorType::kRelu1 &&
       ac_op->type != OperatorType::kRelu) {
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   // Find the op producing the array passed to this activation function
   Operator* op = GetOpWithOutput(*model, ac_op->inputs[0]);
 
-  if (!op) return ::tensorflow::Status::OK();
+  if (!op) return false;
 
   if (CountTrueOutputs(*model, *op) > 1) {
     AddMessageF(
         "Not fusing activation function %s into %s because it has more than "
         "one  consumed output",
         LogName(*ac_op), LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   CHECK_EQ(op->outputs[0], ac_op->inputs[0]);
@@ -60,7 +57,7 @@ namespace toco {
         "Not fusing activation function into %s because it is consumed by more "
         "than 1 other operator",
         LogName(*ac_op), LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!IsDiscardableArray(*model, op->outputs[0])) {
@@ -68,7 +65,7 @@ namespace toco {
         "Not fusing activation function %s into %s because output %s it is not "
         "discardable",
         LogName(*ac_op), LogName(*op), op->outputs[0]);
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (op->fused_activation_function != FusedActivationFunctionType::kNone) {
@@ -76,7 +73,7 @@ namespace toco {
         "Not fusing activation function %s into %s because it already has a "
         "fused activation function",
         LogName(*ac_op), LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   if (!OperatorSupportsFusedActivation(op->type)) {
@@ -84,7 +81,7 @@ namespace toco {
         "Not fusing activation function %s because the %s op doesn't support "
         "it",
         LogName(*ac_op), LogName(*op));
-    return ::tensorflow::Status::OK();
+    return false;
   }
 
   AddMessageF("Fusing activation function %s into the preceding %s",
@@ -101,8 +98,7 @@ namespace toco {
   model->EraseArray(ac_op->inputs[0]);
   op->outputs[0] = ac_op->outputs[0];
   model->operators.erase(ac_it);
-  *modified = true;
-  return ::tensorflow::Status::OK();
+  return true;
 }
 
 }  // namespace toco
