@@ -1,1 +1,0 @@
-/home/gwy/Documents/webml/emsdk/emscripten/1.38.19/em++   -DNDEBUG -O2  -O2 -s WASM=1 -s NO_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1 -s MODULARIZE=1 --memory-init-file 0 --bind @CMakeFiles/nn_ops.dir/objects1.rsp  -o nn_ops.js  
