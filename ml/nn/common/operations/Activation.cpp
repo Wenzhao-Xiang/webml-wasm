@@ -114,15 +114,15 @@ bool softmaxFloat32(const float* inputData, const Shape& inputShape, const float
     int32_t axis = ndim - 1;
     NN_CHECK(handleNegativeAxis(inputShape, &axis));
     // TFLite optimized implementation only supports computation along the last axis
-    /*if (axis == ndim - 1) {
+    if (axis == ndim - 1) {
         // NNTRACE_COMP("optimized_ops::Softmax::float");
-        tflite::SoftmaxParams param = {.beta = beta};
-        tflite::optimized_ops::Softmax(param, convertShapeToTflshape(inputShape), inputData,
-                                       convertShapeToTflshape(outputShape), outputData);
+        // tflite::SoftmaxParams param = {.beta = beta};
+        tflite::optimized_ops::Softmax(inputData, convertShapeToTflshape(inputShape), beta,
+                                       outputData, convertShapeToTflshape(outputShape));
         return true;
-    } else {*/
+    } else {
         return softmaxFloat32Impl(inputData, inputShape, beta, axis, outputData, outputShape);
-    // }
+    }
 }
 
 #define ANDROID_NN_RELUX_QUANT8(activation)                             \
